@@ -1,0 +1,755 @@
+use std::collections::HashMap;
+use std::vec::Vec;
+use std::fs::File;
+use std::io::BufReader;
+use std::path::{Path, PathBuf};
+use std::result::Result;
+use serde::de::{Deserialize, Deserializer };
+use serde_json::{Error, from_reader, from_str};
+
+use super::super::geom::V2;
+
+
+/// #Tile-flipping constants
+/// See https://docs.mapeditor.org/en/latest/reference/tmx-map-format/#tile-flipping
+const FLIPPED_HORIZONTALLY_FLAG: u32 = 0x80000000;
+const FLIPPED_VERTICALLY_FLAG: u32   = 0x40000000;
+const FLIPPED_DIAGONALLY_FLAG: u32   = 0x20000000;
+
+
+#[derive(Deserialize, Clone, Hash, PartialEq, Eq, Debug)]
+pub struct GlobalId(pub u32);
+
+impl GlobalId {
+  pub fn convert_to_local(&self, gid: &GlobalId) -> LocalId {
+    let GlobalId(fgid) = self;
+    let GlobalId(tgid) = gid;
+    LocalId(tgid - fgid)
+  }
+}
+
+
+#[derive(Clone, Hash, PartialEq, Debug)]
+pub struct GlobalTileIndex {
+  pub id: GlobalId,
+  pub is_flipped_horizontally: bool,
+  pub is_flipped_vertically: bool,
+  pub is_flipped_diagonally: bool
+}
+
+
+impl<'de> Deserialize<'de> for GlobalTileIndex {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>
+  {
+    let bits:u32 =
+      u32::deserialize(deserializer)?;
+    let is_flipped_horizontally =
+      (bits & FLIPPED_HORIZONTALLY_FLAG) > 0;
+    let is_flipped_vertically =
+      (bits & FLIPPED_VERTICALLY_FLAG) > 0;
+    let is_flipped_diagonally =
+      (bits & FLIPPED_DIAGONALLY_FLAG) > 0;
+    let id =
+      GlobalId(
+        bits & !(
+          FLIPPED_HORIZONTALLY_FLAG
+            | FLIPPED_VERTICALLY_FLAG
+            | FLIPPED_DIAGONALLY_FLAG
+        )
+      );
+    Ok(GlobalTileIndex {
+      id,
+      is_flipped_diagonally,
+      is_flipped_vertically,
+      is_flipped_horizontally
+    })
+  }
+}
+
+
+#[derive(Deserialize, Clone, Hash, PartialEq, Eq, Debug)]
+pub struct LocalId(pub u32);
+
+fn no() -> bool {
+  false
+}
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct Point<T> {
+  pub x: T,
+  pub y: T
+}
+
+#[derive(Deserialize, Clone, Debug)]
+#[serde(untagged)]
+pub enum TextValue {
+  String(String),
+  Int(u16),
+  Bool(bool)
+}
+
+
+impl TextValue {
+  pub fn get_string(&self) -> Option<String> {
+    match self {
+      TextValue::String(s) => {
+        Some(s.clone())
+      }
+      _ => { None }
+    }
+  }
+
+  pub fn get_uint(&self) -> Option<u16> {
+    match self {
+      TextValue::Int(i) => {
+        Some(*i)
+      }
+      _ => { None }
+    }
+  }
+
+  pub fn get_bool(&self) -> Option<bool> {
+    match self {
+      TextValue::Bool(b) => {
+        Some(*b)
+      }
+      _ => { None }
+    }
+  }
+}
+
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct Object {
+  pub id: u32,
+
+  pub width: f32,
+
+  pub height: f32,
+
+  pub name: String,
+
+  #[serde(rename="type")]
+  pub type_is: String,
+
+  #[serde(default)]
+  pub properties: HashMap<String, String>,
+
+  pub visible: bool,
+
+  pub x: f32,
+
+  pub y: f32,
+
+  pub rotation: f32,
+
+  pub gid: Option<GlobalTileIndex>,
+
+  #[serde(default = "no")]
+  pub ellipse: bool,
+
+  #[serde(default = "no")]
+  pub point: bool,
+
+  pub polygon: Option<Vec<Point<f32>>>,
+
+  pub polyline: Option<Vec<Point<f32>>>,
+
+  #[serde(default)]
+  pub text: HashMap<String, TextValue>
+}
+
+
+impl Object {
+  pub fn get_all_properties(&self, map: &Tiledmap) -> HashMap<String, String> {
+    let mut object_properties =
+      self.properties.clone();
+    let tile_properties =
+      if let Some(gid) = &self.gid {
+        if let Some(tile) = map.get_tile(&gid.id) {
+          tile
+            .properties
+            .clone()
+        } else {
+          HashMap::new()
+        }
+      } else {
+        HashMap::new()
+      };
+    object_properties.extend(tile_properties);
+    object_properties
+  }
+
+
+  /// Return the type of the object. If the type is not specified
+  /// at the object level, descend into any underlying tile data
+  /// to find the type.
+  pub fn get_deep_type(&self, map: &Tiledmap) -> String {
+    if self.type_is.is_empty() {
+      if let Some(ref gid) = self.gid {
+        if let Some(tile) = map.get_tile(&gid.id) {
+          return tile.type_is.clone();
+        }
+      }
+    }
+    self.type_is.clone()
+  }
+}
+
+
+fn topdown() -> String {"topdown".to_string()}
+fn empty() -> String {"".to_string()}
+
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct TileLayerData {
+  /// Column count. Same as map width for fixed-size maps.
+  pub width: u32,
+
+  /// Row count. Same as map height for fixed-size maps.
+  pub height: u32,
+
+  /// Array of tile indices.
+  pub data: Vec<GlobalTileIndex>,
+}
+
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct ObjectLayerData {
+  /// “topdown” (default) or “index”. objectgroup only.
+  #[serde(default = "topdown")]
+  pub draworder: String,
+
+  /// Array of Objects. objectgroup only.
+  pub objects: Vec<Object>,
+}
+
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct LayerLayerData {
+  pub layers: Vec<Layer>
+}
+
+
+#[derive(Deserialize, Clone, Debug)]
+#[serde(untagged)]
+pub enum LayerData {
+  Tiles(TileLayerData),
+  Objects(ObjectLayerData),
+  Layers(LayerLayerData)
+}
+
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct Layer {
+  /// Name assigned to this layer
+  pub name: String,
+
+  /// “tilelayer”, “objectgroup”, or “imagelayer”
+  #[serde(rename="type")]
+  pub type_is: String,
+
+  /// Whether layer is shown or hidden in editor
+  pub visible: bool,
+
+  /// Horizontal layer offset in tiles. Always 0.
+  pub x: i32,
+
+  /// Vertical layer offset in tiles. Always 0.
+  pub y: i32,
+
+  /// string key-value pairs.
+  #[serde(default)]
+  pub properties: HashMap<String, String>,
+
+  /// Value between 0 and 1
+  pub opacity: f32,
+
+  /// The layer's data which depends on the type of layer.
+  #[serde(flatten)]
+  pub layer_data: LayerData
+}
+
+
+impl Layer {
+  pub fn get_z(&self) -> Option<i32> {
+    let s = self.properties.get("z")?;
+    from_str(s)
+      .expect("Could not read layer z")
+  }
+  pub fn get_z_inc(&self) -> Option<i32> {
+    let s = self.properties.get("z_inc")?;
+    from_str(s).expect("Could not read layer z_inc")
+  }
+
+  pub fn is_group(&self) -> bool {
+    match self.layer_data {
+      LayerData::Layers(_) => { true }
+      _ => { false }
+    }
+  }
+
+  /// Return this layer's objects, or an empty vector.
+  pub fn objects(&self) -> Vec<&Object> {
+    match &self.layer_data {
+      LayerData::Objects(objects) => {
+        objects
+          .objects
+          .iter()
+          .collect()
+      }
+      _ => {
+        vec![]
+      }
+    }
+  }
+
+
+  /// Return the first object with the given name, if possible
+  pub fn get_object_by_name(&self, name: &str) -> Option<&Object> {
+    for obj in self.objects() {
+      if obj.name == name {
+        return Some(obj);
+      }
+    }
+    None
+  }
+}
+
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct Terrain {
+  /// Name of terrain
+  pub name: String,
+  /// Local ID of tile representing terrain
+  pub tile: LocalId
+}
+
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct Frame {
+  pub duration: u32,
+  pub tileid: LocalId
+}
+
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct ObjectGroup {
+  pub draworder: String,
+
+  pub name: String,
+
+  pub objects: Vec<Object>,
+
+  pub opacity: f32,
+
+  #[serde(rename="type")]
+  pub type_is: String,
+
+  pub visible: bool,
+
+  pub x: u32,
+
+  pub y: u32,
+}
+
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct Tile {
+  #[serde(rename="type")]
+  #[serde(default = "empty")]
+  pub type_is: String,
+
+  #[serde(default)]
+  pub properties: HashMap<String, String>,
+
+  #[serde(rename="objectgroup")]
+  pub object_group: Option<ObjectGroup>,
+
+  pub animation: Option<Vec<Frame>>
+}
+
+impl Tile {
+  /// The object with the given name, if possible.
+  pub fn _object_with_name(&self, name: &String) -> Option<&Object> {
+    let group = self.object_group.as_ref()?;
+    for obj in &group.objects {
+      if obj.name == *name {
+        return Some(&obj);
+      }
+    }
+    None
+  }
+
+  /// The object with the given type, if possible.
+  pub fn object_with_type(&self, type_is: &String) -> Option<&Object> {
+    let group = self.object_group.as_ref()?;
+    for obj in &group.objects {
+      if obj.type_is == *type_is {
+        return Some(&obj);
+      }
+    }
+    None
+  }
+}
+
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct Tileset {
+  /// Image used for tiles in this set
+  pub image: String,
+
+  /// Name given to this tileset
+  pub name: String,
+
+  /// Maximum width of tiles in this set
+  pub tilewidth: u32,
+
+  /// Maximum height of tiles in this set
+  pub tileheight: u32,
+
+  /// Width of source image in pixels
+  pub imagewidth: u32,
+
+  /// Height of source image in pixels
+  pub imageheight: u32,
+
+  /// String key-value pairs
+  #[serde(default)]
+  pub properties: HashMap<String, String>,
+
+  /// String key-value pairs
+  #[serde(default)]
+  pub propertytypes: HashMap<String, String>,
+
+  /// Buffer between image edge and first tile (pixels)
+  pub margin: u32,
+
+  /// Spacing between adjacent tiles in image (pixels)
+  pub spacing: u32,
+
+  /// Per-tile properties
+  #[serde(default)]
+  pub tileproperties: HashMap<LocalId, HashMap<String, String>>,
+
+  /// Array of Terrains (optional)
+  #[serde(default)]
+  pub terrains: Vec<Terrain>,
+
+  /// The number of tile columns in the tileset
+  pub columns: u32,
+
+  /// The number of tiles in this tileset
+  pub tilecount: u32,
+
+  /// Tiles (optional)
+  #[serde(default)]
+  pub tiles: HashMap<LocalId, Tile>,
+}
+
+
+#[derive(Debug, Clone, PartialEq, Hash)]
+pub struct AABB<T> {
+  pub x: T,
+  pub y: T,
+  pub w: T,
+  pub h: T
+}
+
+
+impl Tileset {
+  /// Given a GlobalId, return the rectangle (x, y, w, h) of the tile at that
+  /// index in this Tileset, if it is indeed contained within this Tileset.
+  pub fn
+    aabb_of_tile_index (&self, ndx: u32) -> Option<AABB<u32>> {
+      if ndx < self.tilecount {
+        let tw = self.tilewidth;
+        let th = self.tileheight;
+        let m  = self.margin;
+        let s  = self.spacing;
+        let nc = self.columns;
+        let yndx = ndx / nc;
+        let xndx = ndx % nc;
+        let x = m + (tw + s) * xndx;
+        let y = m + (th + s) * yndx;
+        Some(AABB{x:x, y:y, w:tw, h:th})
+      } else {
+        None
+      }
+  }
+
+
+  /// Return the source AABB of the given tile's LocalId in this Tileset,
+  /// if possible.
+  pub fn aabb_local (&self, lid: &LocalId) -> Option<AABB<u32>> {
+    let LocalId(local_ndx) = lid;
+    if *local_ndx < self.tilecount {
+      self.aabb_of_tile_index(*local_ndx)
+    } else {
+      None
+    }
+  }
+
+
+  /// Return the source AABB of the given tile GlobalId in this Tileset,
+  /// if possible.
+  pub fn aabb (&self, firstgid:&GlobalId, tilegid:&GlobalId) -> Option<AABB<u32>> {
+    let lid = firstgid.convert_to_local(tilegid);
+    self.aabb_local(&lid)
+  }
+
+
+  /// Return the Tile with the given gid in this Tileet, if possible.
+  pub fn tile (&self, firstgid: &GlobalId, tilegid: &GlobalId) -> Option<&Tile> {
+    let l = firstgid.convert_to_local(tilegid);
+    self.tiles.get(&l)
+  }
+
+
+  pub fn extend_tiles_with_tileproperties(&mut self) {
+    for (local_id, tile) in self.tiles.iter_mut() {
+      let props:HashMap<_, _> =
+        self
+        .tileproperties
+        .get(local_id)
+        .map(|ps| ps.clone())
+        .unwrap_or(HashMap::new());
+      tile.properties.extend(props);
+    }
+  }
+
+}
+
+
+
+/// An externally defined tileset.
+#[derive(Deserialize, Debug, Clone)]
+// #[serde(transparent)]
+pub struct TilesetSource {
+  /// A path to a tileset file, relative to its owner.
+  pub source: String
+}
+
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum TilesetPayload {
+  Embedded(Tileset),
+  Source(TilesetSource),
+}
+
+
+/// When a Tileset lives in a Tiledmap it may be an embedded
+/// Tileset or a link to an external file, but both live inline with a
+/// firstgid property.
+#[derive(Deserialize, Clone, Debug)]
+pub struct TilesetItem {
+  /// GID corresponding to the first tile in the set
+  pub firstgid: GlobalId,
+  /// The item.
+  #[serde(flatten)]
+  pub payload: TilesetPayload
+}
+
+
+impl TilesetItem {
+  /// Hydrate any TilesetItem into a Tileset.
+  /// This loads any external tilesets, as well as extends each Tile's properties
+  /// to include thos in the set's tileproperties.
+  pub fn hydrate_tileset (&self, path_prefix: &Path) -> Result<Tileset, Error> {
+    let extend = |s: &Tileset| {
+      let mut set = s.clone();
+      set.extend_tiles_with_tileproperties();
+      set
+    };
+    match &self.payload {
+      TilesetPayload::Embedded(s) => { Ok( extend(s) ) }
+      TilesetPayload::Source(s) => {
+        let path:PathBuf =
+          path_prefix.join(Path::new(&s.source));
+        println!("Hydrating tileset with path {:?}", path);
+        let file =
+          File::open(path.clone()).unwrap();
+        let reader =
+          BufReader::new(file);
+        from_reader(reader)
+          .map(|s: Tileset| {
+            let img_path:PathBuf =
+              path
+              .parent()
+              .unwrap()
+              .to_path_buf()
+              .join(s.image.clone());
+            let mut s = s;
+            s.image =
+              img_path
+              .to_str()
+              .unwrap()
+              .to_string();
+            extend(&s)
+          })
+      }
+    }
+  }
+
+  /// Return the Tileset, if possible.
+  pub fn tileset (&self) -> Option<&Tileset> {
+    match &self.payload {
+      TilesetPayload::Embedded(s) => { Some(s) }
+      _ => None
+    }
+  }
+}
+
+
+/// Our top level tiled map.
+#[derive(Deserialize, Clone, Debug)]
+pub struct Tiledmap {
+  /// The JSON format version
+  pub version: f32,
+
+  /// The Tiled version used to save the file
+  pub tiledversion: String,
+
+  /// Number of tile columns
+  pub width: i32,
+
+  /// Number of tile rows
+  pub height: i32,
+
+  /// Map grid width.
+  pub tilewidth: i32,
+
+  /// Map grid height.
+  pub tileheight: i32,
+
+  /// Orthogonal, isometric, or staggered
+  pub orientation: String,
+
+  /// Array of Layers
+  pub layers: Vec<Layer>,
+
+  /// Array of Tilesets
+  pub tilesets: Vec<TilesetItem>,
+
+  /// Hex-formatted color (#RRGGBB or #AARRGGBB) (optional)
+  pub backgroundcolor: Option<String>,
+
+  /// Rendering direction (orthogonal maps only)
+  pub renderorder: String,
+
+  /// String key-value pairs
+  #[serde(default)]
+  pub properties: HashMap<String, String>,
+
+  /// Auto-increments for each placed object
+  pub nextobjectid: i32,
+}
+
+
+impl Tiledmap {
+  pub fn from_file(file: &str) -> Tiledmap {
+    Self::new(Path::new(file))
+  }
+
+  pub fn new(path: &Path) -> Tiledmap {
+    println!("Opening Tiled map file {:?}", path);
+    let file = File::open(path)
+      .expect(&format!("Could not open the file '{:?}'.", path));
+    let reader = BufReader::new(file);
+    let m1:Tiledmap = from_reader(reader)
+      .expect("Could not read a file.");
+    if let Some(parent) = path.parent() {
+      m1.hydrate_tilesets(parent)
+        .expect(&format!("Could not hydrate a Tileset in directory '{:?}'.",parent))
+    } else {
+      m1
+    }
+  }
+  /// Hydrate all tilesets and return them in a map.
+  pub fn
+    hydrate_tilesets (
+      self,
+      path_prefix: &Path
+    ) -> Result<Tiledmap, Error> {
+    let mut tm = self.clone();
+    for mut item in tm.tilesets.iter_mut() {
+      let tileset = item.hydrate_tileset(path_prefix)?;
+      item.payload = TilesetPayload::Embedded(tileset);
+    }
+    Ok(tm)
+  }
+
+  /// Return the Tileset that contains the GlobalId. If the Tilemap has not
+  /// hydrated its tilesets, this will always return None.
+  /// @see hydrate_tilesets
+  pub fn get_tileset_by_gid (&self, global_id:&GlobalId) -> Option<(&GlobalId, &Tileset)> {
+    match &global_id {
+      GlobalId(0) => { None }
+      GlobalId(gid) => {
+        for item in self.tilesets.iter() {
+          let GlobalId(fgid) =
+            item
+            .firstgid;
+          let set =
+            item
+            .tileset()
+            .unwrap();
+          if *gid >= fgid && *gid < (fgid + set.tilecount) {
+            return Some((&item.firstgid, set));
+          }
+        }
+        None
+      }
+    }
+  }
+
+  pub fn get_tile(&self, gid: &GlobalId) -> Option<&Tile> {
+    let (firstgid, tileset) = self.get_tileset_by_gid(gid)?;
+    tileset.tile(firstgid, gid)
+  }
+
+  pub fn _get_tile_properties(
+    &self,
+    tile_gid: &GlobalId
+  ) -> Option<HashMap<String, String>> {
+    let tile = self.get_tile(tile_gid)?;
+    Some(tile.properties.clone())
+  }
+
+
+  pub fn get_tile_object_group(
+    &self,
+    tile_gid: &GlobalId
+  ) -> Option<ObjectGroup> {
+    let tile = self.get_tile(tile_gid)?;
+    tile.object_group.clone()
+  }
+
+
+  /// Return the layer with the given name
+  pub fn get_layer_with_name(&self, name: &str) -> Option<&Layer> {
+    for layer in &self.layers {
+      if layer.name == name.to_string() {
+        return Some(&layer);
+      }
+    }
+    None
+  }
+
+  /// The sprite offset is an offset applied to sprites that are defined in an
+  /// external map file. It is used to determine the offset to apply to the
+  /// objects within the map file in order for them to line up correctly on
+  /// the map.
+  ///
+  /// For this to work, the map itself must have the 'sprite_offset' property
+  /// defined.
+  pub fn get_sprite_offset(&self) -> Option<V2> {
+    let s = self.properties.get("sprite_offset")?;
+    let p:V2 = from_str(s)
+      .expect("Could not deserialize sprite offset.");
+    Some(p.scalar_mul(-1.0))
+  }
+}

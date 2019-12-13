@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>loading-maps</title>
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+        <script src="pkg/loading_maps.js"></script>
+        <script type=module>
+         window
+             .wasm_bindgen('pkg/loading_maps_bg.wasm')
+             .then( m => m.main() )
+             .catch(console.error);
+        </script>
+    </body>
+</html>

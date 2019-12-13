@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+  "old_gods",
+  "examples/loading-maps"
+]

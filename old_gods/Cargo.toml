@@ -1,0 +1,43 @@
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[package]
+name = "old_gods"
+version = "0.0.0"
+authors = ["Schell Scivally <efsubenovex@gmail.com>"]
+edition = "2018"
+features = ["alloc"]
+
+[dependencies]
+either = "1.5.2"
+rand = "0.7"
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+specs-derive = "0.2"
+shrev = "1.0"
+shred-derive = "0.5"
+spade = "1.5.1"
+nom = "5.0.0-beta2"
+
+
+[dependencies.web-sys]
+version = "0.3.32"
+features = [
+  "KeyboardEvent",
+  "Location",
+  "Performance"
+]
+#[dependencies.sdl2]
+#version = "0.32.0"
+#default-features = false
+#features = [ "mixer", "image", "ttf" ]
+
+[dependencies.specs]
+version = "0.15"
+default-features = false
+
+[dependencies.shred]
+version = "0.7"
+#default-features = false
+#features = ["nightly"]
