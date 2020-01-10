@@ -14,3 +14,14 @@ I expect this to decrease 10x.
 * Collision detection and handling (SAT for AABBs)
 * Dynamic viewport rendering
 * Inventory and items
+
+## Building
+
+```
+cargo build
+cd examples/{some example}
+wasm-pack build --target no-modules
+basic-http-server -x -a 127.0.0.1:8888
+```
+
+Then visit http://localhost:8888/
