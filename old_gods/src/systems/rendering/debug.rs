@@ -85,7 +85,7 @@ impl<'ctx, 'res, 'sys> RenderDebug {
     Text {
       text: text.to_string(),
       font: Self::debug_font_details(),
-      color: Color::RGB(255, 255, 255),
+      color: Color::rgb(255, 255, 255),
       size: (16, 16)
     }
   }
@@ -150,7 +150,7 @@ impl<'ctx, 'res, 'sys> RenderDebug {
       let p2 = p1 + v;
       let lines =
         Self::arrow_lines(p1, p2);
-      canvas.set_draw_color(Color::RGB(255, 255, 0));
+      canvas.set_draw_color(Color::rgb(255, 255, 0));
       canvas.draw_lines(lines.as_slice())
         .expect("Could not draw velocity lines.");
     }
@@ -173,7 +173,7 @@ impl<'ctx, 'res, 'sys> RenderDebug {
       let p =
         screen
         .map_to_screen(&(position.0 + offset));
-      canvas.set_draw_color(Color::RGB(0, 255, 255));
+      canvas.set_draw_color(Color::rgb(0, 255, 255));
       canvas.draw_rect(
         Rect::new(
           p.x as i32 - 24,
@@ -301,9 +301,9 @@ impl<'ctx, 'res, 'sys> RenderDebug {
         };
       let color =
         if is_exiled {
-          Color::RGBA(255, 255, 255, alpha)
+          Color::rgba(255, 255, 255, alpha)
         } else {
-          Color::RGBA(255, 0, 0, alpha)
+          Color::rgba(255, 0, 0, alpha)
         };
       canvas.set_draw_color(color);
 
@@ -335,7 +335,7 @@ impl<'ctx, 'res, 'sys> RenderDebug {
           .midpoints();
         // light red
         let color =
-          Color::RGB(255, 128, 128);
+          Color::rgb(255, 128, 128);
         canvas
           .set_draw_color(color);
         for (axis, midpoint) in axes.into_iter().zip(midpoints) {
@@ -366,7 +366,7 @@ impl<'ctx, 'res, 'sys> RenderDebug {
             // Draw the union of their aabbs to show the
             // broad phase collision
             let color =
-              Color::RGB(255, 128, 64); // orange
+              Color::rgb(255, 128, 64); // orange
             canvas
               .set_draw_color(color);
             let union =
@@ -395,7 +395,7 @@ impl<'ctx, 'res, 'sys> RenderDebug {
             mtv
               .map(|mtv| {
                 canvas
-                  .set_draw_color(Color::RGB(255, 255, 255));
+                  .set_draw_color(Color::rgb(255, 255, 255));
                 Self::draw_map_point(
                   other_aabb.center(),
                   screen,
@@ -416,7 +416,7 @@ impl<'ctx, 'res, 'sys> RenderDebug {
             //  .first()
             //  .map(|axis| {
             //    canvas
-            //      .set_draw_color(Color::RGB(255, 255, 255));
+            //      .set_draw_color(Color::rgb(255, 255, 255));
             //    // Draw the axis
             //    Self::draw_map_arrow(
             //      union.top_left - axis.scalar_mul(15.0),
@@ -426,13 +426,13 @@ impl<'ctx, 'res, 'sys> RenderDebug {
             //    );
             //    // Draw the projection of the shape's points on the axis
             //    let color =
-            //      Color::RGB(128, 128, 255);
+            //      Color::rgb(128, 128, 255);
             //    canvas
             //      .set_draw_color(color);
             //    Self::draw_shape_projection(&shape, *axis, *p, union.top_left, screen, canvas);
             //    // Draw the projection of the other shape's points on the axis
             //    let color =
-            //      Color::RGB(255, 128, 128);
+            //      Color::rgb(255, 128, 128);
             //    canvas
             //      .set_draw_color(color);
             //    let other_p =
@@ -554,9 +554,9 @@ impl<'ctx, 'res, 'sys> RenderDebug {
           };
         let color =
           if exiles.contains(entity) {
-            Color::RGBA(255, 0, 255, alpha)
+            Color::rgba(255, 0, 255, alpha)
           } else {
-            Color::RGBA(255, 255, 0, alpha)
+            Color::rgba(255, 255, 0, alpha)
           };
         let aabb =
           AABB::from_mbr(&mbr);
@@ -589,7 +589,7 @@ impl<'ctx, 'res, 'sys> RenderDebug {
     if toggles.contains(&RenderingToggles::Zones) {
       for (entity, Position(p), _, shape) in (entities, positions, zones, shapes).join() {
         let mut color =
-          Color::RGB(139, 175, 214);
+          Color::rgb(139, 175, 214);
         let alpha =
           if exiles.contains(entity) {
             128
@@ -643,7 +643,7 @@ impl<'ctx, 'res, 'sys> RenderDebug {
         .filter(|(_,p,f)| {
           filter_fence(p, &f.points)
         })
-        .map(|(e,p,f)| (e, p, f, Color::RGB(153, 102, 255)))
+        .map(|(e,p,f)| (e, p, f, Color::rgb(153, 102, 255)))
         .collect();
       let mut step_fences:Vec<(Entity, &Position, &Fence, Color)> =
         (entities, positions, step_fences)
@@ -651,7 +651,7 @@ impl<'ctx, 'res, 'sys> RenderDebug {
         .filter(|(_, p, f)| {
           filter_fence(p, &f.0.points)
         })
-        .map(|(e,p,f)| (e,p,&f.0,Color::RGB(102, 0, 255)))
+        .map(|(e,p,f)| (e,p,&f.0,Color::rgb(102, 0, 255)))
         .collect();
       fences
         .append(&mut step_fences);
@@ -684,7 +684,7 @@ impl<'ctx, 'res, 'sys> RenderDebug {
     }
 
     //if self.toggles.contains(&RenderingToggles::Positions) {
-    //  self.canvas.set_draw_color(Color::RGB(0, 0, 255));
+    //  self.canvas.set_draw_color(Color::rgb(0, 0, 255));
     //  let p = position.0 + *offset;
     //  self.canvas.draw_rect(
     //    Rect::new(
@@ -720,7 +720,7 @@ impl<'ctx, 'res, 'sys> RenderDebug {
     }
 
     if toggles.contains(&RenderingToggles::Screen) {
-      canvas.set_draw_color(Color::RGB(0, 255, 0));
+      canvas.set_draw_color(Color::rgb(0, 255, 0));
       let screen_aabb =
         screen
         .aabb();
@@ -769,9 +769,9 @@ impl<'ctx, 'res, 'sys> RenderDebug {
           .contains(ent);
 
         let color = if is_exiled {
-          Color::RGB(255, 255, 255)
+          Color::rgb(255, 255, 255)
         } else {
-          Color::RGB(252, 240, 5)
+          Color::rgb(252, 240, 5)
         };
 
         let a =
@@ -796,7 +796,7 @@ impl<'ctx, 'res, 'sys> RenderDebug {
     if toggles.contains(&RenderingToggles::Shapes) {
       for (shape, Position(p)) in (shapes, positions).join() {
         let color =
-          Color::RGB(128, 128, 255);
+          Color::rgb(128, 128, 255);
         canvas
           .set_draw_color(color);
 

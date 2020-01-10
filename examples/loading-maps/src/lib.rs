@@ -11,9 +11,9 @@ extern crate old_gods;
 use log::Level;
 use mogwai::prelude::*;
 use old_gods::prelude::*;
-use specs::prelude::*;
+//use specs::prelude::*;
 use std::panic;
-use web_sys::{FileList, File, FileReader};
+use web_sys::{FileList, FileReader};
 use wasm_bindgen::{
   prelude::*,
   closure::Closure
@@ -170,6 +170,8 @@ impl mogwai::prelude::Component for App {
       }
       InMsg::Loaded => {
         tx_view.send(&OutMsg::Status("loaded!".into()));
+        trace!("{}", self.file_reader.result().unwrap_throw().as_string().unwrap_throw());
+        let _world = self.engine.world();
       }
       InMsg::LoadError => {
         let err =

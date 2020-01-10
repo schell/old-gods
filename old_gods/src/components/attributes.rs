@@ -463,7 +463,7 @@ impl Attributes {
           .map_err(|e| format!("{:?}", e))
           .map(|(_, c)| c)
       })
-      .unwrap_or(Ok(Color::RGB(0, 0, 0)))?;
+      .unwrap_or(Ok(Color::rgb(0, 0, 0)))?;
     let font_family =
       object
       .text

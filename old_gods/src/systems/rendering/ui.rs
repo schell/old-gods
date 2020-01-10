@@ -34,7 +34,7 @@ impl<'ctx, 'res, 'sys> RenderUI {
     Text {
       text: msg.to_string(),
       font: Self::fancy_font(),
-      color: Color::RGB(255, 255, 255),
+      color: Color::rgb(255, 255, 255),
       size: (16, 16)
     }
   }
@@ -53,7 +53,7 @@ impl<'ctx, 'res, 'sys> RenderUI {
     Text {
       text: msg.to_string(),
       font: Self::normal_font(),
-      color: Color::RGB(255, 255, 255),
+      color: Color::rgb(255, 255, 255),
       size: (16, 16)
     }
   }
@@ -206,16 +206,16 @@ impl<'ctx, 'res, 'sys> RenderUI {
   pub fn action_button_color(btn: &ActionButton) -> Color {
     match btn {
       ActionButton::A => {
-        Color::RGB(50, 229, 56)
+        Color::rgb(50, 229, 56)
       },
       ActionButton::B => {
-        Color::RGB(202, 16, 16)
+        Color::rgb(202, 16, 16)
       }
       ActionButton::X => {
-        Color::RGB(16, 124, 202)
+        Color::rgb(16, 124, 202)
       }
       ActionButton::Y => {
-        Color::RGB(197, 164, 23)
+        Color::rgb(197, 164, 23)
       }
     }
   }

@@ -64,7 +64,7 @@ pub mod time;
 //       .into_canvas()
 //       .build()
 //       .expect("Could not create a canvas.");
-//     canvas.set_draw_color(Color::RGB(0, 0, 0));
+//     canvas.set_draw_color(Color::rgb(0, 0, 0));
 //     canvas.clear();
 //     canvas.present();
 //     let ttf_ctx =

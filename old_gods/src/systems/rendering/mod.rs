@@ -239,7 +239,7 @@ pub use self::record::*;
 //       src
 //       .to_rect();
 //     canvas
-//       .set_draw_color(Color::RGB(0, 0, 0));
+//       .set_draw_color(Color::rgb(0, 0, 0));
 //     canvas
 //       .clear();
 //     canvas

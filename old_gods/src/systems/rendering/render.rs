@@ -197,7 +197,7 @@ impl<'ctx, 'res> RenderInventory {
     }
     for (is_a, inv, origin) in invs {
       // Draw the background
-      canvas.set_draw_color(Color::RGBA(0, 0, 0, 128));
+      canvas.set_draw_color(Color::rgba(0, 0, 0, 128));
       let bg_height =
         if inv.items.len() > 0 {
           inv.items.len() as u32 * item_height
@@ -215,7 +215,7 @@ impl<'ctx, 'res> RenderInventory {
         .fill_rect(bg_rect)
         .expect("Could not draw inventory background.");
       canvas
-        .set_draw_color(Color::RGBA(255, 255, 225, 255));
+        .set_draw_color(Color::rgba(255, 255, 225, 255));
       canvas
         .draw_rect(bg_rect)
         .expect("Could not draw inventory background.");
@@ -283,7 +283,7 @@ impl<'ctx, 'res> RenderInventory {
           loot
           .index
           .expect("Impossible");
-        canvas.set_draw_color(Color::RGB(0, 255, 0));
+        canvas.set_draw_color(Color::rgb(0, 255, 0));
         let cursor_y =
           name_height as i32 + origin.y as i32 + ndx as i32 * 50;
         canvas.draw_rect(
@@ -294,7 +294,7 @@ impl<'ctx, 'res> RenderInventory {
         // Draw the empty inventory
         let mut text =
           RenderUI::fancy_text("(empty)");
-        text.color = Color::RGB(128, 128, 128);
+        text.color = Color::rgb(128, 128, 128);
         RenderText::draw_text(
           canvas,
           resources,
@@ -362,7 +362,7 @@ impl<'ctx, 'res> RenderInventory {
 /// Draw a black border frame around the whole screen.
 pub fn draw_frame(canvas: &mut WindowCanvas, ww: u32, wh: u32) {
   canvas
-    .set_draw_color(Color::RGB(0, 0, 0));
+    .set_draw_color(Color::rgb(0, 0, 0));
   canvas
     .fill_rect(Rect::new(0, 0, ww, 48))
     .expect("Could not draw frame.");

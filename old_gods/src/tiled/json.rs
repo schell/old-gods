@@ -567,6 +567,9 @@ impl TilesetItem {
     match &self.payload {
       TilesetPayload::Embedded(s) => { Ok( extend(s) ) }
       TilesetPayload::Source(s) => {
+        if cfg!(target = "wasm32") {
+          panic!("tilesets that reference other tilesets are not loadable in the browser");
+        }
         let path:PathBuf =
           path_prefix.join(Path::new(&s.source));
         println!("Hydrating tileset with path {:?}", path);
@@ -648,8 +651,13 @@ pub struct Tiledmap {
   pub nextobjectid: i32,
 }
 
-
+// TODO: Keep Tiledmap from panicking on parse failure.
 impl Tiledmap {
+  pub fn from_text(text: &str) -> Result<Tiledmap, String> {
+    from_str(text)
+      .map_err(|e| format!("{}", e))
+  }
+
   pub fn from_file(file: &str) -> Tiledmap {
     Self::new(Path::new(file))
   }
@@ -668,6 +676,7 @@ impl Tiledmap {
       m1
     }
   }
+
   /// Hydrate all tilesets and return them in a map.
   pub fn
     hydrate_tilesets (

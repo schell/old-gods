@@ -11,13 +11,13 @@ pub struct Color {
 
 
 impl Color {
-  pub fn RGB(r:u8, g:u8, b:u8) -> Color {
+  pub fn rgb(r:u8, g:u8, b:u8) -> Color {
     Color {
       r, g, b, a: 255
     }
   }
 
-  pub fn RGBA(r:u8, g:u8, b:u8, a:u8) -> Color {
+  pub fn rgba(r:u8, g:u8, b:u8, a:u8) -> Color {
     Color {
       r, g, b, a
     }
@@ -31,6 +31,6 @@ pub struct BackgroundColor(pub Color);
 
 impl Default for BackgroundColor {
   fn default() -> Self {
-    BackgroundColor(Color::RGB(0, 0, 0))
+    BackgroundColor(Color::rgb(0, 0, 0))
   }
 }

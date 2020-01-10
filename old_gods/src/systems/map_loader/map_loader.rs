@@ -108,7 +108,7 @@ impl<'a> MapLoader<'a> {
               .map_err(|e| format!("{:?}", e))
               .map(|(_, c)| c)
           })
-          .unwrap_or(Ok(Color::RGB(0, 0, 0)))
+          .unwrap_or(Ok(Color::rgb(0, 0, 0)))
           .unwrap()
           .clone();
         let width:u32 =

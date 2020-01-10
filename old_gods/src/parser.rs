@@ -96,13 +96,13 @@ pub fn hex_color_4(input: &str) -> IResult<&str, (u8, u8, u8, u8)> {
 
 pub fn hex_color_rgba(input: &str) -> IResult<&str, Color> {
   let (i, (a, r, g, b)) = hex_color_4(input)?;
-  Ok((i, Color::RGBA(r, g, b, a)))
+  Ok((i, Color::rgba(r, g, b, a)))
 }
 
 
 pub fn hex_color_rgb(input: &str) -> IResult<&str, Color> {
   let (i, (r, g, b)) = hex_color_3(input)?;
-  Ok((i, Color::RGB(r, g, b)))
+  Ok((i, Color::rgb(r, g, b)))
 }
 
 pub fn hex_color(input: &str) -> IResult<&str, Color> {
