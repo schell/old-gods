@@ -11,7 +11,6 @@ extern crate old_gods;
 use log::Level;
 use mogwai::prelude::*;
 use old_gods::prelude::*;
-//use specs::prelude::*;
 use std::{
   panic,
   sync::{Arc, Mutex}
@@ -185,10 +184,14 @@ pub fn main() -> Result<(), JsValue> {
   // Set up the game loop
   let ecs = app_ecs.clone();
   request_animation_frame(move || {
-    ecs
+    let mut ecs =
+      ecs
       .try_lock()
-      .unwrap_throw()
-      .maintain();
+      .unwrap_throw();
+    ecs.maintain();
+    ecs.render();
+
+    // We always want to reschedule this animation frame
     true
   });
 

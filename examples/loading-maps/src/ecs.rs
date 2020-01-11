@@ -1,6 +1,8 @@
 use old_gods::prelude::*;
 use web_sys::CanvasRenderingContext2d;
 
+mod render;
+
 
 pub struct ECS<'a, 'b> {
   dispatcher: Dispatcher<'a, 'b>,
@@ -65,9 +67,14 @@ impl<'a, 'b> ECS<'a, 'b> {
       .maintain();
   }
 
-  // TODO: Implement CanvasRenderingContext2d rendering
-  // #priority-high
-  pub fn _render(&mut self) {
-
+  pub fn render(&mut self) {
+    let mut context =
+      self
+      .rendering_context
+      .take();
+    context
+      .iter_mut()
+      .for_each(|ctx| render::render(&mut self.world, ctx));
+    self.rendering_context = context;
   }
 }

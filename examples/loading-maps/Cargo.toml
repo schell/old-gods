@@ -51,6 +51,7 @@ features = [
   "FileList",
   "FileReader",
   "HtmlCanvasElement",
+  "HtmlImageElement",
   "Request",
   "RequestInit",
   "RequestMode",
