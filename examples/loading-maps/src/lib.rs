@@ -12,13 +12,21 @@ use log::Level;
 use mogwai::prelude::*;
 use old_gods::prelude::*;
 //use specs::prelude::*;
-use std::panic;
+use std::{
+  panic,
+  sync::{Arc, Mutex}
+};
 use wasm_bindgen::prelude::*;
 use web_sys::{
-  HtmlCanvasElement
+  HtmlElement,
+  HtmlCanvasElement,
+  CanvasRenderingContext2d
 };
 
+mod ecs;
 mod fetch;
+
+use ecs::ECS;
 
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
@@ -26,67 +34,6 @@ mod fetch;
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
-
-
-struct WebEngine<'a, 'b> {
-  dispatcher: Dispatcher<'a, 'b>,
-  world: World
-}
-
-
-impl<'a, 'b> Engine<'a, 'b> for WebEngine<'a, 'b> {
-  type Canvas = ();
-  type ResourceLoader = ();
-
-  fn new_with(dispatcher_builder: DispatcherBuilder<'a, 'b>) -> WebEngine<'a, 'b> {
-    let mut world = World::new();
-    let mut dispatcher =
-      dispatcher_builder
-      //.with_thread_local(SoundSystem::new())
-      .with(MapLoadingSystem{ opt_reader: None }, "map", &[])
-      .with(ScreenSystem, "screen", &[])
-      .with(ActionSystem, "action", &[])
-      .with(ScriptSystem, "script", &["action"])
-      .with(SpriteSystem, "sprite", &["script"])
-      .with(PlayerSystem, "control", &[])
-      .with(Physics::new(), "physics", &[])
-      .with(AnimationSystem, "animation", &[])
-      .with(InventorySystem, "inventory", &[])
-      .with(EffectSystem, "effect", &[])
-      .with(ItemSystem, "item", &["action", "effect"])
-      .with(ZoneSystem, "zone", &[])
-      .with(WarpSystem, "warp", &["physics"])
-      .with(FenceSystem, "fence", &["physics"])
-      .with(TweenSystem, "tween", &[])
-      .build();
-
-    dispatcher
-      .setup(&mut world);
-
-    // Maintain once so all our resources are created.
-    world
-      .maintain();
-
-    WebEngine{
-      dispatcher,
-      world
-    }
-  }
-
-  fn world(&self) -> &World {
-    &self.world
-  }
-
-  fn world_mut(&mut self) -> &mut World {
-    &mut self.world
-  }
-
-  // TODO: Implement canvas 2d rendering
-  fn render(&self, world: &mut World) {
-    trace!("rendering");
-  }
-}
-
 
 fn maps() -> Vec<String> {
   vec![
@@ -97,8 +44,7 @@ fn maps() -> Vec<String> {
 
 #[derive(Clone)]
 enum InMsg {
-  Startup,
-  CreatedCanvas(HtmlCanvasElement),
+  PostBuild(HtmlElement),
   Load(String),
   LoadError(String),
   Loaded(Tiledmap),
@@ -122,17 +68,17 @@ impl OutMsg {
 
 
 struct App {
-  engine: WebEngine<'static, 'static>,
-  canvas: Option<HtmlCanvasElement>,
+  ecs: Arc<Mutex<ECS<'static, 'static>>>,
+  rendering_context: Option<CanvasRenderingContext2d>,
   current_map_path: Option<String>
 }
 
 
 impl App {
-  fn new() -> App {
+  fn new(ecs:Arc<Mutex<ECS<'static, 'static>>>) -> App {
     App {
-      engine: WebEngine::new(),
-      canvas: None,
+      ecs,
+      rendering_context: None,
       current_map_path: None
     }
   }
@@ -145,23 +91,19 @@ impl mogwai::prelude::Component for App {
 
   fn update(&mut self, msg: &InMsg, tx_view: &Transmitter<OutMsg>, sub: &Subscriber<InMsg>) {
     match msg {
-      InMsg::Startup => {
-        let canvas:HtmlCanvasElement = {
-          let gizmo =
-            canvas()
-            .attribute("width", "800")
-            .attribute("height", "600")
-            .build().unwrap_throw();
-          gizmo
-            .html_element
-            .clone()
-            .dyn_into()
-            .unwrap()
-        };
-        sub.send_async(async move { InMsg::CreatedCanvas(canvas) });
-      }
-      InMsg::CreatedCanvas(c) => {
-        self.canvas = Some(c.clone());
+      InMsg::PostBuild(el) => {
+        let canvas:&HtmlCanvasElement =
+          el
+          .dyn_ref()
+          .unwrap_throw();
+        let context =
+          canvas
+          .get_context("2d")
+          .unwrap_throw()
+          .unwrap_throw()
+          .dyn_into::<CanvasRenderingContext2d>()
+          .unwrap_throw();
+        self.rendering_context = Some(context.clone());
       }
       InMsg::Load(path) => {
         self.current_map_path = Some(path.clone());
@@ -183,7 +125,12 @@ impl mogwai::prelude::Component for App {
         tx_view.send(&OutMsg::Status(format!("Loading error:\n{:#?}", msg)));
       }
       InMsg::Loaded(map) => {
-        let mut loader = MapLoader::new(&mut self.engine.world);
+        let mut ecs =
+          self
+          .ecs
+          .try_lock()
+          .unwrap_throw();
+        let mut loader = MapLoader::new(&mut ecs.world);
         let mut map = map.clone();
         let _ =
           loader
@@ -216,6 +163,13 @@ impl mogwai::prelude::Component for App {
         pre()
           .rx_text("", rx.branch_filter_map(|msg| msg.status_msg() ))
       )
+      .with(
+        canvas()
+          .attribute("id", "screen")
+          .attribute("width", "800")
+          .attribute("height", "600")
+          .tx_post_build(tx.contra_map(|el:&HtmlElement| InMsg::PostBuild(el.clone())))
+      )
   }
 }
 
@@ -226,7 +180,19 @@ pub fn main() -> Result<(), JsValue> {
   console_log::init_with_level(Level::Trace)
     .unwrap();
 
-  App::new()
+  let app_ecs = Arc::new(Mutex::new(ECS::new()));
+
+  // Set up the game loop
+  let ecs = app_ecs.clone();
+  request_animation_frame(move || {
+    ecs
+      .try_lock()
+      .unwrap_throw()
+      .maintain();
+    true
+  });
+
+  App::new(app_ecs)
     .into_component()
-    .run_init(vec![InMsg::Startup])
+    .run()
 }
