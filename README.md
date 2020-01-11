@@ -25,3 +25,11 @@ basic-http-server -x -a 127.0.0.1:8888
 ```
 
 Then visit http://localhost:8888/
+
+## Contributing
+
+If you'd like to contribute check the [issues][issues]. Or look at what
+[projects][projects] are kicking around!
+
+[issues]: https://github.com/schell/old-gods/issues
+[projects]: https://github.com/schell/old-gods/projects
