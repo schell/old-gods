@@ -199,6 +199,33 @@ impl<'a> MapLoader<'a> {
   }
 
 
+  pub fn insert_map(
+    &mut self,
+    map: &mut Tiledmap,
+    layer_group: Option<String>,
+    sprite: Option<Entity>
+  ) -> Result<LoadedLayers, String> {
+    self.sort_layers(&mut map.layers);
+    let prev_group =
+      self
+      .layer_group
+      .take();
+    self.layer_group =
+      layer_group;
+    self.sprite =
+      sprite;
+
+    let res =
+      self
+      .load_layers(&map.layers, &map)?;
+
+    self.layer_group =
+      prev_group;
+
+    Ok(res)
+  }
+
+
   /// Load an entire top-level map into the ECS.
   /// Takes the file to load and optionally a layer group to load. If a layer
   /// group is provided only layers within the group will be loaded. If no layer
@@ -218,25 +245,8 @@ impl<'a> MapLoader<'a> {
       .get(file)
       .expect("Could not retreive map.")
       .clone();
-    self.sort_layers(&mut map.layers);
 
-    let prev_group =
-      self
-      .layer_group
-      .take();
-    self.layer_group =
-      layer_group;
-    self.sprite =
-      sprite;
-
-    let res =
-      self
-      .load_layers(&map.layers, &map);
-
-    self.layer_group =
-      prev_group;
-
-    res
+    self.insert_map(&mut map, layer_group, sprite)
   }
 
   /// Possibly Increments the ZLevel based on layer properties

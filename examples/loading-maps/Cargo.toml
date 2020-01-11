@@ -32,9 +32,9 @@ console_error_panic_hook = { version = "0.1.6", optional = true }
 wee_alloc = { version = "0.4.2", optional = true }
 
 [dependencies.mogwai]
-path = "../../../mogwai/mogwai"
-#git = "https://github.com/schell/mogwai.git"
-#rev = "d3684cb0b3803a80a64a8bcaf27e183cadd0f40d"
+#path = "../../../mogwai/mogwai"
+git = "https://github.com/schell/mogwai.git"
+rev = "f5bed9fcd190246cdf086796d20f578b41296a6c"
 
 [dependencies.specs]
 version = "0.15"
@@ -45,10 +45,16 @@ version = "0.3"
 # Add more web-sys API's as you need them
 features = [
   "Blob",
+  "CanvasRenderingContext2d",
   "DomException",
   "File",
   "FileList",
   "FileReader",
+  "HtmlCanvasElement",
+  "Request",
+  "RequestInit",
+  "RequestMode",
+  "Response",
   "HtmlInputElement",
 ]
 

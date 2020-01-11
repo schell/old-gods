@@ -13,11 +13,12 @@ use mogwai::prelude::*;
 use old_gods::prelude::*;
 //use specs::prelude::*;
 use std::panic;
-use web_sys::{FileList, FileReader};
-use wasm_bindgen::{
-  prelude::*,
-  closure::Closure
+use wasm_bindgen::prelude::*;
+use web_sys::{
+  HtmlCanvasElement
 };
+
+mod fetch;
 
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
@@ -80,19 +81,27 @@ impl<'a, 'b> Engine<'a, 'b> for WebEngine<'a, 'b> {
     &mut self.world
   }
 
+  // TODO: Implement canvas 2d rendering
   fn render(&self, world: &mut World) {
     trace!("rendering");
   }
 }
 
 
+fn maps() -> Vec<String> {
+  vec![
+    "/maps/collision_detection.json".to_string()
+  ]
+}
+
+
 #[derive(Clone)]
 enum InMsg {
   Startup,
-  Loaded,
-  LoadError,
-  Input(HtmlInputElement),
-  Chose
+  CreatedCanvas(HtmlCanvasElement),
+  Load(String),
+  LoadError(String),
+  Loaded(Tiledmap),
 }
 
 
@@ -113,20 +122,18 @@ impl OutMsg {
 
 
 struct App {
-  file_input: Option<HtmlInputElement>,
-  file_reader: FileReader,
-  callbacks: Vec<Closure<dyn Fn()>>,
-  engine: WebEngine<'static, 'static>
+  engine: WebEngine<'static, 'static>,
+  canvas: Option<HtmlCanvasElement>,
+  current_map_path: Option<String>
 }
 
 
 impl App {
   fn new() -> App {
     App {
-      file_input: None,
-      file_reader: FileReader::new().expect("Could not create FileReader"),
-      callbacks: vec![],
-      engine: WebEngine::new()
+      engine: WebEngine::new(),
+      canvas: None,
+      current_map_path: None
     }
   }
 }
@@ -139,70 +146,50 @@ impl mogwai::prelude::Component for App {
   fn update(&mut self, msg: &InMsg, tx_view: &Transmitter<OutMsg>, sub: &Subscriber<InMsg>) {
     match msg {
       InMsg::Startup => {
-        { // Add the loaded callback
-          let sub = sub.clone();
-          let cb =
-            Closure::wrap(Box::new(move || {
-              sub.send_async(async { InMsg::Loaded });
-            }) as Box<dyn Fn()>);
-          self
-            .file_reader
-            .add_event_listener_with_callback("load", cb.as_ref().unchecked_ref())
-            .unwrap();
-          self
-            .callbacks
-            .push(cb);
-        }
-        { // Add the err'd callback
-          let sub = sub.clone();
-          let cb =
-            Closure::wrap(Box::new(move || {
-              sub.send_async(async { InMsg::LoadError });
-            }) as Box<dyn Fn()>);
-          self
-            .file_reader
-            .add_event_listener_with_callback("error", cb.as_ref().unchecked_ref())
-            .unwrap();
-          self
-            .callbacks
-            .push(cb);
-        }
+        let canvas:HtmlCanvasElement = {
+          let gizmo =
+            canvas()
+            .attribute("width", "800")
+            .attribute("height", "600")
+            .build().unwrap_throw();
+          gizmo
+            .html_element
+            .clone()
+            .dyn_into()
+            .unwrap()
+        };
+        sub.send_async(async move { InMsg::CreatedCanvas(canvas) });
       }
-      InMsg::Loaded => {
-        tx_view.send(&OutMsg::Status("loaded!".into()));
-        trace!("{}", self.file_reader.result().unwrap_throw().as_string().unwrap_throw());
-        let _world = self.engine.world();
+      InMsg::CreatedCanvas(c) => {
+        self.canvas = Some(c.clone());
       }
-      InMsg::LoadError => {
-        let err =
-          self
-          .file_reader
-          .error();
-        tx_view.send(&OutMsg::Status(format!("Loading error:\n{:#?}", err)));
-      }
-      InMsg::Input(input) => {
-        self.file_input = Some(input.clone());
-      }
-
-      InMsg::Chose => {
-        self
-          .file_input
-          .iter()
-          .for_each(|input: &HtmlInputElement| {
-            let files:Option<FileList> =
-              input.files();
-            let file =
-              files
-              .map(|files| files.get(0))
-              .unwrap_or(None);
-            if let Some(file) = file {
-              // Load the map file
-              self
-                .file_reader
-                .read_as_text(&file.into())
-                .expect("Could not load");
+      InMsg::Load(path) => {
+        self.current_map_path = Some(path.clone());
+        tx_view.send(&OutMsg::Status(format!("starting load of {}", path)));
+        let path = path.clone();
+        sub.send_async(async move {
+          match fetch::from_json(&path).await {
+            Err(msg) => {
+              InMsg::LoadError(msg)
             }
-          })
+            Ok(map) => {
+              InMsg::Loaded(map)
+            }
+          }
+        });
+      }
+      InMsg::LoadError(msg) => {
+        self.current_map_path = None;
+        tx_view.send(&OutMsg::Status(format!("Loading error:\n{:#?}", msg)));
+      }
+      InMsg::Loaded(map) => {
+        let mut loader = MapLoader::new(&mut self.engine.world);
+        let mut map = map.clone();
+        let _ =
+          loader
+          .insert_map(&mut map, None, None)
+          .unwrap_throw();
+        tx_view.send(&OutMsg::Status(format!("Successfully loaded {}", self.current_map_path.as_ref().unwrap())))
       }
     }
   }
@@ -213,30 +200,21 @@ impl mogwai::prelude::Component for App {
         legend()
           .text("Old Gods Map Loader")
       )
+      .with_many(
+        maps()
+          .into_iter()
+          .map(|map| {
+            trace!("{}", map);
+            a()
+              .attribute("href", "#")
+              .text(&map)
+              .tx_on("click", tx.contra_map(move |_| InMsg::Load(map.to_string())))
+          })
+          .collect()
+      )
       .with(
         pre()
           .rx_text("", rx.branch_filter_map(|msg| msg.status_msg() ))
-      )
-      .with(
-        div()
-          .with(
-            label()
-              .attribute("for", "map_file")
-              .text("Tiled.json map:")
-          )
-          .with(
-            input()
-              .attribute("name", "file_select")
-              .attribute("type", "file")
-              .attribute("cursor", "pointer")
-              .id("map_file")
-              .tx_post_build(
-                tx.contra_map(|el:&HtmlElement| {
-                  InMsg::Input(el.dyn_ref::<HtmlInputElement>().unwrap().clone())
-                })
-              )
-              .tx_on("change", tx.contra_map(|_| InMsg::Chose ))
-          )
       )
   }
 }
