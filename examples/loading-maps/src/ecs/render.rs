@@ -37,7 +37,6 @@ impl Resources for HtmlResources {
   }
 }
 
-// TODO: Convert draw_sprite to Resources trait stuff
 /// Draw a sprite frame at a position.
 pub fn draw_sprite(
   context: &CanvasRenderingContext2d,
@@ -48,40 +47,41 @@ pub fn draw_sprite(
   flip_diagonal: bool,
   tex: &HtmlImageElement
 ) {
-  let src = Some(src);
-  let dest = Some(dest);
-
-  let mut should_flip_horizontal = false;
-  let should_flip_vertical;
-  let mut angle = 0.0;
+  //let mut should_flip_horizontal = false;
+  //let should_flip_vertical;
+  //let mut angle = 0.0;
 
   match (flip_diagonal, flip_horizontal, flip_vertical) {
-    (true, true, true) => {
-      angle = -90.0;
-      should_flip_vertical = true;
-    },
-    (true, a, b) => {
-      angle = -90.0;
-      should_flip_vertical = !b;
-      should_flip_horizontal = a;
-    }
-    (false, a, b) => {
-      should_flip_horizontal = a;
-      should_flip_vertical = b;
-    }
+    // TODO: Support CanvasRenderingContext2d flipped tiles
+    //(true, true, true) => {
+    //  angle = -90.0;
+    //  should_flip_vertical = true;
+    //},
+    //(true, a, b) => {
+    //  angle = -90.0;
+    //  should_flip_vertical = !b;
+    //  should_flip_horizontal = a;
+    //}
+    //(false, a, b) => {
+    //  should_flip_horizontal = a;
+    //  should_flip_vertical = b;
+    //}
+    _ => {}
   }
 
-  //canvas
-//draw_image_with_html_image_element_and_sw_and_sh_and_dx_and_dy_and_dw_and_dh
-  //  .copy_ex(
-  //    tex,
-  //    src,
-  //    dest,
-  //    angle,
-  //    None,
-  //    should_flip_horizontal,
-  //    should_flip_vertical
-  //  ).unwrap();
+  context
+    .draw_image_with_html_image_element_and_sw_and_sh_and_dx_and_dy_and_dw_and_dh(
+      tex,
+      src.top_left.x as f64,
+      src.top_left.y as f64,
+      src.width() as f64,
+      src.height() as f64,
+      dest.top_left.x as f64,
+      dest.top_left.y as f64,
+      dest.width() as f64,
+      dest.height() as f64,
+    )
+    .unwrap_throw();
 }
 
 
