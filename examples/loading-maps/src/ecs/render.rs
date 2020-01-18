@@ -60,6 +60,7 @@ impl HtmlResources {
 
 
 // TODO: Test Resources for HtmlResources implementation
+// Possibly by testing draw_sprite
 impl Resources for HtmlResources {
   type Texture = HtmlImageElement;
 
@@ -258,46 +259,23 @@ pub fn draw_rendering(
       context.set_global_alpha(alpha);
       resources.put_sprite_sheet(&f.sprite_sheet, tex);
     }
-    // TODO: Convert RenderingPrimitive::Text(t) to Resources trait stuff
     RenderingPrimitive::Text(t) => {
-      //RenderText::texturize_text_if_needed(resources, &t);
-
-      //let texture_key =
-      //  t.as_key();
-      //let tex =
-      //  resources
-      //  .texture_manager
-      //  .get_cache()
-      //  .get(&texture_key)
-      //  .expect(&format!(
-      //    "Trying to draw some text that has not been texturized:\n{:?}",
-      //    texture_key
-      //  ));
-      //let TextureQuery {width: w, height: h, ..} =
-      //  tex
-      //  .query();
-      //let src =
-      //  Rect::new(0, 0, w, h);
-      //let dest =
-      //  Rect::new(
-      //    point.x as i32,
-      //    point.y as i32,
-      //    w, h
-      //  );
-      //// draw it
-      //draw_sprite(
-      //  canvas,
-      //  src,
-      //  dest,
-      //  false, false, false,
-      //  &tex
-      //);
+      let alpha = context.global_alpha();
+      context.set_global_alpha(t.color.a as f64 / 255.0);
+      context.set_fill_style(
+        &JsValue::from_str(&format!("rgb({}, {}, {})", t.color.r, t.color.g, t.color.b))
+      );
+      context.set_font(&format!("{}px {}", t.font.size, t.font.path));
+      context
+        .fill_text(&t.text, point.x as f64, point.y as f64)
+        .unwrap_throw();
+      context.set_global_alpha(alpha);
     }
   }
 }
 
 
-
+// TODO: Implement rendering each Rendering from the world
 pub fn render(world: &mut World, context: &mut CanvasRenderingContext2d) {
 
 }
