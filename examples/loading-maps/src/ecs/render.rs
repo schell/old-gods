@@ -1,6 +1,7 @@
 use old_gods::prelude::*;
 use std::{
   collections::HashMap,
+  cmp::Ordering,
   sync::{
     Arc,
     Mutex
@@ -17,7 +18,6 @@ use web_sys::{
   ErrorEvent,
   EventTarget,
   HtmlImageElement,
-  Window,
 };
 
 
@@ -274,8 +274,218 @@ pub fn draw_rendering(
   }
 }
 
+type RenderData<'s> = (
+  //Read<'s, AABBTree>,
+  Read<'s, BackgroundColor>,
+  //Read<'s, HashSet<RenderingToggles>>,
+  Write<'s, Screen>,
+  //Read<'s, UI>,
+  //Read<'s, FPSCounter>,
+  Entities<'s>,
+  ReadStorage<'s, Position>,
+  //ReadStorage<'s, Velocity>,
+  ReadStorage<'s, OriginOffset>,
+  ReadStorage<'s, Rendering>,
+  //ReadStorage<'s, Barrier>,
+  ReadStorage<'s, ZLevel>,
+  ReadStorage<'s, Exile>,
+  //ReadStorage<'s, Item>,
+  //ReadStorage<'s, Tags>,
+  //ReadStorage<'s, Player>,
+  ReadStorage<'s, Shape>,
+  //ReadStorage<'s, Action>,
+  //ReadStorage<'s, Name>,
+  //ReadStorage<'s, Looting>,
+  //ReadStorage<'s, Inventory>,
+  //ReadStorage<'s, Item>,
+  //ReadStorage<'s, Zone>,
+  //ReadStorage<'s, Fence>,
+  //ReadStorage<'s, StepFence>,
+);
+
 
 // TODO: Implement rendering each Rendering from the world
-pub fn render(world: &mut World, context: &mut CanvasRenderingContext2d) {
+pub fn render(world: &mut World, resources: &mut HtmlResources, context: &mut CanvasRenderingContext2d) {
+  let ( //aabb_tree,
+        background_color,
+        //toggles,
+        mut screen,
+        //_ui,
+        //fps,
+        entities,
+        positions,
+        //velo_store,
+        offset_store,
+        renderings,
+        //barriers,
+        zlevels,
+        exiles,
+        //items,
+        //_tag_store,
+        //toons,
+        shapes,
+        //actions,
+        //names,
+        //loots,
+        //inventories,
+        //_items,
+        //zones,
+        //fences,
+        //step_fences
+      ): RenderData = world.system_data();
+  // Set the screen's size and the window size, return the screen's map aabb
+  let screen_aabb = {
+    let canvas =
+      context
+      .canvas()
+      .unwrap_throw();
+    screen.window_size = (canvas.width(), canvas.height());
+    screen.aabb()
+  };
 
+  // Get all the on screen things to render.
+  // Order the things by bottom to top, back to front.
+  let mut ents:Vec<_> =
+    (&entities, &positions, &renderings, !&exiles)
+    .join()
+    .filter(|(_, p, r, _)| {
+      // Make sure we can see this thing (that its destination aabb intersects
+      // the screen)
+      let (w, h) =
+        r.size();
+      let aabb =
+        AABB {
+          top_left: p.0,
+          extents: V2::new(w as f32, h as f32)
+        };
+      screen_aabb.collides_with(&aabb)
+        || aabb.collides_with(&screen_aabb)
+    })
+    .map(|(ent, p, r, _)| {
+      let offset:V2 =
+        entity_local_origin(ent, &shapes, &offset_store);
+      let pos =
+        screen
+        .map_to_screen(&p.0);
+      (ent, Position(pos), offset, r, zlevels.get(ent))
+    })
+    .collect();
+  ents
+    .sort_by( |(_, p1, offset1, _, mz1), (_, p2, offset2, _, mz2)| {
+      let lvl = ZLevel(0.0);
+      let z1 = mz1.unwrap_or(&lvl);
+      let z2 = mz2.unwrap_or(&lvl);
+      if z1.0 < z2.0 {
+        Ordering::Less
+      } else if z1.0 > z2.0 {
+        Ordering::Greater
+      } else if p1.0.y + offset1.y < p2.0.y + offset2.y {
+        Ordering::Less
+      } else if p1.0.y + offset1.y > p2.0.y + offset2.y {
+        Ordering::Greater
+      } else {
+        Ordering::Equal
+      }
+    });
+
+  // Render into our render target texture
+  context
+    .set_global_alpha(background_color.0.a as f64 / 255.0);
+  context
+    .set_fill_style(
+      &JsValue::from_str(
+        &format!(
+          "rgb({}, {}, {})",
+          background_color.0.r,
+          background_color.0.g,
+          background_color.0.b,
+        )
+      )
+    );
+  context
+    .fill_rect(
+      0.0, 0.0,
+      screen_aabb.width() as f64, screen_aabb.height() as f64
+    );
+
+  // Draw map renderings
+  trace!("rendering {} map entities", ents.len());
+  ents
+    .iter()
+    .for_each(|(_entity, p, _, r, _)| {
+      draw_rendering(context, resources, &p.0, r);
+    });
+//
+//     // Now use our render target to draw inside the screen, upsampling to the
+//     // screen size
+//     let src =
+//       AABB::new(
+//         0.0, 0.0,
+//         self.resolution.0 as f32, self.resolution.1 as f32
+//       );
+//     let dest =
+//       AABB::from_points(
+//         screen.screen_to_window(&src.top_left),
+//         screen.screen_to_window(&src.extents)
+//       )
+//       .to_rect();
+//     let src =
+//       src
+//       .to_rect();
+//     canvas
+//       .set_draw_color(Color::rgb(0, 0, 0));
+//     canvas
+//       .clear();
+//     canvas
+//       .copy(&target, Some(src), Some(dest))
+//       .unwrap();
+//
+//     RenderDebug::draw_debug(
+//       &mut canvas,
+//       &mut resources,
+//       &toggles,
+//       &aabb_tree,
+//       &actions,
+//       &fps,
+//       &screen,
+//       &entities,
+//       &names,
+//       &positions,
+//       &offset_store,
+//       &velo_store,
+//       &toons,
+//       &barriers,
+//       &shapes,
+//       &exiles,
+//       &zones,
+//       &fences,
+//       &step_fences,
+//       &zlevels
+//     );
+//
+//     RenderUI::draw_ui(
+//       &mut canvas,
+//       &mut resources,
+//       &screen,
+//       &actions,
+//       &entities,
+//       &exiles,
+//       &inventories,
+//       &items,
+//       &loots,
+//       &names,
+//       &offset_store,
+//       &positions,
+//       &renderings,
+//       &toons
+//     );
+//
+//     canvas
+//       .present();
+//
+//     // Give all the things back to ourself
+//     self.canvas = Some(canvas);
+//     self.target = Some(target);
+//     self.resources = Some(resources);
+//   }
 }

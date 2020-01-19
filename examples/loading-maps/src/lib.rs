@@ -36,7 +36,8 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 fn maps() -> Vec<String> {
   vec![
-    "/maps/collision_detection.json".to_string()
+    "/maps/collision_detection.json".into(),
+    "/maps/door_test.json".into()
   ]
 }
 
@@ -68,7 +69,6 @@ impl OutMsg {
 
 struct App {
   ecs: Arc<Mutex<ECS<'static, 'static>>>,
-  rendering_context: Option<CanvasRenderingContext2d>,
   current_map_path: Option<String>
 }
 
@@ -77,7 +77,6 @@ impl App {
   fn new(ecs:Arc<Mutex<ECS<'static, 'static>>>) -> App {
     App {
       ecs,
-      rendering_context: None,
       current_map_path: None
     }
   }
@@ -102,7 +101,12 @@ impl mogwai::prelude::Component for App {
           .unwrap_throw()
           .dyn_into::<CanvasRenderingContext2d>()
           .unwrap_throw();
-        self.rendering_context = Some(context.clone());
+        let mut ecs =
+          self
+          .ecs
+          .try_lock()
+          .unwrap_throw();
+        ecs.rendering_context = Some(context);
       }
       InMsg::Load(path) => {
         self.current_map_path = Some(path.clone());
@@ -141,33 +145,44 @@ impl mogwai::prelude::Component for App {
   }
 
   fn builder(&self, tx: Transmitter<InMsg>, rx: Receiver<OutMsg>) -> GizmoBuilder {
-    fieldset()
+    div()
+      .class("container-fluid")
       .with(
-        legend()
-          .text("Old Gods Map Loader")
-      )
-      .with_many(
-        maps()
-          .into_iter()
-          .map(|map| {
-            trace!("{}", map);
-            a()
-              .attribute("href", "#")
-              .text(&map)
-              .tx_on("click", tx.contra_map(move |_| InMsg::Load(map.to_string())))
-          })
-          .collect()
-      )
-      .with(
-        pre()
-          .rx_text("", rx.branch_filter_map(|msg| msg.status_msg() ))
-      )
-      .with(
-        canvas()
-          .attribute("id", "screen")
-          .attribute("width", "800")
-          .attribute("height", "600")
-          .tx_post_build(tx.contra_map(|el:&HtmlElement| InMsg::PostBuild(el.clone())))
+        fieldset()
+          .with(
+            legend()
+              .text("Old Gods Map Loader")
+          )
+          .with_many(
+            maps()
+              .into_iter()
+              .map(|map| {
+                div()
+                  .with(
+                    a()
+                      .attribute("href", "#")
+                      .text(&map)
+                      .tx_on("click", tx.contra_map(move |_| InMsg::Load(map.to_string())))
+                  )
+              })
+              .collect()
+          )
+          .with(
+            pre()
+              .rx_text("", rx.branch_filter_map(|msg| msg.status_msg() ))
+          )
+          .with(
+            div()
+              .class("embed-responsive embed-responsive-16by9")
+              .with(
+                canvas()
+                  .class("embed-responsive-item")
+                  .attribute("id", "screen")
+                //.attribute("width", "800")
+                //.attribute("height", "600")
+                  .tx_post_build(tx.contra_map(|el:&HtmlElement| InMsg::PostBuild(el.clone())))
+              )
+          )
       )
   }
 }
@@ -190,7 +205,6 @@ pub fn main() -> Result<(), JsValue> {
       .unwrap_throw();
     ecs.maintain();
     ecs.render();
-
     // We always want to reschedule this animation frame
     true
   });

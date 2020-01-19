@@ -705,7 +705,7 @@ impl Tiledmap {
           let set =
             item
             .tileset()
-            .unwrap();
+            .expect("could not get tileset");
           if *gid >= fgid && *gid < (fgid + set.tilecount) {
             return Some((&item.firstgid, set));
           }

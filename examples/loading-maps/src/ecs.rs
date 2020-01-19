@@ -2,12 +2,14 @@ use old_gods::prelude::*;
 use web_sys::CanvasRenderingContext2d;
 
 mod render;
+use render::HtmlResources;
 
 
 pub struct ECS<'a, 'b> {
   dispatcher: Dispatcher<'a, 'b>,
   pub world: World,
-  pub rendering_context: Option<CanvasRenderingContext2d>
+  pub rendering_context: Option<CanvasRenderingContext2d>,
+  pub resources: HtmlResources
 }
 
 
@@ -44,7 +46,8 @@ impl<'a, 'b> ECS<'a, 'b> {
     ECS{
       dispatcher,
       world,
-      rendering_context: None
+      rendering_context: None,
+      resources: HtmlResources::new()
     }
   }
 
@@ -68,13 +71,17 @@ impl<'a, 'b> ECS<'a, 'b> {
   }
 
   pub fn render(&mut self) {
-    let mut context =
-      self
-      .rendering_context
-      .take();
-    context
-      .iter_mut()
-      .for_each(|ctx| render::render(&mut self.world, ctx));
-    self.rendering_context = context;
+    if self.rendering_context.is_some() {
+      let mut context =
+        self
+        .rendering_context
+        .take();
+      context
+        .iter_mut()
+        .for_each(|ctx| render::render(&mut self.world, &mut self.resources, ctx));
+      self.rendering_context = context;
+    } else {
+      warn!("no rendering context");
+    }
   }
 }
