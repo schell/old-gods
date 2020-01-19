@@ -72,7 +72,10 @@ impl Sprite {
   ) -> Result<(String, String, Option<String>), String> {
     let properties =
       object
-      .get_all_properties(map);
+      .get_all_properties(map)
+      .into_iter()
+      .map(|prop| (prop.name, prop.value))
+      .collect::<HashMap<_,_>>();
     Sprite::loading_params(properties)
   }
 

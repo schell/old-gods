@@ -7,14 +7,15 @@ use render::HtmlResources;
 
 pub struct ECS<'a, 'b> {
   dispatcher: Dispatcher<'a, 'b>,
+  pub base_url: String,
   pub world: World,
   pub rendering_context: Option<CanvasRenderingContext2d>,
-  pub resources: HtmlResources
+  pub resources: HtmlResources,
 }
 
 
 impl<'a, 'b> ECS<'a, 'b> {
-  pub fn new_with(dispatcher_builder: DispatcherBuilder<'a, 'b>) -> Self {
+  pub fn new_with(base_url: &str, dispatcher_builder: DispatcherBuilder<'a, 'b>) -> Self {
     let mut world = World::new();
     let mut dispatcher =
       dispatcher_builder
@@ -46,13 +47,14 @@ impl<'a, 'b> ECS<'a, 'b> {
     ECS{
       dispatcher,
       world,
+      base_url: base_url.into(),
       rendering_context: None,
       resources: HtmlResources::new()
     }
   }
 
-  pub fn new() -> Self {
-    Self::new_with(DispatcherBuilder::new())
+  pub fn new(base_url: &str) -> Self {
+    Self::new_with(base_url, DispatcherBuilder::new())
   }
 
   pub fn maintain(&mut self) {

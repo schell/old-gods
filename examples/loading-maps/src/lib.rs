@@ -36,8 +36,9 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 fn maps() -> Vec<String> {
   vec![
-    "/maps/collision_detection.json".into(),
-    "/maps/door_test.json".into()
+    "maps/tiles_test.json".into(),
+    "maps/collision_detection.json".into(),
+    "maps/door_test.json".into()
   ]
 }
 
@@ -109,11 +110,26 @@ impl mogwai::prelude::Component for App {
         ecs.rendering_context = Some(context);
       }
       InMsg::Load(path) => {
-        self.current_map_path = Some(path.clone());
+        let ecs =
+          self
+          .ecs
+          .try_lock()
+          .unwrap_throw();
+
+        self.current_map_path = Some(format!("{}/{}",ecs.base_url, path));
         tx_view.send(&OutMsg::Status(format!("starting load of {}", path)));
         let path = path.clone();
+        let base_url = ecs.base_url.clone();
         sub.send_async(async move {
-          match fetch::from_json(&path).await {
+          let tiledmap =
+            Tiledmap::from_url(
+              &base_url,
+              &path,
+              |url| {
+                fetch::from_url(url)
+              }
+            ).await;
+          match tiledmap {
             Err(msg) => {
               InMsg::LoadError(msg)
             }
@@ -194,7 +210,7 @@ pub fn main() -> Result<(), JsValue> {
   console_log::init_with_level(Level::Trace)
     .unwrap();
 
-  let app_ecs = Arc::new(Mutex::new(ECS::new()));
+  let app_ecs = Arc::new(Mutex::new(ECS::new("http://localhost:8888")));
 
   // Set up the game loop
   let ecs = app_ecs.clone();

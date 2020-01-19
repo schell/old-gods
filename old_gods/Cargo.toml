@@ -10,6 +10,7 @@ features = ["alloc"]
 
 [dependencies]
 either = "1.5.2"
+log = "0.4"
 rand = "0.7"
 serde = "1.0"
 serde_derive = "1.0"

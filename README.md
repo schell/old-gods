@@ -1,10 +1,11 @@
 # The Old Gods Engine
 
-This is a besboke game engine. It reads Tiled map files into a specs based
-entity component system. Rendering is handled by the built in SDL2 renderer.
+This is a bespoke game engine meant for games targeting the web and SDL2.
+It reads Tiled map files into a specs based entity component system.
+Rendering is handled by HtmlCanvasElement or the built in SDL2 renderer.
+
 I'm really surprised at the performance. So far without any attention to
 performance the engine is running at about 330FPS, with a high of about 500FPS.
-I expect this to decrease 10x.
 
 ## Features
 
@@ -16,12 +17,20 @@ I expect this to decrease 10x.
 * Inventory and items
 
 ## Building
+First you'll need new(ish) version of the rust toolchain. For that you can visit
+https://rustup.rs/ and follow the installation instructions.
+
+Then you'll need [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/).
+
+Then, if you don't already have it, `cargo install basic-http-server` or use your
+favorite alternative static web server to serve assets.
+
+After that building is pretty straightforward
 
 ```
 cargo build
-cd examples/{some example}
-wasm-pack build --target no-modules
-basic-http-server -x -a 127.0.0.1:8888
+wasm-pack build --debug --target no-modules examples/{some example}
+basic-http-server -x -a 127.0.0.1:8888 examples/{some example}
 ```
 
 Then visit http://localhost:8888/

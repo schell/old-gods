@@ -34,6 +34,7 @@ use super::super::prelude::{
   Player,
   Point,
   Position,
+  Property,
   Rendering,
   Script,
   Shape,
@@ -167,11 +168,16 @@ impl Attributes {
   /// * Fence
   /// * StepFence
   pub fn read_single_attribute(obj: &Object) -> Result<Attribute, String> {
+    let properties =
+      obj
+      .properties
+      .iter()
+      .map(|prop| (prop.name.clone(), prop.value.clone()))
+      .collect::<HashMap<_,_>>();
     match obj.type_is.as_str() {
       "item" => {
         let usable:bool =
-          obj
-          .properties
+          properties
           .get("usable")
           .map(|s| {
             from_str(s.as_str())
@@ -179,8 +185,7 @@ impl Attributes {
           })
           .unwrap_or(Ok(false))?;
         let stack: Option<usize> =
-          obj
-          .properties
+          properties
           .get("stack_count")
           .map(|s:&String| {
             let res:IResult<&str, f32> =
@@ -217,22 +222,19 @@ impl Attributes {
 
       "action" => {
         let text =
-          obj
-          .properties
+          properties
           .get(&Action::tiled_key_text())
           .ok_or("An action must have a 'text' property")?
           .clone();
         let strategy_str =
-          obj
-          .properties
+          properties
           .get(&FitnessStrategy::tiled_key())
           .ok_or("An action must have a 'fitness' property")?;
         let strategy =
           FitnessStrategy::from_str(strategy_str.as_str())
           .map_err(|e| format!("Could not parse action's fitness strategy: {:?}", e))?;
         let lifespan_str:&String =
-          obj
-          .properties
+          properties
           .get(&Lifespan::tiled_key())
           .ok_or("An action must have a 'lifespan' property")?;
         let lifespan:Lifespan =
@@ -306,22 +308,28 @@ impl Attributes {
 
   /// Read a number of attributes from a hashmap of properties.
   pub fn read_properties(
-    properties: &HashMap<String, String>,
+    properties: &Vec<Property>,
   ) -> Result<Vec<Attribute>, String> {
     let mut attribs = vec![];
-
+    let get_prop = |name: &str| -> Option<String> {
+      for prop in properties {
+        if name == prop.name {
+          return Some(prop.value.to_string());
+        }
+      }
+      None
+    };
     // Player
-    if let Some(control_scheme) = properties.get(&Player::tiled_key()) {
+    if let Some(control_scheme) = get_prop(&Player::tiled_key()) {
       let control = match control_scheme.as_str() {
         "player" => {
           let ndx_str =
-            properties
-            .get(&"player_index".to_string())
+            get_prop("player_index")
             .ok_or(format!(
               "Object must have a 'player_index' custom property for control."
             ))?;
           let ndx =
-            from_str(ndx_str)
+            from_str(&ndx_str)
             .map_err(|e| {
               format!(
                 "Could not deserialize object 'player_index' value '{}', it should be an unsigned integer: {:?}",
@@ -352,27 +360,28 @@ impl Attributes {
     }
 
     // MaxSpeed
-    if let Some(s) = properties.get(&MaxSpeed::tiled_key()) {
+    if let Some(s) = get_prop(&MaxSpeed::tiled_key()) {
       let max_speed:MaxSpeed =
         MaxSpeed(
-          from_str(s)
+          from_str(&s)
             .map_err(|e| format!("Could not deserialize max_speed {:?}: {:?}", s, e))?
         );
       attribs.push(Attribute::MaxSpeed(max_speed));
     }
 
     // Inventory
-    properties
-      .get(&Inventory::tiled_key_name())
+    get_prop(&Inventory::tiled_key_name())
       .map(|n| attribs.push(Attribute::Inventory(n.clone())));
 
     // Script
     let may_script =
-      properties
-      .get(&Script::tiled_key());
+      get_prop(&Script::tiled_key());
     if let Some(script) = may_script {
-      let script =
-        Script::from_str(script, Some(properties.clone()))?;
+      let mut property_map = HashMap::new();
+      for prop in properties {
+        property_map.insert(prop.name.clone(), prop.value.clone());
+      }
+      let script = Script::from_str(&script, Some(property_map))?;
       attribs.push(Attribute::Script(script));
     }
 

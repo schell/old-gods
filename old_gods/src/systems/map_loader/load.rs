@@ -1,6 +1,5 @@
 use std::iter::FromIterator;
 use std::iter::Iterator;
-use std::collections::HashMap;
 use serde_json;
 
 use super::super::{
@@ -151,11 +150,15 @@ pub fn get_z_inc(object: &Object) -> Option<i32> {
   get_z_inc_props(&object.properties)
 }
 
-pub fn get_z_inc_props(properties: &HashMap<String, String>) -> Option<i32> {
-  let zinc_string = properties.get(&"z".to_string())?;
-  let zinc = serde_json::from_str(zinc_string.as_str())
-    .expect("Could not deserialize z incement.");
-  Some(zinc)
+pub fn get_z_inc_props(properties: &Vec<Property>) -> Option<i32> {
+  for prop in properties {
+    if prop.name == "z" {
+      let zinc = serde_json::from_str(&prop.value)
+        .expect("Could not deserialize z incement.");
+      return Some(zinc);
+    }
+  }
+  None
 }
 
 

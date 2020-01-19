@@ -1,10 +1,12 @@
+use log::trace;
 use std::collections::HashMap;
 use std::vec::Vec;
+use std::future::Future;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::result::Result;
-use serde::de::{Deserialize, Deserializer };
+use serde::de::{Deserialize, Deserializer};
 use serde_json::{Error, from_reader, from_str};
 
 use super::super::geom::V2;
@@ -135,7 +137,7 @@ pub struct Object {
   pub type_is: String,
 
   #[serde(default)]
-  pub properties: HashMap<String, String>,
+  pub properties: Vec<Property>,
 
   pub visible: bool,
 
@@ -163,22 +165,22 @@ pub struct Object {
 
 
 impl Object {
-  pub fn get_all_properties(&self, map: &Tiledmap) -> HashMap<String, String> {
+  pub fn get_all_properties(&self, map: &Tiledmap) -> Vec<Property> {
     let mut object_properties =
       self.properties.clone();
-    let tile_properties =
+    let mut tile_properties =
       if let Some(gid) = &self.gid {
         if let Some(tile) = map.get_tile(&gid.id) {
           tile
             .properties
             .clone()
         } else {
-          HashMap::new()
+          vec![]
         }
       } else {
-        HashMap::new()
+        vec![]
       };
-    object_properties.extend(tile_properties);
+    object_properties.append(&mut tile_properties);
     object_properties
   }
 
@@ -355,15 +357,27 @@ pub struct ObjectGroup {
   pub y: u32,
 }
 
+#[derive(Deserialize, Clone, Debug)]
+pub struct Property {
+  pub name: String,
+
+  #[serde(rename = "type")]
+  pub type_is: String,
+
+  pub value: String
+}
+
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct Tile {
+  pub id: LocalId,
+
   #[serde(rename="type")]
   #[serde(default = "empty")]
   pub type_is: String,
 
   #[serde(default)]
-  pub properties: HashMap<String, String>,
+  pub properties: Vec<Property>,
 
   #[serde(rename="objectgroup")]
   pub object_group: Option<ObjectGroup>,
@@ -394,7 +408,6 @@ impl Tile {
     None
   }
 }
-
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Tileset {
@@ -432,7 +445,7 @@ pub struct Tileset {
 
   /// Per-tile properties
   #[serde(default)]
-  pub tileproperties: HashMap<LocalId, HashMap<String, String>>,
+  pub tileproperties: HashMap<LocalId, Vec<Property>>,
 
   /// Array of Terrains (optional)
   #[serde(default)]
@@ -446,7 +459,7 @@ pub struct Tileset {
 
   /// Tiles (optional)
   #[serde(default)]
-  pub tiles: HashMap<LocalId, Tile>,
+  pub tiles: Vec<Tile>,
 }
 
 
@@ -504,19 +517,24 @@ impl Tileset {
   /// Return the Tile with the given gid in this Tileet, if possible.
   pub fn tile (&self, firstgid: &GlobalId, tilegid: &GlobalId) -> Option<&Tile> {
     let l = firstgid.convert_to_local(tilegid);
-    self.tiles.get(&l)
+    for tile in &self.tiles {
+      if tile.id == l {
+        return Some(tile);
+      }
+    }
+    None
   }
 
 
   pub fn extend_tiles_with_tileproperties(&mut self) {
-    for (local_id, tile) in self.tiles.iter_mut() {
-      let props:HashMap<_, _> =
+    for tile in self.tiles.iter_mut() {
+      let mut props =
         self
         .tileproperties
-        .get(local_id)
+        .get(&tile.id)
         .map(|ps| ps.clone())
-        .unwrap_or(HashMap::new());
-      tile.properties.extend(props);
+        .unwrap_or(vec![]);
+      tile.properties.append(&mut props);
     }
   }
 
@@ -559,20 +577,19 @@ impl TilesetItem {
   /// This loads any external tilesets, as well as extends each Tile's properties
   /// to include thos in the set's tileproperties.
   pub fn hydrate_tileset (&self, path_prefix: &Path) -> Result<Tileset, Error> {
-    let extend = |s: &Tileset| {
-      let mut set = s.clone();
-      set.extend_tiles_with_tileproperties();
-      set
-    };
     match &self.payload {
-      TilesetPayload::Embedded(s) => { Ok( extend(s) ) }
+      TilesetPayload::Embedded(s) => {
+        let mut set = s.clone();
+        set.extend_tiles_with_tileproperties();
+        Ok(set)
+      }
       TilesetPayload::Source(s) => {
         if cfg!(target = "wasm32") {
           panic!("tilesets that reference other tilesets are not loadable in the browser");
         }
         let path:PathBuf =
           path_prefix.join(Path::new(&s.source));
-        println!("Hydrating tileset with path {:?}", path);
+        trace!("Hydrating tileset with path {:?}", path);
         let file =
           File::open(path.clone()).unwrap();
         let reader =
@@ -591,7 +608,8 @@ impl TilesetItem {
               .to_str()
               .unwrap()
               .to_string();
-            extend(&s)
+            s.extend_tiles_with_tileproperties();
+            s
           })
       }
     }
@@ -662,8 +680,29 @@ impl Tiledmap {
     Self::new(Path::new(file))
   }
 
+  pub async fn from_url<F, R>(
+    base_url: &str,
+    path: &str,
+    load:F
+  ) -> Result<Tiledmap, String>
+  where
+    F: Fn(&str) -> R,
+    R: Future<Output = Result<String, String>>,
+  {
+    let url = format!("{}/{}", base_url, path);
+    let data = load(&url).await?;
+    let mut tiledmap:Tiledmap =
+      from_str(&data)
+      .map_err(|e| format!("{}", e))?;
+    tiledmap
+      .hydrate_tilesets_async(base_url, path, load)
+      .await?;
+    Ok(tiledmap)
+  }
+
+
   pub fn new(path: &Path) -> Tiledmap {
-    println!("Opening Tiled map file {:?}", path);
+    trace!("Opening Tiled map file {:?}", path);
     let file = File::open(path)
       .expect(&format!("Could not open the file '{:?}'.", path));
     let reader = BufReader::new(file);
@@ -676,6 +715,60 @@ impl Tiledmap {
       m1
     }
   }
+
+  /// Hydrate all tilesets, async.
+  pub async fn hydrate_tilesets_async<F, R>(
+    &mut self,
+    base_url: &str,
+    map_url: &str,
+    load:F
+  ) -> Result<(), String>
+  where
+    F: Fn(&str) -> R,
+    R: Future<Output = Result<String, String>>,
+  {
+    for mut item in self.tilesets.iter_mut() {
+      // TODO: Load tilesets in parallel
+      match &mut item.payload {
+        TilesetPayload::Embedded(_) => {}
+        TilesetPayload::Source(src) => {
+          let map_path =
+            Path::new(base_url)
+            .join(map_url);
+          let map_dir =
+            map_path
+            .parent()
+            .ok_or("map is not in a directory")?;
+          let url =
+            map_dir
+            .join(&src.source);
+          let url_str =
+            url
+            .to_str()
+            .expect("could not get Tileset url as &str");
+          trace!(
+            "hydrading tileset item async:\n  base_url: {}\n  map_url: {}\n  src: {:?}\n  url: {}",
+            base_url,
+            map_url,
+            src,
+            url_str
+          );
+          let data = load(url_str).await?;
+          trace!("  got Tileset data for url: {}", url_str);
+          let mut tileset:Tileset =
+            from_str(&data)
+            .map_err(|e| format!("error reading Tileset {}: {}", url_str, e))?;
+          // Url stuff here
+          //s.image =
+          tileset.extend_tiles_with_tileproperties();
+          item.payload = TilesetPayload::Embedded(tileset);
+        }
+      }
+    }
+    Ok(())
+  }
+
+
 
   /// Hydrate all tilesets and return them in a map.
   pub fn
@@ -719,15 +812,6 @@ impl Tiledmap {
     let (firstgid, tileset) = self.get_tileset_by_gid(gid)?;
     tileset.tile(firstgid, gid)
   }
-
-  pub fn _get_tile_properties(
-    &self,
-    tile_gid: &GlobalId
-  ) -> Option<HashMap<String, String>> {
-    let tile = self.get_tile(tile_gid)?;
-    Some(tile.properties.clone())
-  }
-
 
   pub fn get_tile_object_group(
     &self,
