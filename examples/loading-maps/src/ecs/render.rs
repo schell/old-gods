@@ -80,6 +80,7 @@ impl Resources for HtmlResources {
 
   fn load_sprite_sheet<S:Into<String>>(&mut self, s:S) {
     let path = s.into();
+    trace!("loading sprite sheet: {}", &path);
     let img =
       window().unwrap_throw()
       .document().unwrap_throw()
@@ -89,38 +90,40 @@ impl Resources for HtmlResources {
     let status =
       Arc::new(Mutex::new((
         LoadStatus::Started,
-        img.clone(),
+        Some(img.clone()),
       )));
     let target:&EventTarget =
       img
       .dyn_ref()
       .unwrap_throw();
     let load_status = status.clone();
+    let load_path = path.clone();
     let load =
       Closure::wrap(Box::new(move |_:JsValue| {
         let mut status_and_img =
           load_status
           .try_lock()
-          .unwrap_throw();
+          .expect("Could not acquire lock - load_sprite_sheet::load");
+        trace!("  loading {} complete", &load_path);
         status_and_img.0 = LoadStatus::Complete;
       }) as Box<dyn Fn(JsValue)>);
     let err_status = status.clone();
+    let err_path = path.clone();
     let err =
       Closure::wrap(Box::new(move |event:JsValue| {
         let mut status_and_img =
           err_status
           .try_lock()
-          .unwrap_throw();
+          .expect("Could not acquire lock - load_sprite_sheet::err");
+        trace!("error event: {:#?}", event);
         let event =
           event
-          .dyn_into::<ErrorEvent>()
-          .unwrap_throw();
-        let msg =
-          event
-          .error()
-          .as_string()
-          .unwrap_or("unknown error".into());
+          .dyn_into::<web_sys::Event>()
+          .expect("Error is not an Event");
+        let msg = format!("failed loading {}: {}", &err_path, event.type_());
+        trace!("  loading {} erred: {}", &err_path, &msg);
         status_and_img.0 = LoadStatus::Error(msg);
+        status_and_img.1 = None;
       }) as Box<dyn Fn(JsValue)>);
     target
       .add_event_listener_with_callback("load", load.as_ref().unchecked_ref())
@@ -130,22 +133,26 @@ impl Resources for HtmlResources {
       .unwrap();
     self
       .callbacks
-      .insert(path, Callbacks (Arc::new(load), Arc::new(err)));
+      .insert(path.clone(), Callbacks (Arc::new(load), Arc::new(err)));
+    self
+      .sprite_sheets
+      .insert(path, status);
   }
 
   fn take_sprite_sheet(&mut self, s:&str) -> Option<Self::Texture> {
-    let _ = self.callbacks.remove(s)?;
+    let _ = self.callbacks.remove(s);
     let status_and_img = self.sprite_sheets.remove(s)?;
     let status_and_img = status_and_img.try_lock().ok()?;
     status_and_img.1.clone()
   }
 
   fn put_sprite_sheet<S:Into<String>>(&mut self, s:S, tex:Self::Texture) {
+    let path = s.into();
     let status_and_img =
       Arc::new(Mutex::new((LoadStatus::Complete, Some(tex))));
     self
       .sprite_sheets
-      .insert(s.into(), status_and_img);
+      .insert(path, status_and_img);
   }
 }
 
@@ -216,6 +223,7 @@ pub fn draw_rendering(
           // Load it and come back later
           resources
             .load_sprite_sheet(f.sprite_sheet.as_str());
+          return;
         }
         LoadStatus::Started => {
           // Come back later because it's loading etc.
@@ -224,13 +232,14 @@ pub fn draw_rendering(
         LoadStatus::Complete => {}
         LoadStatus::Error(msg) => {
           warn!("sprite sheet loading error: {}", msg);
+          return;
         }
       }
 
       let tex =
         resources
         .take_sprite_sheet(&f.sprite_sheet)
-        .unwrap_throw();
+        .expect("Could not take sprite sheet");
       let dest =
         AABB::new(
           point.x,
@@ -274,6 +283,7 @@ pub fn draw_rendering(
   }
 }
 
+// TODO: Debug rendering
 type RenderData<'s> = (
   //Read<'s, AABBTree>,
   Read<'s, BackgroundColor>,
@@ -304,7 +314,6 @@ type RenderData<'s> = (
 );
 
 
-// TODO: Implement rendering each Rendering from the world
 pub fn render(world: &mut World, resources: &mut HtmlResources, context: &mut CanvasRenderingContext2d) {
   let ( //aabb_tree,
         background_color,
@@ -409,7 +418,6 @@ pub fn render(world: &mut World, resources: &mut HtmlResources, context: &mut Ca
     );
 
   // Draw map renderings
-  trace!("rendering {} map entities", ents.len());
   ents
     .iter()
     .for_each(|(_entity, p, _, r, _)| {

@@ -149,13 +149,30 @@ impl mogwai::prelude::Component for App {
           .ecs
           .try_lock()
           .unwrap_throw();
+        ecs.world.delete_all();
         let mut loader = MapLoader::new(&mut ecs.world);
         let mut map = map.clone();
         let _ =
           loader
           .insert_map(&mut map, None, None)
           .unwrap_throw();
-        tx_view.send(&OutMsg::Status(format!("Successfully loaded {}", self.current_map_path.as_ref().unwrap())))
+        let num_entities = {
+          let entities =
+            ecs
+            .world
+            .system_data::<Entities>();
+          (&entities)
+            .join()
+            .collect::<Vec<_>>()
+            .len()
+        };
+        tx_view.send(&OutMsg::Status(
+          format!(
+            "Successfully loaded {} entities from {}",
+            num_entities,
+            self.current_map_path.as_ref().unwrap(),
+          )
+        ))
       }
     }
   }

@@ -4,7 +4,7 @@ use std::vec::Vec;
 use std::future::Future;
 use std::fs::File;
 use std::io::BufReader;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::result::Result;
 use serde::de::{Deserialize, Deserializer};
 use serde_json::{Error, from_reader, from_str};
@@ -732,34 +732,63 @@ impl Tiledmap {
       match &mut item.payload {
         TilesetPayload::Embedded(_) => {}
         TilesetPayload::Source(src) => {
-          let map_path =
-            Path::new(base_url)
-            .join(map_url);
+          let map_path = Path::new(map_url);
           let map_dir =
             map_path
             .parent()
             .ok_or("map is not in a directory")?;
-          let url =
+          let tileset_url =
             map_dir
             .join(&src.source);
+          let full_tileset_url =
+            Path::new(base_url)
+            .join(tileset_url.clone());
           let url_str =
-            url
+            full_tileset_url
             .to_str()
             .expect("could not get Tileset url as &str");
           trace!(
-            "hydrading tileset item async:\n  base_url: {}\n  map_url: {}\n  src: {:?}\n  url: {}",
+            "hydrading tileset item async:\n  base_url: {}\n  map_url: {}\n  tileset src: {:?}\n  tileset_url: {}\n  full_tileset_url: {}",
             base_url,
             map_url,
             src,
+            tileset_url.display(),
             url_str
           );
           let data = load(url_str).await?;
           trace!("  got Tileset data for url: {}", url_str);
+
+          // Update the image location
           let mut tileset:Tileset =
             from_str(&data)
             .map_err(|e| format!("error reading Tileset {}: {}", url_str, e))?;
-          // Url stuff here
-          //s.image =
+          let tileset_dir =
+            tileset_url
+            .parent()
+            .expect("Tileset has no parent");
+          let mut image_path = PathBuf::new();
+          let image_path_joined = tileset_dir.join(&tileset.image);
+          let image_path_components = image_path_joined.components();
+          for next in image_path_components {
+            let is_parent =
+              next == Component::ParentDir;
+            trace!("  component {:?} is parent {}", next, is_parent);
+            if is_parent {
+              image_path.pop();
+            } else {
+              image_path.push(next);
+            }
+          }
+          trace!("  converted url\n       {} \n  into {}", image_path_joined.display(), image_path.display());
+          let mut final_image_url = PathBuf::new();
+          final_image_url.push(base_url);
+          final_image_url.push(image_path);
+          tileset.image =
+            final_image_url
+            .to_str()
+            .expect("could not get canonical tileset url")
+            .into();
+          trace!("  final url is {}", tileset.image);
           tileset.extend_tiles_with_tileproperties();
           item.payload = TilesetPayload::Embedded(tileset);
         }
