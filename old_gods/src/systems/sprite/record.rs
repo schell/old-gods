@@ -1,3 +1,4 @@
+use serde_json::Value;
 use specs::prelude::*;
 use std::collections::HashMap;
 
@@ -48,20 +49,30 @@ impl Sprite {
   /// Parses a hashmap for the params needed to load a sprite from a Tiled map
   /// file.
   pub fn loading_params(
-    hmap: HashMap<String, String>
+    hmap: HashMap<String, Value>
   ) -> Result<(String, String, Option<String>), String> {
-    let variant =
+    let variant:&str =
       hmap
       .get("variant")
-      .ok_or("Sprite is missing its 'variant' property")?;
-    let file =
+      .ok_or("Sprite is missing its 'variant' property")?
+      .as_str()
+      .ok_or("Sprite's variant property must be a string")?;
+    let file:&str =
       hmap
       .get("file")
-      .ok_or("Sprite is missing its 'file' property")?;
-    let keyframe =
+      .ok_or("Sprite is missing its 'file' property")?
+      .as_str()
+      .ok_or("Sprite's file proprety must be a string")?;
+    let keyframe:Option<String> =
       hmap
-      .get("keyframe");
-    Ok((variant.clone(), file.clone(), keyframe.cloned()))
+      .get("keyframe")
+      .map(|val:&Value| {
+        val
+          .as_str()
+          .map(|s| s.to_string())
+      })
+      .flatten();
+    Ok((variant.to_string(), file.to_string(), keyframe))
   }
 
 

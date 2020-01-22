@@ -52,16 +52,14 @@ features = [
   "Blob",
   "CanvasRenderingContext2d",
   "DomException",
-  "File",
-  "FileList",
-  "FileReader",
   "HtmlCanvasElement",
   "HtmlImageElement",
+  "HtmlInputElement",
   "Request",
   "RequestInit",
   "RequestMode",
   "Response",
-  "HtmlInputElement",
+  "TextMetrics"
 ]
 
 [dev-dependencies]

@@ -2,15 +2,22 @@ use old_gods::prelude::*;
 use web_sys::CanvasRenderingContext2d;
 
 mod render;
-use render::HtmlResources;
+use render::{
+  HtmlResources,
+  DebugRenderingData
+};
+
+pub use render::RenderingToggles;
 
 
 pub struct ECS<'a, 'b> {
   dispatcher: Dispatcher<'a, 'b>,
   pub base_url: String,
+  debug_mode: bool,
   pub world: World,
   pub rendering_context: Option<CanvasRenderingContext2d>,
   pub resources: HtmlResources,
+  pub resolution: (i32, i32)
 }
 
 
@@ -48,9 +55,22 @@ impl<'a, 'b> ECS<'a, 'b> {
       dispatcher,
       world,
       base_url: base_url.into(),
+      debug_mode: false,
       rendering_context: None,
-      resources: HtmlResources::new()
+      resources: HtmlResources::new(),
+      resolution: (800, 600)
     }
+  }
+
+  pub fn set_debug_mode(&mut self, debug: bool) {
+    self.debug_mode = debug;
+    if debug {
+      <DebugRenderingData as SystemData>::setup(&mut self.world);
+    }
+  }
+
+  pub fn is_debug(&self) -> bool {
+    self.debug_mode
   }
 
   pub fn new(base_url: &str) -> Self {
@@ -80,7 +100,12 @@ impl<'a, 'b> ECS<'a, 'b> {
         .take();
       context
         .iter_mut()
-        .for_each(|ctx| render::render(&mut self.world, &mut self.resources, ctx));
+        .for_each(|ctx| {
+          render::render(&mut self.world, &mut self.resources, ctx);
+          if self.debug_mode {
+            render::render_debug(&mut self.world, &mut self.resources, ctx);
+          }
+        });
       self.rendering_context = context;
     } else {
       warn!("no rendering context");

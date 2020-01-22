@@ -13,6 +13,7 @@ use mogwai::prelude::*;
 use old_gods::prelude::*;
 use std::{
   panic,
+  collections::HashSet,
   sync::{Arc, Mutex}
 };
 use wasm_bindgen::prelude::*;
@@ -25,7 +26,7 @@ use web_sys::{
 mod ecs;
 mod fetch;
 
-use ecs::ECS;
+use ecs::{ECS, RenderingToggles};
 
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
@@ -172,7 +173,15 @@ impl mogwai::prelude::Component for App {
             num_entities,
             self.current_map_path.as_ref().unwrap(),
           )
-        ))
+        ));
+        if ecs.is_debug() {
+          let mut ecs_toggles:Write<HashSet<RenderingToggles>> =
+            ecs
+            .world
+            .system_data();
+          let map_toggles = RenderingToggles::from_properties(&map.properties);
+          *ecs_toggles = map_toggles;
+        }
       }
     }
   }
@@ -227,7 +236,13 @@ pub fn main() -> Result<(), JsValue> {
   console_log::init_with_level(Level::Trace)
     .unwrap();
 
-  let app_ecs = Arc::new(Mutex::new(ECS::new("http://localhost:8888")));
+  let app_ecs = {
+    let mut ecs = ECS::new("http://localhost:8888");
+    if cfg!(debug_assertions) {
+      ecs.set_debug_mode(true);
+    }
+    Arc::new(Mutex::new(ecs))
+  };
 
   // Set up the game loop
   let ecs = app_ecs.clone();

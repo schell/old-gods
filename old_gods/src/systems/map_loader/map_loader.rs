@@ -1,4 +1,4 @@
-use serde_json::from_str;
+use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;
 use specs::prelude::*;
@@ -113,22 +113,22 @@ impl<'a> MapLoader<'a> {
           .clone();
         let width:u32 =
           map
-          .properties
-          .get("viewport_width")
-          .map(|s| {
-            from_str(s)
-              .unwrap()
+          .get_property_by_name("viewport_width")
+          .map(|value:&Value| {
+            value
+              .as_i64()
+              .expect("map's 'viewport_width' property type must be unsigned int") as u32
           })
           .unwrap_or(map.width as u32 * map.tilewidth as u32);
 
         // Get the screen size based on the loaded map
         let height:u32 =
           map
-          .properties
-          .get("viewport_height")
-          .map(|s| {
-            from_str(s)
-              .unwrap()
+          .get_property_by_name("viewport_height")
+          .map(|value:&Value| {
+            value
+              .as_i64()
+              .expect("map's 'viewport_height' property type must be unsigned int") as u32
           })
           .unwrap_or(map.height as u32 * map.tileheight as u32);
 

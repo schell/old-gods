@@ -1,4 +1,3 @@
-use wasm_bindgen::prelude::*;
 use web_sys::{Request, RequestMode, RequestInit, Response};
 use mogwai::prelude::*;
 use serde::de::DeserializeOwned;
@@ -47,7 +46,7 @@ pub fn from_url(url:&str) -> Pin<Box<dyn Future<Output = Result<String, String>>
   })
 }
 
-pub async fn from_json<T: DeserializeOwned>(url:&str) -> Result<T, String> {
+pub async fn _from_json<T: DeserializeOwned>(url:&str) -> Result<T, String> {
   let result:String = from_url(url).await?;
   serde_json::from_str(&result)
     .map_err(|e| format!("{}", e))

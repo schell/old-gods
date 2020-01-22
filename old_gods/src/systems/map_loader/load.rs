@@ -1,6 +1,5 @@
 use std::iter::FromIterator;
 use std::iter::Iterator;
-use serde_json;
 
 use super::super::{
   super::tiled::json::*,
@@ -153,8 +152,11 @@ pub fn get_z_inc(object: &Object) -> Option<i32> {
 pub fn get_z_inc_props(properties: &Vec<Property>) -> Option<i32> {
   for prop in properties {
     if prop.name == "z" {
-      let zinc = serde_json::from_str(&prop.value)
-        .expect("Could not deserialize z incement.");
+      let zinc =
+        prop
+        .value
+        .as_i64()
+        .expect("Could not deserialize z incement.") as i32;
       return Some(zinc);
     }
   }

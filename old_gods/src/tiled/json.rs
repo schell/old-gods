@@ -7,7 +7,7 @@ use std::io::BufReader;
 use std::path::{Component, Path, PathBuf};
 use std::result::Result;
 use serde::de::{Deserialize, Deserializer};
-use serde_json::{Error, from_reader, from_str};
+use serde_json::{Error, Value, from_reader, from_str};
 
 use super::super::geom::V2;
 
@@ -364,7 +364,7 @@ pub struct Property {
   #[serde(rename = "type")]
   pub type_is: String,
 
-  pub value: String
+  pub value: Value
 }
 
 
@@ -663,7 +663,7 @@ pub struct Tiledmap {
 
   /// String key-value pairs
   #[serde(default)]
-  pub properties: HashMap<String, String>,
+  pub properties: Vec<Property>,
 
   /// Auto-increments for each placed object
   pub nextobjectid: i32,
@@ -699,7 +699,6 @@ impl Tiledmap {
       .await?;
     Ok(tiledmap)
   }
-
 
   pub fn new(path: &Path) -> Tiledmap {
     trace!("Opening Tiled map file {:?}", path);
@@ -869,9 +868,22 @@ impl Tiledmap {
   /// For this to work, the map itself must have the 'sprite_offset' property
   /// defined.
   pub fn get_sprite_offset(&self) -> Option<V2> {
-    let s = self.properties.get("sprite_offset")?;
-    let p:V2 = from_str(s)
+    let value =
+      self
+      .get_property_by_name("sprite_offset")?;
+    let offset_value:&str = value.as_str()?;
+    let p:V2 = from_str(offset_value)
       .expect("Could not deserialize sprite offset.");
     Some(p.scalar_mul(-1.0))
+  }
+
+  /// Get a custom proprety by name.
+  pub fn get_property_by_name(&self, name: &str) -> Option<&Value> {
+    for prop in &self.properties {
+      if prop.name == name {
+        return Some(&prop.value)
+      }
+    }
+    None
   }
 }

@@ -2,11 +2,10 @@
 /// This module provides some shared functionality for other */record.rs files.
 use either::Either;
 use std::collections::HashMap;
-use serde_json::from_str;
+use serde_json::{Value, from_str};
 use specs::prelude::*;
-//use sdl2::pixels::Color;
 
-use super::super::parser::{hex_color, float, IResult};
+use super::super::parser::hex_color;
 use super::super::prelude::{
   find_by,
   get_tile_rendering,
@@ -179,24 +178,23 @@ impl Attributes {
         let usable:bool =
           properties
           .get("usable")
-          .map(|s| {
-            from_str(s.as_str())
-              .map_err(|e| format!("{}", e))
+          .map(|value:&Value| {
+            value
+              .as_bool()
+              .ok_or("item's 'usable' property must be bool")
           })
           .unwrap_or(Ok(false))?;
-        let stack: Option<usize> =
-          properties
-          .get("stack_count")
-          .map(|s:&String| {
-            let res:IResult<&str, f32> =
-              float(s.as_str());
-            res
-              .map_err(|e| format!("{:?}", e))
-              .map(|(_, n)| {
-                Some(n as usize)
-              })
-          })
-          .unwrap_or(Ok(None))?;
+        let stack: Option<usize> = {
+          if let Some(stack_value) = properties.get("stack_count") {
+            let num =
+              stack_value
+              .as_u64()
+              .ok_or("items's 'stack_count' property must be unsigned int".to_string())?;
+            Some(num as usize)
+          } else {
+            None
+          }
+        };
         let item =
           Item {
             usable,
@@ -221,22 +219,34 @@ impl Attributes {
       }
 
       "action" => {
-        let text =
+        let text_value:&Value =
           properties
           .get(&Action::tiled_key_text())
-          .ok_or("An action must have a 'text' property")?
-          .clone();
-        let strategy_str =
+          .ok_or("An action must have a 'text' property")?;
+        let text:String =
+          text_value
+          .as_str()
+          .ok_or("An action's 'text' property must be a string")?
+          .to_string();
+        let strategy_val:&Value =
           properties
           .get(&FitnessStrategy::tiled_key())
           .ok_or("An action must have a 'fitness' property")?;
+        let strategy_str =
+          strategy_val
+          .as_str()
+          .ok_or("An action's 'fitness' property must be a string")?;
         let strategy =
-          FitnessStrategy::from_str(strategy_str.as_str())
+          FitnessStrategy::from_str(strategy_str)
           .map_err(|e| format!("Could not parse action's fitness strategy: {:?}", e))?;
-        let lifespan_str:&String =
+        let lifespan_value:&Value =
           properties
           .get(&Lifespan::tiled_key())
           .ok_or("An action must have a 'lifespan' property")?;
+        let lifespan_str:&str =
+          lifespan_value
+          .as_str()
+          .ok_or("An action's 'lifespan' property must be a string")?;
         let lifespan:Lifespan =
           Lifespan::from_str(lifespan_str)
           .map_err(|e| {

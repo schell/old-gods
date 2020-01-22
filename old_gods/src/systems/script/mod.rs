@@ -1,5 +1,6 @@
 use specs::prelude::*;
 use std::collections::HashMap;
+use serde_json::Value;
 
 use super::super::components::{Action, Exile, Inventory, Name, Sprite};
 mod container;
@@ -27,7 +28,7 @@ pub enum Script {
     name: String,
 
     /// Any special properties this script may have
-    properties: HashMap<String, String>
+    properties: HashMap<String, Value>
   }
 }
 
@@ -37,7 +38,7 @@ impl Script {
     "script".to_string()
   }
 
-  pub fn from_str(s: &str, props: Option<HashMap<String, String>>) -> Result<Script, String> {
+  pub fn from_str(s: &str, props: Option<HashMap<String, Value>>) -> Result<Script, String> {
     match s {
       "container" => { Ok(Script::Container) }
       "door" => { Ok(Script::Door) }
@@ -61,7 +62,7 @@ impl Script {
   }
 
   /// Return the other script if possible
-  pub fn other(&self) -> Option<(&String, &HashMap<String, String>)> {
+  pub fn other(&self) -> Option<(&String, &HashMap<String, Value>)> {
     match self {
       Script::Other{name, properties} => { Some((name, properties)) }
       _ => { None }
