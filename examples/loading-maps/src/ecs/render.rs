@@ -224,6 +224,12 @@ pub fn set_stroke_color(color: &Color, context: &CanvasRenderingContext2d) {
 // TODO: Rendering functions should return Result<_, JsValue>
 // Rendering may produce an error. Let's track that.
 pub fn draw_text(t: &Text, point: &V2, context: &CanvasRenderingContext2d) {
+  let point =
+    V2 {
+      x: point.x,
+      // CanvasRenderingContext2d draws text with the origin at the baseline
+      y: point.y + t.font.size as f32
+    };
   let alpha = context.global_alpha();
   context.set_global_alpha(t.color.a as f64 / 255.0);
   context.set_fill_style(

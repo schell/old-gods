@@ -45,11 +45,11 @@ impl FPSCounter {
   pub fn next_frame(&mut self) -> f32 {
     let this_instant = Millis::now();
     let delta = this_instant.millis_since(self.last_instant);
-    let dt = (delta * 1000) as f32;
+    let dt_seconds = delta as f32/ 1000.0;
     self.last_instant = this_instant;
-    self.buffer[self.index] = dt;
+    self.buffer[self.index] = dt_seconds;
     self.index = (self.index + 1) % self.buffer.len();
-    dt
+    dt_seconds
   }
 
   pub fn avg_frame_delta(&self) -> f32 {
