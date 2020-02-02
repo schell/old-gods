@@ -157,6 +157,9 @@ impl mogwai::prelude::Component for App {
           loader
           .insert_map(&mut map, None, None)
           .unwrap_throw();
+        if let Some((width, height)) = map.get_suggested_viewport_size() {
+          ecs.set_resolution(width, height);
+        }
         let num_entities = {
           let entities =
             ecs
@@ -220,8 +223,8 @@ impl mogwai::prelude::Component for App {
                 canvas()
                   .class("embed-responsive-item")
                   .attribute("id", "screen")
-                  .attribute("width", "800")
-                  .attribute("height", "600")
+                  .attribute("width", "1600")
+                  .attribute("height", "900")
                   .tx_post_build(tx.contra_map(|el:&HtmlElement| InMsg::PostBuild(el.clone())))
               )
           )

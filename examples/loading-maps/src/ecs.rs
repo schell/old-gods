@@ -1,5 +1,6 @@
 use old_gods::prelude::*;
-use web_sys::CanvasRenderingContext2d;
+use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, window};
+use wasm_bindgen::{JsCast, UnwrapThrowExt};
 
 mod render;
 use render::{
@@ -14,10 +15,10 @@ pub struct ECS<'a, 'b> {
   dispatcher: Dispatcher<'a, 'b>,
   pub base_url: String,
   debug_mode: bool,
+  pre_rendering_context: CanvasRenderingContext2d,
   pub world: World,
   pub rendering_context: Option<CanvasRenderingContext2d>,
   pub resources: HtmlResources,
-  pub resolution: (i32, i32)
 }
 
 
@@ -51,6 +52,14 @@ impl<'a, 'b> ECS<'a, 'b> {
     world
       .maintain();
 
+    let pre_rendering_context =
+      window().unwrap_throw()
+      .document().unwrap_throw()
+      .create_element("canvas").unwrap_throw()
+      .dyn_into::<HtmlCanvasElement>().unwrap_throw()
+      .get_context("2d").unwrap_throw().unwrap_throw()
+      .dyn_into::<CanvasRenderingContext2d>().unwrap_throw();
+
     ECS{
       dispatcher,
       world,
@@ -58,7 +67,7 @@ impl<'a, 'b> ECS<'a, 'b> {
       debug_mode: false,
       rendering_context: None,
       resources: HtmlResources::new(),
-      resolution: (800, 600)
+      pre_rendering_context
     }
   }
 
@@ -67,6 +76,31 @@ impl<'a, 'b> ECS<'a, 'b> {
     if debug {
       <DebugRenderingData as SystemData>::setup(&mut self.world);
     }
+  }
+
+  /// Set the width and height of the rendering context.
+  /// This does not set the width and height of the canvas, instead it sets the
+  /// width and height of the inner rendering context. The inner context is the
+  /// one that the map is rendered to first. That context is then rendered to
+  /// fit inside the outer canvas while maintaining the aspect ratio set by this
+  /// function.
+  pub fn set_resolution(&self, w: u32, h: u32) {
+    let canvas:HtmlCanvasElement =
+      self
+      .pre_rendering_context
+      .canvas().unwrap_throw();
+    canvas.set_width(w);
+    canvas.set_height(h);
+  }
+
+  /// Get the current resolution.
+  /// This is the width and height of the inner rendering context.
+  pub fn get_resolution(&self) -> (u32, u32) {
+    let canvas:HtmlCanvasElement =
+      self
+      .pre_rendering_context
+      .canvas().unwrap_throw();
+    (canvas.width(), canvas.height())
   }
 
   pub fn is_debug(&self) -> bool {

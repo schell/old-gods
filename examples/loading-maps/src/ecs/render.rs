@@ -748,6 +748,8 @@ fn draw_map_point(at: V2, screen: &Screen, context: &CanvasRenderingContext2d) {
 
 
 
+// TODO: Cache debug rendering so we don't have to render a ton of lines every frame.
+// It's really killing performance.
 pub fn render_debug(
   world: &mut World,
   _resources: &mut HtmlResources,

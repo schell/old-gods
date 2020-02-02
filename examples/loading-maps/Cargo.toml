@@ -59,7 +59,8 @@ features = [
   "RequestInit",
   "RequestMode",
   "Response",
-  "TextMetrics"
+  "TextMetrics",
+  "Window"
 ]
 
 [dev-dependencies]

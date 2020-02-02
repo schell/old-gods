@@ -886,4 +886,52 @@ impl Tiledmap {
     }
     None
   }
+
+  /// Get the suggested size of the viewport.
+  /// First looks to custom properties on the map called `viewport_width_tiles`
+  /// and `viewport_height_tiles` or falls back to `viewport_width` and
+  /// `viewport_height`.
+  pub fn get_suggested_viewport_size(&self) -> Option<(u32, u32)> {
+    let tile_width = self.tilewidth as u32;
+    let tile_height = self.tileheight as u32;
+    let width =
+      self
+      .get_property_by_name("viewport_width_tiles")
+      .map(|num_tiles_value:&Value| {
+        num_tiles_value
+          .as_u64()
+          .map(|num_tiles| num_tiles as u32 * tile_width)
+      })
+      .flatten()
+      .or(
+        self
+          .get_property_by_name("viewport_width")
+          .map(|value| {
+            value
+              .as_u64()
+              .map(|width| width as u32)
+          })
+          .flatten()
+      )?;
+    let height =
+      self
+      .get_property_by_name("viewport_height_tiles")
+      .map(|num_tiles_value:&Value| {
+        num_tiles_value
+          .as_u64()
+          .map(|num_tiles| num_tiles as u32 * tile_height)
+      })
+      .flatten()
+      .or(
+        self
+          .get_property_by_name("viewport_height")
+          .map(|value| {
+            value
+              .as_u64()
+              .map(|height| height as u32)
+          })
+          .flatten()
+      )?;
+    Some((width, height))
+  }
 }
