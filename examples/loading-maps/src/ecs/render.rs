@@ -329,7 +329,6 @@ pub fn draw_rendering(
   }
 }
 
-// TODO: Debug rendering
 type RenderData<'s> = (
   Read<'s, BackgroundColor>,
   Write<'s, Screen>,
@@ -364,7 +363,11 @@ pub fn render(world: &mut World, resources: &mut HtmlResources, context: &mut Ca
       context
       .canvas()
       .unwrap_throw();
-    screen.window_size = (canvas.width(), canvas.height());
+    let size = (canvas.width(), canvas.height());
+    if screen.window_size != size {
+      trace!("setting screen's window_size to {:#?}", size);
+      screen.window_size = size;
+    } 
     screen.aabb()
   };
 

@@ -37,7 +37,7 @@ impl Container {
       .map(|c| c.clone())
       .collect();
 
-    'find_child: for child in &children {
+    for child in &children { 
       if let Some(action) = actions.get(*child) {
         let name =
           names

@@ -303,6 +303,14 @@ impl AABB {
   //  )
   //}
 
+  pub fn round(&self) -> AABB {
+    let mut aabb = self.clone();
+    aabb.top_left.x = aabb.top_left.x.round();
+    aabb.top_left.y = aabb.top_left.y.round();
+    aabb.extents.x = aabb.extents.x.round();
+    aabb.extents.y = aabb.extents.y.round();
+    aabb
+  }
 
   pub fn to_shape(&self) -> Shape {
     Shape::Box {

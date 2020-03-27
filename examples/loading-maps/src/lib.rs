@@ -39,7 +39,7 @@ fn maps() -> Vec<String> {
   vec![
     "maps/tiles_test.json".into(),
     "maps/collision_detection.json".into(),
-    "maps/door_test.json".into()
+    "maps/door_test.json".into() 
   ]
 }
 
@@ -88,6 +88,7 @@ impl App {
 impl mogwai::prelude::Component for App {
   type ModelMsg = InMsg;
   type ViewMsg = OutMsg;
+  type DomNode = HtmlElement;
 
   fn update(&mut self, msg: &InMsg, tx_view: &Transmitter<OutMsg>, sub: &Subscriber<InMsg>) {
     match msg {
@@ -109,6 +110,7 @@ impl mogwai::prelude::Component for App {
           .try_lock()
           .unwrap_throw();
         ecs.rendering_context = Some(context);
+        ecs.set_resolution(canvas.width(), canvas.height());
       }
       InMsg::Load(path) => {
         let ecs =
@@ -189,28 +191,30 @@ impl mogwai::prelude::Component for App {
     }
   }
 
-  fn builder(&self, tx: Transmitter<InMsg>, rx: Receiver<OutMsg>) -> GizmoBuilder {
+  fn view(&self, tx: Transmitter<InMsg>, rx: Receiver<OutMsg>) -> Gizmo<HtmlElement> { 
     div()
       .class("container-fluid")
       .with(
-        fieldset()
-          .with(
-            legend()
-              .text("Old Gods Map Loader")
-          )
-          .with_many(
-            maps()
-              .into_iter()
-              .map(|map| {
-                div()
-                  .with(
-                    a()
-                      .attribute("href", "#")
-                      .text(&map)
-                      .tx_on("click", tx.contra_map(move |_| InMsg::Load(map.to_string())))
-                  )
-              })
-              .collect()
+        maps()
+          .into_iter()
+          .fold(
+            fieldset()
+              .with(
+                legend()
+                  .text("Old Gods Map Loader")
+              ),
+            |fieldset, map| {
+              fieldset
+                .with(
+                  div()
+                    .with(
+                      a()
+                        .attribute("href", "#")
+                        .text(&map)
+                        .tx_on("click", tx.contra_map(move |_| InMsg::Load(map.to_string())))
+                    )
+                )
+            }
           )
           .with(
             pre()
