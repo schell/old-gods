@@ -358,18 +358,16 @@ pub fn render(world: &mut World, resources: &mut HtmlResources, context: &mut Ca
     ):RenderData = world.system_data();
 
   // Set the screen's size and the window size, return the screen's map aabb
-  let screen_aabb = {
-    let canvas =
-      context
-      .canvas()
-      .unwrap_throw();
-    let size = (canvas.width(), canvas.height());
-    if screen.window_size != size {
-      trace!("setting screen's window_size to {:#?}", size);
-      screen.window_size = size;
-    } 
-    screen.aabb()
-  };
+  let canvas =
+    context
+    .canvas()
+    .unwrap_throw();
+  let size = (canvas.width(), canvas.height());
+  if screen.window_size != size {
+    trace!("setting screen's window_size to {:#?}", size);
+    screen.window_size = size;
+  }
+  let screen_aabb = screen.aabb();
 
   // Get all the on screen things to render.
   // Order the things by bottom to top, back to front.
@@ -433,7 +431,7 @@ pub fn render(world: &mut World, resources: &mut HtmlResources, context: &mut Ca
   context
     .fill_rect(
       0.0, 0.0,
-      screen_aabb.width() as f64, screen_aabb.height() as f64
+      size.0 as f64, size.1 as f64
     );
 
   // Draw map renderings

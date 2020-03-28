@@ -18,6 +18,7 @@ use old_gods::prelude::{
   AABB,
   FPSCounter,
   Screen,
+  V2,
 
   World,
   WorldExt,
@@ -115,8 +116,6 @@ impl<'a, 'b> ECS<'a, 'b> {
       self
       .world
       .write_resource::<Screen>();
-    screen.window_size.0 = w;
-    screen.window_size.1 = h;
     if let Some(canvas) = &mut self.pre_rendering_context.canvas() {
       canvas.set_width(w);
       canvas.set_height(h);
@@ -155,6 +154,10 @@ impl<'a, 'b> ECS<'a, 'b> {
       .maintain();
   }
 
+  // TODO: Separate #rendering into three steps: 
+  // * Render the map into the pre-context, then aspect fit render to main
+  // * Render debug stuff onto main
+  // * Render UI onto main
   pub fn render(&mut self) {
     let mut may_ctx = self.rendering_context.take();
     if let Some(ctx) = &mut may_ctx {
@@ -178,19 +181,21 @@ impl<'a, 'b> ECS<'a, 'b> {
         .canvas()
         .unwrap_throw();
 
+      let window =
+        ctx
+        .canvas()
+        .unwrap_throw();
+
+      let map_size = V2::new(canvas.width() as f32, canvas.height() as f32);
+      let win_size = V2::new(window.width() as f32, window.height() as f32); 
+
       // Aspect fit our pre_rendering_context inside the final rendering_context 
       let src = AABB::new(
         0.0, 0.0,
-        canvas.width() as f32, canvas.height() as f32
+        map_size.x, map_size.y 
       );
 
-      let screen = self.world.read_resource::<Screen>();
-
-      let dest = AABB::from_points(
-          screen.screen_to_window(&src.top_left),
-          screen.screen_to_window(&src.extents)
-      ).round(); 
-
+      let dest = AABB::aabb_to_aspect_fit_inside(map_size, win_size).round(); 
       trace!("drawing {:#?} to {:#?}", src, dest);
 
       ctx

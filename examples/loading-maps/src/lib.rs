@@ -160,6 +160,7 @@ impl mogwai::prelude::Component for App {
           .insert_map(&mut map, None, None)
           .unwrap_throw();
         if let Some((width, height)) = map.get_suggested_viewport_size() {
+          trace!("got map viewport size: {} {}", width, height);
           ecs.set_resolution(width, height);
         }
         let num_entities = {
