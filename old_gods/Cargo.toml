@@ -10,7 +10,9 @@ features = ["alloc"]
 
 [dependencies]
 either = "1.5.2"
+js-sys = "0.3"
 log = "0.4"
+nom = "5.0.0-beta2"
 rand = "0.7"
 serde = "1.0"
 serde_derive = "1.0"
@@ -19,19 +21,22 @@ specs-derive = "0.2"
 shrev = "1.0"
 shred-derive = "0.5"
 spade = "1.5.1"
-nom = "5.0.0-beta2"
+wasm-bindgen = "0.2"
 
 
 [dependencies.web-sys]
-version = "0.3.32"
+version = "0.3"
 features = [
+  "console",
   "ErrorEvent",
+  "Gamepad",
   "KeyboardEvent",
   "Location",
   "Performance",
   "Blob",
   "FileList",
-  "FileReader"
+  "FileReader",
+  "Window"
 ]
 #[dependencies.sdl2]
 #version = "0.32.0"

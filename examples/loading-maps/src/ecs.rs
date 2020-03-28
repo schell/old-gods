@@ -1,19 +1,20 @@
 use old_gods::prelude::{
-  MapLoadingSystem,
-  ScreenSystem,
   ActionSystem,
-  ScriptSystem,
-  SpriteSystem,
+  AnimationSystem,
+  EffectSystem,
+  FenceSystem,
+  InventorySystem,
+  ItemSystem,
+  MapLoadingSystem,
   PlayerSystem,
   Physics,
-  AnimationSystem,
-  InventorySystem,
-  EffectSystem,
-  ItemSystem,
-  ZoneSystem,
-  WarpSystem,
-  FenceSystem,
+  ScreenSystem,
+  ScriptSystem,
+  SpriteSystem,
   TweenSystem,
+  UISystem, 
+  WarpSystem,
+  ZoneSystem,
 
   AABB,
   FPSCounter,
@@ -55,21 +56,22 @@ impl<'a, 'b> ECS<'a, 'b> {
     let mut dispatcher =
       dispatcher_builder
       //.with_thread_local(SoundSystem::new())
-      .with(MapLoadingSystem{ opt_reader: None }, "map", &[])
-      .with(ScreenSystem, "screen", &[])
-      .with(ActionSystem, "action", &[])
-      .with(ScriptSystem, "script", &["action"])
-      .with(SpriteSystem, "sprite", &["script"])
-      .with(PlayerSystem, "control", &[])
-      .with(Physics::new(), "physics", &[])
-      .with(AnimationSystem, "animation", &[])
-      .with(InventorySystem, "inventory", &[])
-      .with(EffectSystem, "effect", &[])
-      .with(ItemSystem, "item", &["action", "effect"])
-      .with(ZoneSystem, "zone", &[])
-      .with(WarpSystem, "warp", &["physics"])
-      .with(FenceSystem, "fence", &["physics"])
-      .with(TweenSystem, "tween", &[])
+      .with_thread_local(MapLoadingSystem{ opt_reader: None })
+      .with_thread_local(ScreenSystem)
+      .with_thread_local(ActionSystem)
+      .with_thread_local(ScriptSystem)
+      .with_thread_local(SpriteSystem)
+      .with_thread_local(PlayerSystem)
+      .with_thread_local(Physics::new())
+      .with_thread_local(AnimationSystem)
+      .with_thread_local(InventorySystem)
+      .with_thread_local(EffectSystem)
+      .with_thread_local(ItemSystem)
+      .with_thread_local(ZoneSystem)
+      .with_thread_local(WarpSystem)
+      .with_thread_local(FenceSystem)
+      .with_thread_local(TweenSystem)
+      .with_thread_local(UISystem::new())
       .build();
 
     dispatcher
@@ -112,10 +114,6 @@ impl<'a, 'b> ECS<'a, 'b> {
   /// fit inside the outer canvas while maintaining the aspect ratio set by this
   /// function.
   pub fn set_resolution(&mut self, w: u32, h: u32) {
-    let mut screen =
-      self
-      .world
-      .write_resource::<Screen>();
     if let Some(canvas) = &mut self.pre_rendering_context.canvas() {
       canvas.set_width(w);
       canvas.set_height(h);
@@ -127,7 +125,7 @@ impl<'a, 'b> ECS<'a, 'b> {
   pub fn get_resolution(&self) -> (u32, u32) {
     self
       .world
-      .read_resource::<Screen>()
+      .read_resource::<Screen>() 
       .window_size
   }
 
@@ -160,15 +158,15 @@ impl<'a, 'b> ECS<'a, 'b> {
   // * Render UI onto main
   pub fn render(&mut self) {
     let mut may_ctx = self.rendering_context.take();
-    if let Some(ctx) = &mut may_ctx {
-      render::render(
+    if let Some(mut ctx) = may_ctx.as_mut() {
+      render::render_map(
         &mut self.world,
         &mut self.resources,
         &mut self.pre_rendering_context
       );
 
       if self.debug_mode {
-        render::render_debug(
+        render::render_map_debug(
           &mut self.world,
           &mut self.resources,
           &mut self.pre_rendering_context
@@ -177,7 +175,7 @@ impl<'a, 'b> ECS<'a, 'b> {
 
       let canvas =
         self
-        .pre_rendering_context
+        .pre_rendering_context 
         .canvas()
         .unwrap_throw();
 
@@ -190,14 +188,12 @@ impl<'a, 'b> ECS<'a, 'b> {
       let win_size = V2::new(window.width() as f32, window.height() as f32); 
 
       // Aspect fit our pre_rendering_context inside the final rendering_context 
-      let src = AABB::new(
+      let src = AABB::new( 
         0.0, 0.0,
         map_size.x, map_size.y 
       );
-
       let dest = AABB::aabb_to_aspect_fit_inside(map_size, win_size).round(); 
       trace!("drawing {:#?} to {:#?}", src, dest);
-
       ctx
         .draw_image_with_html_canvas_element_and_dw_and_dh(
           &canvas,
@@ -207,6 +203,12 @@ impl<'a, 'b> ECS<'a, 'b> {
           dest.height() as f64
         )
         .unwrap_throw();
+
+      // Draw the UI
+      render::render_ui(&mut self.world, &mut self.resources, &mut ctx);
+      if self.debug_mode {
+        render::render_ui_debug(&mut self.world, &mut self.resources, &mut ctx);
+      }
     } else {
       warn!("no rendering context");
     }

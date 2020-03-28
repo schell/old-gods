@@ -263,7 +263,7 @@ pub fn measure_text(t: &Text, context: &CanvasRenderingContext2d) -> (f32, f32) 
 
 /// Draw a rendering at a position.
 pub fn draw_rendering(
-  context: &CanvasRenderingContext2d,
+  context: &CanvasRenderingContext2d, 
   resources: &mut HtmlResources,
   point: &V2,
   r : &Rendering
@@ -343,7 +343,7 @@ type RenderData<'s> = (
 );
 
 
-pub fn render(world: &mut World, resources: &mut HtmlResources, context: &mut CanvasRenderingContext2d) {
+pub fn render_map(world: &mut World, resources: &mut HtmlResources, context: &mut CanvasRenderingContext2d) {
   let
     ( background_color,
       mut screen,
@@ -751,7 +751,7 @@ fn draw_map_point(at: V2, screen: &Screen, context: &CanvasRenderingContext2d) {
 
 // TODO: Cache debug rendering so we don't have to render a ton of lines every frame.
 // It's really killing performance.
-pub fn render_debug(
+pub fn render_map_debug(
   world: &mut World,
   _resources: &mut HtmlResources,
   context: &mut CanvasRenderingContext2d
@@ -1227,6 +1227,20 @@ pub fn render_debug(
       }
     }
 }
+
+// TODO: Render UI
+pub fn render_ui( 
+  _world: &mut World,
+  _resources: &mut HtmlResources,
+  _context: &mut CanvasRenderingContext2d
+) {}
+
+// TODO: Render Debug UI
+pub fn render_ui_debug(
+  _world: &mut World,
+  _resources: &mut HtmlResources,
+  _context: &mut CanvasRenderingContext2d
+) {}
 
 
 pub trait Renderer {

@@ -14,5 +14,5 @@ pub mod script;
 //pub mod sound;
 pub mod sprite;
 pub mod tween;
-//pub mod ui;
+pub mod ui;
 pub mod zone;
