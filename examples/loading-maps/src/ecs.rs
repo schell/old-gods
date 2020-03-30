@@ -61,18 +61,18 @@ impl<'a, 'b> ECS<'a, 'b> {
     world.maintain();
 
     let pre_rendering_context = window()
-      .unwrap_throw()
+      .expect("no window")
       .document()
-      .unwrap_throw()
+      .expect("no document")
       .create_element("canvas")
-      .unwrap_throw()
+      .expect("can't create canvas")
       .dyn_into::<HtmlCanvasElement>()
-      .unwrap_throw()
+      .expect("can't coerce canvas")
       .get_context("2d")
-      .unwrap_throw()
-      .unwrap_throw()
+      .expect("can't call get_context('2d')")
+      .expect("can't get canvas rendering context")
       .dyn_into::<CanvasRenderingContext2d>()
-      .unwrap_throw();
+      .expect("can't coerce canvas rendering context");
 
     ECS {
       dispatcher,
@@ -100,6 +100,8 @@ impl<'a, 'b> ECS<'a, 'b> {
   /// function.
   pub fn set_resolution(&mut self, w: u32, h: u32) {
     if let Some(canvas) = &mut self.pre_rendering_context.canvas() {
+      let mut screen = self.world.write_resource::<Screen>();
+      screen.set_size((w, h));
       canvas.set_width(w);
       canvas.set_height(h);
     }
@@ -108,7 +110,8 @@ impl<'a, 'b> ECS<'a, 'b> {
   /// Get the current resolution.
   /// This is the width and height of the inner rendering context.
   pub fn get_resolution(&self) -> (u32, u32) {
-    self.world.read_resource::<Screen>().window_size
+    let size = self.world.read_resource::<Screen>().get_size();
+    (size.x.round() as u32, size.y.round() as u32)
   }
 
   pub fn is_debug(&self) -> bool {
@@ -148,14 +151,14 @@ impl<'a, 'b> ECS<'a, 'b> {
         );
       }
 
-      let canvas = self.pre_rendering_context.canvas().unwrap_throw();
-
-      let window = ctx.canvas().unwrap_throw();
+      let canvas = self.pre_rendering_context.canvas().expect("pre_rendering_context has no canvas");
+      let window = ctx.canvas().expect("main rendering context has no canvas");
 
       // Aspect fit our pre_rendering_context inside the final rendering_context
       let map_size = V2::new(canvas.width() as f32, canvas.height() as f32);
       let win_size = V2::new(window.width() as f32, window.height() as f32);
       let dest = AABB::aabb_to_aspect_fit_inside(map_size, win_size).round();
+      //trace!("map: {:#?} win: {:#?} dest: {:#?}", map_size, win_size, dest);
       ctx
         .draw_image_with_html_canvas_element_and_dw_and_dh(
           &canvas,
@@ -164,7 +167,7 @@ impl<'a, 'b> ECS<'a, 'b> {
           dest.width() as f64,
           dest.height() as f64,
         )
-        .unwrap_throw();
+        .expect("can't draw map");
 
       // Draw the UI
       render::render_ui(&mut self.world, &mut self.resources, &mut ctx);

@@ -327,7 +327,7 @@ impl<'ctx, 'res, 'sys> RenderUI {
         position.0 + offset.0;
       let pos =
         screen
-        .map_to_window(&pos);
+        .from_map(&pos);
       Self::draw_action(canvas, resources, &pos, &action);
     }
 

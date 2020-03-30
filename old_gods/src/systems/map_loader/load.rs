@@ -111,22 +111,15 @@ pub fn get_tile_barriers(tm: &Tiledmap, tile_gid: &GlobalId) -> Option<Shape> {
 
 
 pub fn get_z_inc(object: &Object) -> Option<i32> {
-  get_z_inc_props(&object.properties)
-}
-
-pub fn get_z_inc_props(properties: &Vec<Property>) -> Option<i32> {
-  for prop in properties {
-    if prop.name == "z" {
-      let zinc = prop
-        .value
-        .as_i64()
-        .expect("Could not deserialize z incement.") as i32;
-      return Some(zinc);
+  for prop in object.properties.iter() {
+    if prop.name == "z_inc" {
+      if let Some(z_inc) = prop.value.as_i64() {
+        return Some(z_inc as i32);
+      }
     }
   }
   None
 }
-
 
 pub fn object_shape(object: &Object) -> Option<Shape> {
   if let Some(_polyline) = &object.polyline {

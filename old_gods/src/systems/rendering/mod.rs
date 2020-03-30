@@ -146,7 +146,7 @@ pub use self::record::*;
 //       //screen
 //       //  .set_size(self.resolution);
 //
-//       screen.window_size =
+//       screen.viewport_size =
 //         canvas
 //         .output_size()
 //         .unwrap();
@@ -175,7 +175,7 @@ pub use self::record::*;
 //           entity_local_origin(ent, &shapes, &offset_store);
 //         let pos =
 //           screen
-//           .map_to_screen(&p.0);
+//           .from_map(&p.0);
 //         (ent, Position(pos), offset, r, zlevels.get(ent))
 //       })
 //       .collect();
@@ -231,8 +231,8 @@ pub use self::record::*;
 //       );
 //     let dest =
 //       AABB::from_points(
-//         screen.screen_to_window(&src.top_left),
-//         screen.screen_to_window(&src.extents)
+//         screen.screen_to_viewport(&src.top_left),
+//         screen.screen_to_viewport(&src.extents)
 //       )
 //       .to_rect();
 //     let src =

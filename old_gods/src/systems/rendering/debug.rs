@@ -40,7 +40,7 @@ impl<'ctx, 'res, 'sys> RenderDebug {
         entity_local_origin(entity, shapes, offsets);
       let p1 =
         screen
-        .map_to_window(&(position.0 + offset));
+        .from_map(&(position.0 + offset));
       let p2 = p1 + v;
       let lines =
         Self::arrow_lines(p1, p2);
@@ -66,7 +66,7 @@ impl<'ctx, 'res, 'sys> RenderDebug {
         .unwrap_or(V2::origin());
       let p =
         screen
-        .map_to_screen(&(position.0 + offset));
+        .from_map(&(position.0 + offset));
       canvas.set_draw_color(Color::rgb(0, 255, 255));
       canvas.draw_rect(
         Rect::new(
@@ -97,7 +97,7 @@ impl<'ctx, 'res, 'sys> RenderDebug {
           map_offset + axis.scalar_mul(proj);
         let window_point =
           screen
-          .map_to_window(&map_proj_point);
+          .from_map(&map_proj_point);
         // Draw the point itself
         canvas
           .draw_lines(
@@ -112,8 +112,8 @@ impl<'ctx, 'res, 'sys> RenderDebug {
   fn draw_map_aabb(aabb: &AABB, screen: &Screen, canvas: &mut WindowCanvas) {
     let dbg_aabb =
       AABB::from_points(
-        screen.map_to_window(&aabb.lower()),
-        screen.map_to_window(&aabb.upper())
+        screen.from_map(&aabb.lower()),
+        screen.from_map(&aabb.upper())
       );
     canvas
       .draw_rect(
@@ -128,9 +128,9 @@ impl<'ctx, 'res, 'sys> RenderDebug {
     let lines =
       Self::arrow_lines(
         screen
-          .map_to_window(&from),
+          .from_map(&from),
         screen
-          .map_to_window(&to)
+          .from_map(&to)
       );
     canvas
       .draw_lines(
@@ -145,7 +145,7 @@ impl<'ctx, 'res, 'sys> RenderDebug {
     let lines =
       Self::point_lines(
         screen
-          .map_to_window(&at),
+          .from_map(&at),
       );
     canvas
       .draw_lines(
@@ -208,7 +208,7 @@ impl<'ctx, 'res, 'sys> RenderDebug {
         .map(|v| {
           let point =
             screen
-            .map_to_window(&(*p + v));
+            .from_map(&(*p + v));
           Point::new(point.x as i32, point.y as i32)
         })
         .collect();
@@ -235,7 +235,7 @@ impl<'ctx, 'res, 'sys> RenderDebug {
         for (axis, midpoint) in axes.into_iter().zip(midpoints) {
           let midpoint =
             screen
-            .screen_to_window(&midpoint);
+            .screen_to_viewport(&midpoint);
           let lines =
             Self::arrow_lines(midpoint, midpoint + (axis.scalar_mul(20.0)));
           canvas
@@ -457,9 +457,9 @@ impl<'ctx, 'res, 'sys> RenderDebug {
         let aabb =
           AABB::from_points(
             screen
-              .map_to_window(&aabb.top_left),
+              .from_map(&aabb.top_left),
             screen
-              .map_to_window(&aabb.lower())
+              .from_map(&aabb.lower())
           );
 
         canvas
@@ -495,8 +495,8 @@ impl<'ctx, 'res, 'sys> RenderDebug {
           shape
           .extents();
         let aabb = AABB::from_points(
-          screen.map_to_window(p),
-          screen.map_to_window(&(*p + extents))
+          screen.from_map(p),
+          screen.from_map(&(*p + extents))
         );
         canvas.set_draw_color(color);
         canvas.draw_rect(
@@ -553,7 +553,7 @@ impl<'ctx, 'res, 'sys> RenderDebug {
       for (entity, &Position(pos), fence, color) in fences {
         let pos =
           screen
-          .map_to_window(&pos);
+          .from_map(&pos);
         let lines:Vec<Point> =
           fence
           .points
@@ -621,9 +621,9 @@ impl<'ctx, 'res, 'sys> RenderDebug {
       let window_aabb =
         AABB::from_points(
           screen
-            .map_to_window(&screen_aabb.lower()),
+            .from_map(&screen_aabb.lower()),
           screen
-            .map_to_window(&screen_aabb.upper())
+            .from_map(&screen_aabb.upper())
         );
 
       canvas.draw_rect(
@@ -641,9 +641,9 @@ impl<'ctx, 'res, 'sys> RenderDebug {
       let window_focus_aabb =
         AABB::from_points(
           screen
-            .map_to_window(&focus_aabb.top_left),
+            .from_map(&focus_aabb.top_left),
           screen
-            .map_to_window(&focus_aabb.lower())
+            .from_map(&focus_aabb.lower())
         );
       canvas
         .draw_rect(
@@ -669,7 +669,7 @@ impl<'ctx, 'res, 'sys> RenderDebug {
         };
 
         let a =
-          screen.map_to_screen(pos);
+          screen.from_map(pos);
         let b =
           a + V2::new(10.0, -20.0);
         let c =
@@ -701,7 +701,7 @@ impl<'ctx, 'res, 'sys> RenderDebug {
           .map(|v| {
             let point =
               screen
-              .map_to_window(&(*p + v));
+              .from_map(&(*p + v));
             Point::new(point.x as i32, point.y as i32)
           })
           .collect();

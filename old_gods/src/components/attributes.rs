@@ -1,7 +1,8 @@
 /// Attributes allow us to read components and entities out of a Tiled map.
 /// This module provides some shared functionality for other */record.rs files.
 use either::Either;
-use serde_json::{from_str, Value};
+use log::trace;
+use serde_json::Value;
 use specs::prelude::{
   Builder, Component, DenseVecStorage, Entity, World, WorldExt,
 };
@@ -12,7 +13,6 @@ use super::super::prelude::{
   find_by,
   get_tile_animation,
   get_tile_rendering,
-  get_z_inc_props,
   object_barrier,
   object_shape,
   Action,
@@ -283,35 +283,28 @@ impl Attributes {
 
   /// Read a number of attributes from a hashmap of properties.
   pub fn read_properties(
-    properties: &Vec<Property>,
+    properties: &HashMap<&String, &Property>,
   ) -> Result<Vec<Attribute>, String> {
     let mut attribs = vec![];
-    let get_prop = |name: &str| -> Option<String> {
-      for prop in properties {
-        if name == prop.name {
-          return Some(prop.value.to_string());
-        }
-      }
-      None
-    };
 
     // Player
-    if let Some(control_scheme) = get_prop(&Player::tiled_key()) {
-      let control = match control_scheme.as_str() {
+    if let Some(control_scheme_prop) = properties.get(&Player::tiled_key()) {
+      let control_scheme = control_scheme_prop
+        .value
+        .as_str()
+        .ok_or("player object's control_scheme must be a string".to_string())?;
+      let control = match control_scheme.as_ref() {
         "player" => {
-          let ndx_str = get_prop("player_index").ok_or(format!(
+          let ndx_prop = properties.get(&"player_index".to_string()).ok_or({
+            trace!("properties:\n{:#?}", properties);
             "Object must have a 'player_index' custom property for control."
-          ))?;
-          let ndx =
-            from_str(&ndx_str)
-            .map_err(|e| {
-              format!(
-                "Could not deserialize object 'player_index' value '{}', it should be an unsigned integer: {:?}",
-                ndx_str,
-                e
-              )
-            })?;
-          Player(ndx)
+              .to_string()
+          })?;
+          let ndx = ndx_prop.value.as_u64().ok_or(
+            "Object 'player_index' must be an unsigned integer: {:?}"
+              .to_string(),
+          )?;
+          Player(ndx as u32)
         }
 
         "npc" => {
@@ -319,34 +312,43 @@ impl Attributes {
         }
 
         _ => {
-          panic!("Unsupported control scheme '{}'.", control_scheme,);
+          panic!("Unsupported control scheme '{}'.", control_scheme);
         }
       };
       attribs.push(Attribute::Player(control));
     }
 
     // ZIncrement
-    if let Some(z_inc) = get_z_inc_props(properties) {
-      attribs.push(Attribute::ZIncrement(z_inc));
+    if let Some(z_inc) =
+      properties.get(&"z_inc".to_string()).map(|p| p.value.as_i64()).flatten()
+    {
+      attribs.push(Attribute::ZIncrement(z_inc as i32));
     }
 
     // MaxSpeed
-    if let Some(s) = get_prop(&MaxSpeed::tiled_key()) {
-      let max_speed: MaxSpeed = MaxSpeed(from_str(&s).map_err(|e| {
-        format!("Could not deserialize max_speed {:?}: {:?}", s, e)
-      })?);
-      attribs.push(Attribute::MaxSpeed(max_speed));
+    if let Some(max_speed) = properties
+      .get(&MaxSpeed::tiled_key())
+      .map(|p| p.value.as_f64())
+      .flatten()
+    {
+      attribs.push(Attribute::MaxSpeed(MaxSpeed(max_speed as f32)));
     }
 
     // Inventory
-    get_prop(&Inventory::tiled_key_name())
-      .map(|n| attribs.push(Attribute::Inventory(n.clone())));
+    if let Some(p) = properties.get(&Inventory::tiled_key_name()) {
+      if let Some(name) = p.value.as_str() {
+        attribs.push(Attribute::Inventory(name.to_string()));
+      }
+    }
 
     // Script
-    let may_script = get_prop(&Script::tiled_key());
-    if let Some(script) = may_script {
+    if let Some(script) = properties
+      .get(&Script::tiled_key())
+      .map(|p| p.value.as_str().map(|s| s.to_string()))
+      .flatten()
+    {
       let mut property_map = HashMap::new();
-      for prop in properties {
+      for prop in properties.values() {
         property_map.insert(prop.name.clone(), prop.value.clone());
       }
       let script = Script::from_str(&script, Some(property_map))?;
@@ -477,13 +479,22 @@ impl Attributes {
         .push(Attribute::Shape(shape.translated(&p.scalar_mul(-1.0))));
     }
 
-    let mut object_property_attribs =
-      Self::read_properties(&object.properties)?;
+    let object_props = object
+      .properties
+      .iter()
+      .map(|p| (&p.name, p))
+      .collect::<HashMap<_, _>>();
+    let mut object_property_attribs = Self::read_properties(&object_props)?;
     attributes.attribs.append(&mut object_property_attribs);
 
     let mut tile_property_attribs = if let Some(gid) = &object.gid {
       if let Some(tile) = map.get_tile(&gid.id) {
-        Self::read_properties(&tile.properties)?
+        let tile_props = tile
+          .properties
+          .iter()
+          .map(|p| (&p.name, p))
+          .collect::<HashMap<_, _>>();
+        Self::read_properties(&tile_props)?
       } else {
         vec![]
       }
@@ -842,6 +853,7 @@ impl Attributes {
     None
   }
 
+  // TODO: Add the web sound module
   //pub fn sound(&self) -> Option<Sound> {
   //  for a in &self.attribs {
   //    match a {

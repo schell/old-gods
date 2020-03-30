@@ -6,13 +6,11 @@ use super::super::components::{
 };
 use std::f32::{INFINITY, NEG_INFINITY};
 
+/// TODO: Rename to Viewport
 #[derive(Debug)]
 pub struct Screen {
   /// The screen's aabb in map coordinates.
-  map_aabb: AABB,
-
-  /// The width and height of the window.
-  pub window_size: (u32, u32),
+  viewport: AABB,
 
   /// Width and height of the focus AABB
   tolerance: f32,
@@ -24,50 +22,29 @@ pub struct Screen {
 
 impl Screen {
   /// Translate a position to get its relative position within the screen.
-  pub fn map_to_screen(&self, pos: &V2) -> V2 {
+  pub fn from_map(&self, pos: &V2) -> V2 {
     *pos - self.aabb().top_left
   }
 
-
-  /// Translate and scale a position from the screen to the window.
-  pub fn screen_to_window(&self, pos: &V2) -> V2 {
-    let window_size =
-      V2::new(self.window_size.0 as f32, self.window_size.1 as f32);
-    let screen_size = self.map_aabb.extents;
-    let scale = AABB::scale_needed_to_fit_inside(screen_size, window_size);
-    // Move the origin so we're scaling from the center
-    let new_size = screen_size.scalar_mul(scale);
-    let t = (window_size - new_size).scalar_mul(0.5);
-    pos.scalar_mul(scale).translate(&t)
-  }
-
-
-  /// Transform a point in the map to a point in the window, accounting for
-  /// screen placement (scale and translation due to aspect fit).
-  pub fn map_to_window(&self, p: &V2) -> V2 {
-    self.screen_to_window(&self.map_to_screen(p))
-  }
-
-
   pub fn get_size(&self) -> V2 {
-    self.map_aabb.extents
+    self.viewport.extents
   }
 
 
   pub fn set_size(&mut self, (w, h): (u32, u32)) {
-    self.map_aabb.extents = V2::new(w as f32, h as f32);
+    self.viewport.extents = V2::new(w as f32, h as f32);
   }
 
 
   /// Sets the center of the screen to a map coordinate.
   pub fn set_focus(&mut self, pos: V2) {
-    self.map_aabb.set_center(&pos);
+    self.viewport.set_center(&pos);
   }
 
 
   /// Returns the center of the screen in map coordinates.
   pub fn get_focus(&self) -> V2 {
-    self.map_aabb.center()
+    self.viewport.center()
   }
 
 
@@ -81,13 +58,13 @@ impl Screen {
       top_left: V2::origin(),
       extents: V2::new(self.tolerance, self.tolerance),
     };
-    aabb.set_center(&self.map_aabb.center());
+    aabb.set_center(&self.viewport.center());
     aabb
   }
 
 
   pub fn aabb(&self) -> AABB {
-    self.map_aabb
+    self.viewport
   }
 
 
@@ -117,8 +94,7 @@ impl Default for Screen {
       extents: V2::new(848.0, 648.0),
     };
     Screen {
-      map_aabb: aabb,
-      window_size: (0, 0),
+      viewport: aabb,
       tolerance: 50.0,
       should_follow_players: true,
     }
@@ -189,6 +165,6 @@ impl<'a> System<'a> for ScreenSystem {
     };
 
     let distance = screen.distance_to_contain_point(&min_aabb.center());
-    screen.map_aabb.top_left += distance;
+    screen.viewport.top_left += distance;
   }
 }

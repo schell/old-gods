@@ -1,3 +1,6 @@
+//! Tiled map editor types and operations.
+//!
+//! TODO: Investigate whether we can support external tilesets on web
 use log::trace;
 use serde::de::{Deserialize, Deserializer};
 use serde_json::{from_reader, from_str, Error, Value};
@@ -569,11 +572,6 @@ impl TilesetItem {
         Ok(set)
       }
       TilesetPayload::Source(s) => {
-        if cfg!(target = "wasm32") {
-          panic!(
-            "tilesets that reference other tilesets are not loadable in the browser"
-          );
-        }
         let path: PathBuf = path_prefix.join(Path::new(&s.source));
         trace!("Hydrating tileset with path {:?}", path);
         let file = File::open(path.clone()).unwrap();
@@ -703,7 +701,14 @@ impl Tiledmap {
     for mut item in self.tilesets.iter_mut() {
       // TODO: Load tilesets in parallel
       match &mut item.payload {
-        TilesetPayload::Embedded(_) => {}
+        TilesetPayload::Embedded(_) => {
+          if cfg!(arch = "wasm32") {
+            // This is because Tiled has no way of knowing what the prefix to 
+            // assets could be and we need to intercept
+            panic!("TODO: Embedded tilesets are not supported on wasm32/web");
+          }
+        }
+
         TilesetPayload::Source(src) => {
           let map_path = Path::new(map_url);
           let map_dir = map_path.parent().ok_or("map is not in a directory")?;
@@ -713,7 +718,7 @@ impl Tiledmap {
             .to_str()
             .expect("could not get Tileset url as &str");
           trace!(
-            "hydrading tileset item async:\n  base_url: {}\n  map_url: {}\n  tileset src: {:?}\n  tileset_url: {}\n  full_tileset_url: {}",
+            "hydrating tileset item async:\n  base_url: {}\n  map_url: {}\n  tileset src: {:?}\n  tileset_url: {}\n  full_tileset_url: {}",
             base_url,
             map_url,
             src,

@@ -428,8 +428,12 @@ impl<'a> MapLoader<'a> {
           let mut attribs = Attributes::read_gid(map, &gid, Some(size))?;
           attribs.push(Attribute::Position(Position(p)));
 
+          let props = object.properties
+            .iter()
+            .map(|p| (&p.name, p))
+            .collect::<HashMap<_, _>>();
           let mut prop_attribs =
-            Attributes::read_properties(&object.properties)?;
+            Attributes::read_properties(&props)?;
           attribs.append(&mut prop_attribs);
 
           let attributes = Attributes { attribs };

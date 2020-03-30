@@ -28,7 +28,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
-use wasm_bindgen::{closure::Closure, JsCast, JsValue, UnwrapThrowExt};
+use wasm_bindgen::{closure::Closure, JsCast, JsValue};
 use web_sys::{window, Gamepad, GamepadButton};
 
 use super::super::geom::V2;
@@ -544,11 +544,11 @@ impl<'a> System<'a> for GamepadSystem {
           .expect("no player controllers lock");
         let window = window().expect("no global window");
         let navigator = window.navigator();
-        let nav_gamepads = navigator.get_gamepads().unwrap_throw();
+        let nav_gamepads = navigator.get_gamepads().expect("no gamepads array");
         trace!("Found {} available gamepads.", nav_gamepads.length());
         for i in 0..nav_gamepads.length() {
           let gamepad_val = nav_gamepads.get(i);
-          let gamepad: Gamepad = gamepad_val.dyn_into().unwrap_throw();
+          let gamepad: Gamepad = gamepad_val.dyn_into().expect("can't coerce gamepad");
           if !player_controllers.contains_key(&gamepad.index()) {
             player_controllers.insert(gamepad.index(), PlayerController::new());
           }
@@ -562,7 +562,7 @@ impl<'a> System<'a> for GamepadSystem {
           "gamepadconnected",
           cb.as_ref().unchecked_ref(),
         )
-        .unwrap_throw();
+        .expect("could not add gamepadconnected");
 
       cb.forget();
     }
@@ -601,7 +601,7 @@ impl<'a> System<'a> for GamepadSystem {
           "gamepaddisconnected",
           cb.as_ref().unchecked_ref(),
         )
-        .unwrap_throw();
+        .expect("could not add gamepaddisconnected");
 
       cb.forget();
     }

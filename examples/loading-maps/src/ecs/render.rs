@@ -73,16 +73,16 @@ impl Resources for HtmlResources {
     let path = s.into();
     trace!("loading sprite sheet: {}", &path);
     let img = window()
-      .unwrap_throw()
+      .expect("no window")
       .document()
-      .unwrap_throw()
+      .expect("no document")
       .create_element("img")
-      .unwrap_throw()
+      .expect("can't create img")
       .dyn_into::<HtmlImageElement>()
-      .unwrap_throw();
+      .expect("can't coerce img");
     img.set_src(&path);
     let status = Arc::new(Mutex::new((LoadStatus::Started, Some(img.clone()))));
-    let target: &EventTarget = img.dyn_ref().unwrap_throw();
+    let target: &EventTarget = img.dyn_ref().expect("can't coerce img as EventTarget");
     let load_status = status.clone();
     let load_path = path.clone();
     let load = Closure::wrap(Box::new(move |_: JsValue| {
@@ -179,7 +179,7 @@ pub fn draw_sprite(
       dest.width() as f64,
       dest.height() as f64,
     )
-    .unwrap_throw();
+    .expect("can't draw sprite");
 }
 
 
@@ -216,7 +216,7 @@ pub fn draw_text(t: &Text, point: &V2, context: &CanvasRenderingContext2d) {
   context.set_font(&format!("{}px {}", t.font.size, t.font.path));
   context
     .fill_text(&t.text, point.x as f64, point.y as f64)
-    .unwrap_throw();
+    .expect("");
   context.set_global_alpha(alpha);
 }
 
@@ -228,7 +228,7 @@ pub fn measure_text(
   context.set_font(&format!("{}px {}", t.font.size, t.font.path));
   let num_lines = t.text.lines().count();
   let height = t.font.size * num_lines as u16;
-  let metrics = context.measure_text(&t.text).unwrap_throw();
+  let metrics = context.measure_text(&t.text).expect("cannot measure text");
   let width = metrics.width();
   (width as f32, height as f32)
 }
@@ -324,12 +324,8 @@ pub fn render_map(
   ): RenderData = world.system_data();
 
   // Set the screen's size and the window size, return the screen's map aabb
-  let canvas = context.canvas().unwrap_throw();
+  let canvas = context.canvas().expect("rendering context has no canvas");
   let size = (canvas.width(), canvas.height());
-  if screen.window_size != size {
-    trace!("setting screen's window_size to {:#?}", size);
-    screen.window_size = size;
-  }
   let screen_aabb = screen.aabb();
 
   // Get all the on screen things to render.
@@ -348,7 +344,7 @@ pub fn render_map(
     })
     .map(|(ent, p, r, _)| {
       let offset: V2 = entity_local_origin(ent, &shapes, &offset_store);
-      let pos = screen.map_to_screen(&p.0);
+      let pos = screen.from_map(&p.0);
       (ent, Position(pos), offset, r, zlevels.get(ent))
     })
     .collect();
@@ -381,10 +377,6 @@ pub fn render_map(
   ents.iter().for_each(|(_entity, p, _, r, _)| {
     draw_rendering(context, resources, &p.0, r);
   });
-
-  //     // Now use our render target to draw inside the screen, upsampling to the //     // screen size //     let src = //       AABB::new( //         0.0, 0.0, //         self.resolution.0 as f32, self.resolution.1 as f32 //       ); //     let dest = //       AABB::from_points( //         screen.screen_to_window(&src.top_left), //         screen.screen_to_window(&src.extents) //       ) //       .to_rect(); //     let src = //       src //       .to_rect(); //     canvas //       .set_fill_color(Color::rgb(0, 0, 0)); //     canvas //       .clear(); //     canvas //       .copy(&target, Some(src), Some(dest)) //       .unwrap();
-
-  //     RenderDebug::draw_debug( //       &mut canvas, //       &mut resources, //       &toggles, //       &aabb_tree, //       &actions, //       &fps, //       &screen, //       &entities, //       &names, //       &positions, //       &offset_store, //       &velocities, //       &toons, //       &barriers, //       &shapes, //       &exiles, //       &zones, //       &fences, //       &step_fences, //       &zlevels //     ); ////     RenderUI::draw_ui( //       &mut canvas, //       &mut resources, //       &screen, //       &actions, //       &entities, //       &exiles, //       &inventories, //       &items, //       &loots, //       &names, //       &offset_store, //       &positions, //       &renderings, //       &toons //     );
 }
 
 
@@ -580,15 +572,10 @@ fn draw_map_aabb(
   screen: &Screen,
   context: &CanvasRenderingContext2d,
 ) {
-  let dbg_aabb = AABB::from_points(
-    screen.map_to_window(&aabb.lower()),
-    screen.map_to_window(&aabb.upper()),
-  );
+  let size = screen.get_size();
   context.stroke_rect(
-    dbg_aabb.top_left.x as f64,
-    dbg_aabb.top_left.y as f64,
-    dbg_aabb.extents.x as f64,
-    dbg_aabb.extents.y as f64,
+    0.0, 0.0,
+    size.x as f64, size.y as f64
   );
 }
 
@@ -600,13 +587,13 @@ fn draw_map_arrow(
   context: &CanvasRenderingContext2d,
 ) {
   let lines =
-    arrow_lines(screen.map_to_window(&from), screen.map_to_window(&to));
+    arrow_lines(screen.from_map(&from), screen.from_map(&to));
   draw_lines(&lines, context);
 }
 
 
 fn draw_map_point(at: V2, screen: &Screen, context: &CanvasRenderingContext2d) {
-  let lines = point_lines(screen.map_to_window(&at));
+  let lines = point_lines(screen.from_map(&at));
   draw_lines(&lines, context);
 }
 
@@ -683,7 +670,7 @@ pub fn render_map_debug(
         velo.0
       };
       let offset: V2 = entity_local_origin(entity, &shapes, &offsets);
-      let p1 = screen.map_to_window(&(position.0 + offset));
+      let p1 = screen.from_map(&(position.0 + offset));
       let p2 = p1 + v;
       let lines = arrow_lines(p1, p2);
       set_stroke_color(&Color::rgb(255, 255, 0), context);
@@ -720,8 +707,8 @@ pub fn render_map_debug(
       };
       let aabb = AABB::from_mbr(&mbr);
       let aabb = AABB::from_points(
-        screen.map_to_window(&aabb.top_left),
-        screen.map_to_window(&aabb.lower()),
+        screen.from_map(&aabb.top_left),
+        screen.from_map(&aabb.lower()),
       );
 
       set_stroke_color(&color, context);
@@ -748,8 +735,8 @@ pub fn render_map_debug(
       color.a = alpha;
       let extents = shape.extents();
       let aabb = AABB::from_points(
-        screen.map_to_window(p),
-        screen.map_to_window(&(*p + extents)),
+        screen.from_map(p),
+        screen.from_map(&(*p + extents)),
       );
       set_fill_color(&color, context);
       context.fill_rect(
@@ -792,7 +779,7 @@ pub fn render_map_debug(
     fences.append(&mut step_fences);
 
     for (entity, &Position(pos), fence, color) in fences {
-      let pos = screen.map_to_window(&pos);
+      let pos = screen.from_map(&pos);
       let lines: Vec<V2> = fence.points.iter().map(|p| pos + *p).collect();
       set_fill_color(&color, context);
       draw_lines(&lines, context);
@@ -833,7 +820,7 @@ pub fn render_map_debug(
     let joints = (&entities, &positions, &players).join();
     for (entity, position, _player) in joints {
       let offset = offsets.get(entity).map(|o| o.0).unwrap_or(V2::origin());
-      let p = screen.map_to_screen(&(position.0 + offset));
+      let p = screen.from_map(&(position.0 + offset));
       set_fill_color(&Color::rgb(0, 255, 255), context);
       context.fill_rect((p.x - 24.0) as f64, (p.y - 24.0) as f64, 48.0, 48.0);
       //let text =
@@ -845,8 +832,8 @@ pub fn render_map_debug(
   if toggles.contains(&RenderingToggles::Screen) {
     let screen_aabb = screen.aabb();
     let window_aabb = AABB::from_points(
-      screen.map_to_window(&screen_aabb.lower()),
-      screen.map_to_window(&screen_aabb.upper()),
+      screen.from_map(&screen_aabb.lower()),
+      screen.from_map(&screen_aabb.upper()),
     );
     set_stroke_color(&Color::rgb(0, 255, 0), context);
     context.stroke_rect(
@@ -858,8 +845,8 @@ pub fn render_map_debug(
 
     let focus_aabb = screen.focus_aabb();
     let window_focus_aabb = AABB::from_points(
-      screen.map_to_window(&focus_aabb.top_left),
-      screen.map_to_window(&focus_aabb.lower()),
+      screen.from_map(&focus_aabb.top_left),
+      screen.from_map(&focus_aabb.lower()),
     );
     context.stroke_rect(
       window_focus_aabb.top_left.x as f64,
@@ -879,7 +866,7 @@ pub fn render_map_debug(
         Color::rgb(252, 240, 5)
       };
 
-      let a = screen.map_to_screen(pos);
+      let a = screen.from_map(pos);
       let b = a + V2::new(10.0, -20.0);
       let c = a + V2::new(-10.0, -20.0);
       set_fill_color(&color, context);
@@ -896,7 +883,7 @@ pub fn render_map_debug(
       let lines: Vec<V2> = shape
         .vertices_closed()
         .into_iter()
-        .map(|v| screen.map_to_window(&(*p + v)))
+        .map(|v| screen.from_map(&(*p + v)))
         .collect();
       draw_lines(&lines, context);
     }
@@ -927,7 +914,7 @@ pub fn render_map_debug(
       let lines: Vec<V2> = shape
         .vertices_closed()
         .into_iter()
-        .map(|v| screen.map_to_window(&(*p + v)))
+        .map(|v| screen.from_map(&(*p + v)))
         .collect();
       draw_lines(&lines, context);
 
@@ -939,7 +926,7 @@ pub fn render_map_debug(
         let color = Color::rgb(255, 128, 128);
         set_stroke_color(&color, context);
         for (axis, midpoint) in axes.into_iter().zip(midpoints) {
-          let midpoint = screen.screen_to_window(&midpoint);
+          let midpoint = screen.from_map(&midpoint);
           let lines = arrow_lines(midpoint, midpoint + (axis.scalar_mul(20.0)));
           draw_lines(&lines, context);
         }

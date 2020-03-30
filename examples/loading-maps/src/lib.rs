@@ -42,7 +42,7 @@ fn maps() -> Vec<String> {
 
 #[derive(Clone)]
 enum InMsg {
-  PostBuild(HtmlElement),
+  PostBuild(HtmlCanvasElement),
   Load(String),
   LoadError(String),
   Loaded(Tiledmap),
@@ -92,20 +92,19 @@ impl mogwai::prelude::Component for App {
     sub: &Subscriber<InMsg>,
   ) {
     match msg {
-      InMsg::PostBuild(el) => {
-        let canvas: &HtmlCanvasElement = el.dyn_ref().unwrap_throw();
+      InMsg::PostBuild(canvas) => {
         let context = canvas
           .get_context("2d")
-          .unwrap_throw()
-          .unwrap_throw()
+          .expect("can't call get_context('2d')")
+          .expect("can't get rendering context")
           .dyn_into::<CanvasRenderingContext2d>()
-          .unwrap_throw();
-        let mut ecs = self.ecs.try_lock().unwrap_throw();
+          .expect("can't coerce rendering context");
+        let mut ecs = self.ecs.try_lock().expect("no lock on ecs");
         ecs.rendering_context = Some(context);
         ecs.set_resolution(canvas.width(), canvas.height());
       }
       InMsg::Load(path) => {
-        let ecs = self.ecs.try_lock().unwrap_throw();
+        let ecs = self.ecs.try_lock().expect("no lock on ecs");
 
         self.current_map_path = Some(format!("{}/{}", ecs.base_url, path));
         tx_view.send(&OutMsg::Status(format!("starting load of {}", path)));
@@ -126,11 +125,11 @@ impl mogwai::prelude::Component for App {
         tx_view.send(&OutMsg::Status(format!("Loading error:\n{:#?}", msg)));
       }
       InMsg::Loaded(map) => {
-        let mut ecs = self.ecs.try_lock().unwrap_throw();
+        let mut ecs = self.ecs.try_lock().expect("no lock on ecs");
         ecs.world.delete_all();
         let mut loader = MapLoader::new(&mut ecs.world);
         let mut map = map.clone();
-        let _ = loader.insert_map(&mut map, None, None).unwrap_throw();
+        let _ = loader.insert_map(&mut map, None, None).expect("insert map failed");
         if let Some((width, height)) = map.get_suggested_viewport_size() {
           trace!("got map viewport size: {} {}", width, height);
           ecs.set_resolution(width, height);
@@ -177,12 +176,13 @@ impl mogwai::prelude::Component for App {
         .with(
           div().class("embed-responsive embed-responsive-16by9").with(
             canvas()
+              .downcast::<HtmlCanvasElement>().ok().expect("not a canvas") 
               .class("embed-responsive-item")
               .attribute("id", "screen")
               .attribute("width", "1600")
               .attribute("height", "900")
               .tx_post_build(
-                tx.contra_map(|el: &HtmlElement| InMsg::PostBuild(el.clone())),
+                tx.contra_map(|canvas: &HtmlCanvasElement| InMsg::PostBuild(canvas.clone())),
               ),
           ),
         ),
@@ -207,7 +207,7 @@ pub fn main() -> Result<(), JsValue> {
   // Set up the game loop
   let ecs = app_ecs.clone();
   request_animation_frame(move || {
-    let mut ecs = ecs.try_lock().unwrap_throw();
+    let mut ecs = ecs.try_lock().expect("no lock on ecs - request animation loop");
     ecs.maintain();
     ecs.render();
     // We always want to reschedule this animation frame
