@@ -12,15 +12,15 @@ extern crate specs;
 
 pub mod color;
 pub mod engine;
-pub mod tiled;
 pub mod systems;
+pub mod tiled;
 //pub mod resource_manager;
 pub mod components;
 pub mod geom;
-pub mod prelude;
-pub mod utils;
 pub mod parser;
+pub mod prelude;
 pub mod time;
+pub mod utils;
 
 //use sdl2::Sdl;
 //use sdl2::video::WindowContext;

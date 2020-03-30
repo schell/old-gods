@@ -1,8 +1,10 @@
 /// The screen system keeps the players within view of the screen.
 use specs::prelude::*;
 
+use super::super::components::{
+  Exile, OriginOffset, Player, Position, AABB, V2,
+};
 use std::f32::{INFINITY, NEG_INFINITY};
-use super::super::components::{V2, AABB, Player, Position, Exile, OriginOffset};
 
 #[derive(Debug)]
 pub struct Screen {
@@ -16,7 +18,7 @@ pub struct Screen {
   tolerance: f32,
 
   /// Set whether the screen should follow player characters
-  pub should_follow_players: bool
+  pub should_follow_players: bool,
 }
 
 
@@ -31,30 +33,19 @@ impl Screen {
   pub fn screen_to_window(&self, pos: &V2) -> V2 {
     let window_size =
       V2::new(self.window_size.0 as f32, self.window_size.1 as f32);
-    let screen_size =
-      self.map_aabb.extents;
-    let scale =
-      AABB::scale_needed_to_fit_inside(screen_size, window_size);
+    let screen_size = self.map_aabb.extents;
+    let scale = AABB::scale_needed_to_fit_inside(screen_size, window_size);
     // Move the origin so we're scaling from the center
-    let new_size =
-      screen_size
-      .scalar_mul(scale);
-    let t =
-      (window_size - new_size).scalar_mul(0.5);
-    pos
-      .scalar_mul(scale)
-      .translate(&t)
+    let new_size = screen_size.scalar_mul(scale);
+    let t = (window_size - new_size).scalar_mul(0.5);
+    pos.scalar_mul(scale).translate(&t)
   }
 
 
   /// Transform a point in the map to a point in the window, accounting for
   /// screen placement (scale and translation due to aspect fit).
   pub fn map_to_window(&self, p: &V2) -> V2 {
-    self
-      .screen_to_window(
-        &self
-          .map_to_screen(p)
-      )
+    self.screen_to_window(&self.map_to_screen(p))
   }
 
 
@@ -63,17 +54,14 @@ impl Screen {
   }
 
 
-  pub fn set_size(&mut self, (w, h):(u32, u32)) {
-    self.map_aabb.extents =
-      V2::new(w as f32, h as f32);
+  pub fn set_size(&mut self, (w, h): (u32, u32)) {
+    self.map_aabb.extents = V2::new(w as f32, h as f32);
   }
 
 
   /// Sets the center of the screen to a map coordinate.
   pub fn set_focus(&mut self, pos: V2) {
-    self
-      .map_aabb
-      .set_center(&pos);
+    self.map_aabb.set_center(&pos);
   }
 
 
@@ -89,13 +77,11 @@ impl Screen {
 
 
   pub fn focus_aabb(&self) -> AABB {
-    let mut aabb =
-      AABB {
-        top_left: V2::origin(),
-        extents: V2::new(self.tolerance, self.tolerance)
-      };
-    aabb
-      .set_center(&self.map_aabb.center());
+    let mut aabb = AABB {
+      top_left: V2::origin(),
+      extents: V2::new(self.tolerance, self.tolerance),
+    };
+    aabb.set_center(&self.map_aabb.center());
     aabb
   }
 
@@ -126,16 +112,15 @@ impl Screen {
 
 impl Default for Screen {
   fn default() -> Screen {
-    let aabb =
-      AABB {
-        top_left: V2::origin(),
-        extents: V2::new(848.0, 648.0),
-      };
+    let aabb = AABB {
+      top_left: V2::origin(),
+      extents: V2::new(848.0, 648.0),
+    };
     Screen {
       map_aabb: aabb,
       window_size: (0, 0),
       tolerance: 50.0,
-      should_follow_players: true
+      should_follow_players: true,
     }
   }
 }
@@ -163,7 +148,7 @@ impl<'a> System<'a> for ScreenSystem {
       positions,
       offsets,
       mut screen
-    ): Self::SystemData
+    ): Self::SystemData,
   ) {
     if !screen.should_follow_players {
       return;
@@ -174,15 +159,13 @@ impl<'a> System<'a> for ScreenSystem {
     let mut top = INFINITY;
     let mut bottom = NEG_INFINITY;
 
-    for (entity, _player, Position(pos), ()) in (&entities, &players, &positions, !&exiles).join() {
+    for (entity, _player, Position(pos), ()) in
+      (&entities, &players, &positions, !&exiles).join()
+    {
       // TODO: Allow npc players to be counted in screen following.
       // It wouldn't be too hard to have a component ScreenFollows and just search through that,
       // or use this method if there are no ScreenFollows comps in the ECS.
-      let offset =
-        offsets
-        .get(entity)
-        .map(|o| o.0)
-        .unwrap_or(V2::origin());
+      let offset = offsets.get(entity).map(|o| o.0).unwrap_or(V2::origin());
 
       let p = *pos + offset;
 
@@ -202,7 +185,7 @@ impl<'a> System<'a> for ScreenSystem {
 
     let min_aabb = AABB {
       top_left: V2::new(left, top),
-      extents: V2::new(right - left, bottom - top)
+      extents: V2::new(right - left, bottom - top),
     };
 
     let distance = screen.distance_to_contain_point(&min_aabb.center());

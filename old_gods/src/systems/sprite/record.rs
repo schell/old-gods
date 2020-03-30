@@ -2,9 +2,11 @@ use serde_json::Value;
 use specs::prelude::*;
 use std::collections::HashMap;
 
-use super::super::super::tiled::json::*;
+use super::super::super::components::{
+  Attribute, Attributes, Exile, Name, Script,
+};
 use super::super::super::systems::map_loader::{LoadedLayers, MapLoader};
-use super::super::super::components::{Attributes, Attribute, Exile, Name, Script};
+use super::super::super::tiled::json::*;
 
 
 /// Sprites are a collection of other entities.
@@ -30,7 +32,7 @@ pub struct Sprite {
   pub top_level_children: Vec<Entity>,
 
   /// The keyframed children of this sprite, sorted by keyframe
-  pub keyframe_children: HashMap<String, Vec<Entity>>
+  pub keyframe_children: HashMap<String, Vec<Entity>>,
 }
 
 
@@ -41,7 +43,7 @@ impl Sprite {
       top_level_children,
       keyframe: None,
       current_keyframe: "".to_string(),
-      keyframe_children: HashMap::new()
+      keyframe_children: HashMap::new(),
     }
   }
 
@@ -49,28 +51,21 @@ impl Sprite {
   /// Parses a hashmap for the params needed to load a sprite from a Tiled map
   /// file.
   pub fn loading_params(
-    hmap: HashMap<String, Value>
+    hmap: HashMap<String, Value>,
   ) -> Result<(String, String, Option<String>), String> {
-    let variant:&str =
-      hmap
+    let variant: &str = hmap
       .get("variant")
       .ok_or("Sprite is missing its 'variant' property")?
       .as_str()
       .ok_or("Sprite's variant property must be a string")?;
-    let file:&str =
-      hmap
+    let file: &str = hmap
       .get("file")
       .ok_or("Sprite is missing its 'file' property")?
       .as_str()
       .ok_or("Sprite's file proprety must be a string")?;
-    let keyframe:Option<String> =
-      hmap
+    let keyframe: Option<String> = hmap
       .get("keyframe")
-      .map(|val:&Value| {
-        val
-          .as_str()
-          .map(|s| s.to_string())
-      })
+      .map(|val: &Value| val.as_str().map(|s| s.to_string()))
       .flatten();
     Ok((variant.to_string(), file.to_string(), keyframe))
   }
@@ -79,14 +74,13 @@ impl Sprite {
   /// Construct the parameters to load a sprite.
   pub fn get_params<'a>(
     map: &'a Tiledmap,
-    object: &'a Object
+    object: &'a Object,
   ) -> Result<(String, String, Option<String>), String> {
-    let properties =
-      object
+    let properties = object
       .get_all_properties(map)
       .into_iter()
       .map(|prop| (prop.name, prop.value))
-      .collect::<HashMap<_,_>>();
+      .collect::<HashMap<_, _>>();
     Sprite::loading_params(properties)
   }
 
@@ -96,15 +90,14 @@ impl Sprite {
   pub fn switch_keyframe(
     &mut self,
     keyframe: &String,
-    exiles: &mut WriteStorage<Exile>
+    exiles: &mut WriteStorage<Exile>,
   ) {
     self.keyframe = None;
     self.current_keyframe = keyframe.clone();
 
     for (child_keyframe, children) in &self.keyframe_children {
       for child in children {
-        let is_exiled =
-          child_keyframe != keyframe;
+        let is_exiled = child_keyframe != keyframe;
         if is_exiled {
           Exile::exile(*child, "sprite", exiles);
         } else {
@@ -127,8 +120,7 @@ impl Sprite {
 
   /// Return the current keyframe
   pub fn current_keyframe(&self) -> &String {
-    &self
-      .current_keyframe
+    &self.current_keyframe
   }
 }
 
@@ -142,89 +134,60 @@ impl Sprite {
   pub fn read(
     loader: &mut MapLoader,
     map: &Tiledmap,
-    object: &Object
+    object: &Object,
   ) -> Result<Entity, String> {
     // Get the parameters to load the sprite
     let params = Sprite::get_params(map, object);
     println!("Loading sprite with params {:?}", params);
     // Load the sprite file
     let (variant, file, may_keyframe) =
-      params
-      .map_err(|e| format!("{}:\n{:?}", e, object))?;
+      params.map_err(|e| format!("{}:\n{:?}", e, object))?;
     // Store the previous z
-    let prev_z =
-      loader
-      .z_level;
+    let prev_z = loader.z_level;
     // Create an entity to hold our entities
-    let mut attributes =
-      Attributes::read(map, object)?;
-    attributes.attribs =
-      attributes
+    let mut attributes = Attributes::read(map, object)?;
+    attributes.attribs = attributes
       .attribs
       .into_iter()
-      .filter(|att| {
-        match att {
-          Attribute::RenderingOrAnime(_) => {false}
-          Attribute::Barrier(_) => {false}
-          _ => {true}
-        }
+      .filter(|att| match att {
+        Attribute::RenderingOrAnime(_) => false,
+        Attribute::Barrier(_) => false,
+        _ => true,
       })
       .collect();
     let position =
-      attributes
-      .position()
-      .ok_or("Sprite must have a position")?;
-    let ent =
-      loader
-      .world
-      .create_entity()
-      .build();
-    let prev_origin =
-      loader
-      .origin;
-    loader.origin =
-      loader.origin + position.0;
+      attributes.position().ok_or("Sprite must have a position")?;
+    let ent = loader.world.create_entity().build();
+    let prev_origin = loader.origin;
+    loader.origin = loader.origin + position.0;
     // Load the sprite's layers
-    let layers:LoadedLayers =
-      loader
-      .load(&file, Some(variant.clone()), Some(ent))?;
+    let layers: LoadedLayers =
+      loader.load(&file, Some(variant.clone()), Some(ent))?;
     // Reset the loader's values
-    loader.z_level =
-      prev_z;
-    loader.origin =
-      prev_origin;
-    let first_keyframe:Option<String> =
-      layers
+    loader.z_level = prev_z;
+    loader.origin = prev_origin;
+    let first_keyframe: Option<String> = layers
       .groups
       .keys()
       .collect::<Vec<_>>()
       .first()
       .map(|s: &&String| (*s).clone());
     let keyframe: Option<String> =
-      may_keyframe
-      .map(|s| s.clone())
-      .or(first_keyframe);
-    let current_keyframe =
-      keyframe.unwrap_or("".to_string());
-    let mut sprite =
-      Sprite {
-        keyframe: None,
-        current_keyframe: current_keyframe.clone(),
-        top_level_children: layers.top_level_entities,
-        keyframe_children: layers.groups
-      };
+      may_keyframe.map(|s| s.clone()).or(first_keyframe);
+    let current_keyframe = keyframe.unwrap_or("".to_string());
+    let mut sprite = Sprite {
+      keyframe: None,
+      current_keyframe: current_keyframe.clone(),
+      top_level_children: layers.top_level_entities,
+      keyframe_children: layers.groups,
+    };
     // Switch to the correct keyframe without playing sounds.
-    sprite
-      .switch_keyframe(
-        &current_keyframe,
-        &mut
-          loader
-          .world
-          .write_storage::<Exile>()
-      );
+    sprite.switch_keyframe(
+      &current_keyframe,
+      &mut loader.world.write_storage::<Exile>(),
+    );
     // Add the sprite component to the ent
-    let _ =
-      loader
+    let _ = loader
       .world
       .write_storage::<Sprite>()
       .insert(ent, sprite.clone())
@@ -251,20 +214,10 @@ impl Sprite {
     }
 
     // Print it all out for debugging
-    let names =
-      loader
-      .world
-      .read_storage::<Name>();
-    let get_name = |ent| {
-      names
-        .get(ent)
-        .map(|n| n.0.clone())
-    };
+    let names = loader.world.read_storage::<Name>();
+    let get_name = |ent| names.get(ent).map(|n| n.0.clone());
 
-    println!(
-      "Created a sprite {:?}",
-      get_name(ent)
-    );
+    println!("Created a sprite {:?}", get_name(ent));
 
     println!("  top_level_children:");
     let mut unnamed = 0;
@@ -319,6 +272,5 @@ impl Sprite {
     //  .iter()
     //  .for_each(|c| self.add_component(entity, c));
     //return None
-
   }
 }

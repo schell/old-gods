@@ -11,8 +11,8 @@
 //! ```rust
 //! TODO: #examples of using the GamepadSystem's PlayerControllers resource
 //! ```
-//! 
-//! 
+//!
+//!
 //! The controllers maintain what buttons are
 //! pressed this frame and last frame, the values of various analog sticks, etc.
 //! As well as digital on/off states fore those analog values. Crude timers are
@@ -82,7 +82,7 @@ impl ControllerEventMotion {
   }
 
   pub fn is_on_this_frame(&self) -> bool {
-    *self == ControllerEventMotion::On(OnMotion::OnThisFrame) 
+    *self == ControllerEventMotion::On(OnMotion::OnThisFrame)
   }
 
   pub fn is_off_this_frame(&self) -> bool {
@@ -464,7 +464,7 @@ impl PlayerController {
 /// This gets queried by various systems that react to the player's input.
 pub struct PlayerControllers {
   /// An internal representation of a controller, if available, keyed by its
-  /// index. 
+  /// index.
   controllers: Arc<Mutex<HashMap<u32, PlayerController>>>,
 
   /// An internal quit var.
@@ -625,15 +625,15 @@ impl<'a> System<'a> for GamepadSystem {
         if let Some(gamepad) = gamepads.get(&ndx) {
           player_controller.step_gamepad(gamepad);
 
-          //let ctrl = player_controller;
-          //debug_btn("left", ctrl.left());
-          //debug_btn("right", ctrl.right());
-          //debug_btn("up", ctrl.up());
-          //debug_btn("down", ctrl.down());
-          //debug_btn("a", ctrl.a());
-          //debug_btn("b", ctrl.b());
-          //debug_btn("x", ctrl.x());
-          //debug_btn("y", ctrl.y());
+        //let ctrl = player_controller;
+        //debug_btn("left", ctrl.left());
+        //debug_btn("right", ctrl.right());
+        //debug_btn("up", ctrl.up());
+        //debug_btn("down", ctrl.down());
+        //debug_btn("a", ctrl.a());
+        //debug_btn("b", ctrl.b());
+        //debug_btn("x", ctrl.x());
+        //debug_btn("y", ctrl.y());
         } else {
           panic!("no gamepad at index: {}", ndx);
         }

@@ -1,20 +1,13 @@
+pub use spade::rtree::NearestNeighborIterator;
+use spade::rtree::RTree;
 /// # Things that live in an RTree.
 /// The component itself is an AABB in global 2d space.
-use spade::{SpatialObject, BoundingRect};
-use spade::rtree::RTree;
+use spade::{BoundingRect, SpatialObject};
 use specs::prelude::*;
-use std::collections::HashMap;
 use std::cmp::Ordering;
-pub use spade::rtree::NearestNeighborIterator;
+use std::collections::HashMap;
 
-use super::super::prelude::{
-  AABB,
-  Barrier,
-  GetStorage,
-  Shape,
-  Position,
-  V2
-};
+use super::super::prelude::{Barrier, GetStorage, Position, Shape, AABB, V2};
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -24,7 +17,7 @@ use super::super::prelude::{
 #[derive(Debug, Clone, PartialEq)]
 pub struct EntityBounds {
   pub entity_id: u32,
-  pub bounds: BoundingRect<V2>
+  pub bounds: BoundingRect<V2>,
 }
 
 impl SpatialObject for EntityBounds {
@@ -60,10 +53,7 @@ impl AABBTree {
   pub fn new() -> AABBTree {
     let rtree = RTree::new();
     let index = HashMap::new();
-    AABBTree {
-      rtree,
-      index
-    }
+    AABBTree { rtree, index }
   }
 
 
@@ -74,12 +64,10 @@ impl AABBTree {
       self.remove(entity);
     }
     self.index.insert(id, aabb);
-    self.rtree.insert(
-      EntityBounds {
-        entity_id: id,
-        bounds: aabb.to_mbr()
-      }
-    );
+    self.rtree.insert(EntityBounds {
+      entity_id: id,
+      bounds: aabb.to_mbr(),
+    });
   }
 
 
@@ -89,7 +77,7 @@ impl AABBTree {
       let mut removals = 0;
       let eb = EntityBounds {
         entity_id: id,
-        bounds: aabb.to_mbr()
+        bounds: aabb.to_mbr(),
       };
       while self.rtree.remove(&eb) {
         removals += 1;
@@ -116,24 +104,24 @@ impl AABBTree {
   /// ```
   /// extern crate specs;
   /// extern crate engine;
-  /// use specs::prelude::*;
-  /// use engine::systems::rtree::AABBTree;
-  /// use engine::geom::V2;
   /// use engine::geom::AABB;
+  /// use engine::geom::V2;
+  /// use engine::systems::rtree::AABBTree;
+  /// use specs::prelude::*;
   ///
   /// let mut world = World::new();
   /// let mut tree = AABBTree::new();
   /// let ent = world.create_entity().build();
   /// let aabb = AABB {
   ///   top_left: V2::new(0.0, 0.0),
-  ///   extents: V2::new(10.0, 10.0)
+  ///   extents: V2::new(10.0, 10.0),
   /// };
   /// tree.insert(ent, aabb);
   ///
   /// let colinear_ent = world.create_entity().build();
   /// let colinear_aabb = AABB {
   ///   top_left: V2::new(10.0, 0.0),
-  ///   extents: V2::new(10.0, 10.0)
+  ///   extents: V2::new(10.0, 10.0),
   /// };
   /// tree.insert(colinear_ent, colinear_aabb);
   ///
@@ -146,16 +134,18 @@ impl AABBTree {
   /// tree.insert(point_ent, point_aabb);
   ///
   /// let intersections = tree.query(&world.entities(), &aabb, &ent);
-  /// let expected_result = vec![
-  ///   (point_ent, point_aabb),
-  ///   (colinear_ent, colinear_aabb)
-  /// ];
+  /// let expected_result =
+  ///   vec![(point_ent, point_aabb), (colinear_ent, colinear_aabb)];
   /// assert_eq!(expected_result, intersections);
   /// ```
-  pub fn query(&self, entities: &Entities, aabb: &AABB, filter_entity: &Entity) -> Vec<(Entity, AABB)> {
+  pub fn query(
+    &self,
+    entities: &Entities,
+    aabb: &AABB,
+    filter_entity: &Entity,
+  ) -> Vec<(Entity, AABB)> {
     let aabb_center = aabb.center();
-    let mut collisions:Vec<&EntityBounds> =
-      self
+    let mut collisions: Vec<&EntityBounds> = self
       .rtree
       .lookup_in_rectangle(&aabb.to_mbr())
       .into_iter()
@@ -189,67 +179,45 @@ impl AABBTree {
     entity: &Entity,
     shapes: &S,
     positions: &P,
-    may_barriers: Option<&B> // If the entities must be barriers (for collision detection)
-                     // pass Some(barriers).
+    may_barriers: Option<&B>, /* If the entities must be barriers (for collision detection)
+                               * pass Some(barriers). */
   ) -> Vec<(Entity, Shape, V2)>
   where
     S: GetStorage<Shape>,
     P: GetStorage<Position>,
-    B: GetStorage<Barrier>
+    B: GetStorage<Barrier>,
   {
-    let shape =
-      shapes
-      .get(*entity);
-    let pos =
-      positions
-      .get(*entity);
-    let include_by_barrier = |ent| {
-      may_barriers.is_none()
-        || may_barriers.unwrap().contains(ent)
-    };
+    let shape = shapes.get(*entity);
+    let pos = positions.get(*entity);
+    let include_by_barrier =
+      |ent| may_barriers.is_none() || may_barriers.unwrap().contains(ent);
     let should_include =
-      shape.is_some()
-      && pos.is_some()
-      && include_by_barrier(*entity);
+      shape.is_some() && pos.is_some() && include_by_barrier(*entity);
     if !should_include {
       return vec![];
     }
 
-    let shape =
-      shape
-      .unwrap();
-    let pos =
-      pos
-      .unwrap()
-      .0;
+    let shape = shape.unwrap();
+    let pos = pos.unwrap().0;
     self
       .query(&entities, &shape.aabb().translate(&pos), entity)
       .into_iter()
       .filter_map(|(other_ent, _)| {
-        let other_shape =
-          shapes
-          .get(other_ent);
+        let other_shape = shapes.get(other_ent);
 
-        let other_position =
-          positions
-          .get(other_ent);
+        let other_position = positions.get(other_ent);
 
-        let should_include =
-          other_shape.is_some()
+        let should_include = other_shape.is_some()
           && other_position.is_some()
           && include_by_barrier(other_ent);
         if !should_include {
           return None;
         }
 
-        let other_shape =
-          other_shape
-          .unwrap();
+        let other_shape = other_shape.unwrap();
         shape
           .mtv_apart(pos, &other_shape, other_position.unwrap().0)
-          .map(|mtv| {
-            (other_ent, other_shape.clone(), mtv)
-          })
+          .map(|mtv| (other_ent, other_shape.clone(), mtv))
       })
       .collect()
   }
@@ -260,10 +228,10 @@ impl AABBTree {
   /// ```
   /// extern crate specs;
   /// extern crate engine;
-  /// use specs::prelude::*;
-  /// use engine::systems::rtree::AABBTree;
-  /// use engine::geom::V2;
   /// use engine::geom::AABB;
+  /// use engine::geom::V2;
+  /// use engine::systems::rtree::AABBTree;
+  /// use specs::prelude::*;
   ///
   /// let mut world = World::new();
   /// let mut tree = AABBTree::new();
@@ -279,7 +247,7 @@ impl AABBTree {
     entities: &Entities,
     point: &V2,
     n: usize,
-    filter_entity: &Entity
+    filter_entity: &Entity,
   ) -> Vec<(Entity, AABB)> {
     self
       .rtree
@@ -294,36 +262,25 @@ impl AABBTree {
     &mut self,
     entities: &Entities,
     events: Vec<&ComponentEvent>,
-    get_aabb: impl Fn(Entity) -> Option<(Entity, AABB)>
+    get_aabb: impl Fn(Entity) -> Option<(Entity, AABB)>,
   ) {
     for event in events {
       match event {
         ComponentEvent::Inserted(id) => {
-          let entity =
-            entities
-            .entity(*id);
-          get_aabb(entity)
-            .map(|(entity, aabb)| {
-              self
-                .insert(entity, aabb);
-            });
+          let entity = entities.entity(*id);
+          get_aabb(entity).map(|(entity, aabb)| {
+            self.insert(entity, aabb);
+          });
         }
         ComponentEvent::Modified(id) => {
-          let entity =
-            entities
-            .entity(*id);
-          get_aabb(entity)
-            .map(|(entity, aabb)| {
-              self
-                .insert(entity, aabb);
-            });
+          let entity = entities.entity(*id);
+          get_aabb(entity).map(|(entity, aabb)| {
+            self.insert(entity, aabb);
+          });
         }
         ComponentEvent::Removed(id) => {
-          let entity =
-            entities
-            .entity(*id);
-          self
-            .remove(entity);
+          let entity = entities.entity(*id);
+          self.remove(entity);
         }
       }
     }

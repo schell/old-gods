@@ -40,28 +40,27 @@ impl<'a> System<'a> for PlayerSystem {
 
   fn run(
     &mut self,
-    (entities,
-     //ui,
-     players,
-     exiles,
-     max_speeds,
-     suspensions,
-     mut take_actions,
-     mut velocities,
-    ): Self::SystemData
+    (
+      entities,
+      //ui,
+      players,
+      exiles,
+      max_speeds,
+      suspensions,
+      mut take_actions,
+      mut velocities,
+    ): Self::SystemData,
   ) {
     // Run over all players and enforce their motivations.
     for (ent, player, _) in (&entities, &players, !&exiles).join() {
       // Remove any previous TakeAction from this toon to begin with
       take_actions.remove(ent);
 
-      let _v =
-        velocities
+      let _v = velocities
         .get_mut(ent)
         .expect(&format!("Player {:?} does not have velocity.", player));
 
-      let _max_speed:MaxSpeed =
-        max_speeds
+      let _max_speed: MaxSpeed = max_speeds
         .get(ent)
         .map(|mv| mv.clone())
         .unwrap_or(MaxSpeed(100.0));

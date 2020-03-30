@@ -2,16 +2,13 @@ use shrev::EventChannel;
 use specs::prelude::*;
 use std::collections::HashSet;
 
-use super::super::{
-  geom::V2,
-  color::BackgroundColor
-};
+use super::super::{color::BackgroundColor, geom::V2};
 
 pub mod load;
 pub use load::*;
 
 mod map_loader;
-pub use self::map_loader::{MapLoader, LoadedLayers};
+pub use self::map_loader::{LoadedLayers, MapLoader};
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -29,13 +26,13 @@ impl Component for Tags {
 pub enum MapLoadingEvent {
   /// Load a new map into the ECS
   LoadMap(String, V2),
-  LoadSprite{
+  LoadSprite {
     file: String,
     variant: String,
     keyframe: Option<String>,
-    origin: V2
+    origin: V2,
   },
-  UnloadEverything
+  UnloadEverything,
 }
 
 
@@ -51,7 +48,7 @@ impl<'a> System<'a> for MapLoadingSystem {
   type SystemData = (
     Read<'a, EventChannel<MapLoadingEvent>>,
     Write<'a, BackgroundColor>,
-    Read<'a, LazyUpdate>
+    Read<'a, LazyUpdate>,
   );
 
   fn setup(&mut self, world: &mut World) {
@@ -60,18 +57,11 @@ impl<'a> System<'a> for MapLoadingSystem {
     self.opt_reader = Some(
       world
         .fetch_mut::<EventChannel<MapLoadingEvent>>()
-        .register_reader()
+        .register_reader(),
     );
   }
 
-  fn run(
-    &mut self,
-    (
-      chan,
-      mut background_color,
-      lazy
-    ): Self::SystemData
-  ) {
+  fn run(&mut self, (chan, mut background_color, lazy): Self::SystemData) {
     if let Some(reader) = self.opt_reader.as_mut() {
       for event in chan.read(reader) {
         match event {

@@ -9,18 +9,18 @@ pub enum Cardinal {
   North,
   East,
   South,
-  West
+  West,
 }
 
 
 impl Cardinal {
   pub fn from_string(s: &String) -> Option<Cardinal> {
     match s.as_str() {
-      "north" => { Some(Cardinal::North) }
-      "east"  => { Some(Cardinal::East) }
-      "south" => { Some(Cardinal::South) }
-      "west"  => { Some(Cardinal::West) }
-      _ => { None }
+      "north" => Some(Cardinal::North),
+      "east" => Some(Cardinal::East),
+      "south" => Some(Cardinal::South),
+      "west" => Some(Cardinal::West),
+      _ => None,
     }
   }
 
@@ -60,28 +60,20 @@ impl Cardinal {
   /// Returns the caradinal expressed as a vector.
   pub fn as_v2(&self) -> V2 {
     match self {
-      Cardinal::North => { V2::new(0.0, -1.0) }
-      Cardinal::East => { V2::new(1.0, 0.0) }
-      Cardinal::South => { V2::new(0.0, 1.0) }
-      Cardinal::West => { V2::new(-1.0, 0.0) }
+      Cardinal::North => V2::new(0.0, -1.0),
+      Cardinal::East => V2::new(1.0, 0.0),
+      Cardinal::South => V2::new(0.0, 1.0),
+      Cardinal::West => V2::new(-1.0, 0.0),
     }
   }
 
 
   pub fn opposite(&self) -> Cardinal {
     match self {
-      Cardinal::East => {
-        Cardinal::West
-      }
-      Cardinal::West => {
-        Cardinal::East
-      }
-      Cardinal::North => {
-        Cardinal::South
-      }
-      Cardinal::South => {
-        Cardinal::North
-      }
+      Cardinal::East => Cardinal::West,
+      Cardinal::West => Cardinal::East,
+      Cardinal::North => Cardinal::South,
+      Cardinal::South => Cardinal::North,
     }
   }
 }

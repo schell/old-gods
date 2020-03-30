@@ -13,20 +13,12 @@ impl Door {
     entities: &Entities,
     ent: Entity,
     lazy: &LazyUpdate,
-    sprite: &Sprite
+    sprite: &Sprite,
   ) {
-    let children: Vec<&Entity> =
-      sprite
-      .current_children();
+    let children: Vec<&Entity> = sprite.current_children();
 
-    let is_open =
-      sprite.current_keyframe().as_str() == "open";
-    let next_keyframe =
-      if is_open {
-        "closed"
-      } else {
-        "open"
-      };
+    let is_open = sprite.current_keyframe().as_str() == "open";
+    let next_keyframe = if is_open { "closed" } else { "open" };
 
     'find_child: for child in children {
       // In this simplest of doors script, any action is considered
@@ -39,7 +31,7 @@ impl Door {
             .create_entity(entities)
             .with(Effect::ChangeKeyframe {
               sprite: ent,
-              to: next_keyframe.to_string()
+              to: next_keyframe.to_string(),
             })
             .build();
           break 'find_child;

@@ -5,8 +5,8 @@ use std::collections::HashSet;
 mod record;
 mod warp;
 
-pub use self::warp::*;
 pub use self::record::*;
+pub use self::warp::*;
 
 
 /// ## Exiling entities
@@ -32,12 +32,9 @@ impl Component for Exile {
 
 impl Exile {
   pub fn exile(entity: Entity, by: &str, exiles: &mut WriteStorage<Exile>) {
-    let by =
-      ExiledBy(by.to_owned());
+    let by = ExiledBy(by.to_owned());
     if exiles.contains(entity) {
-      let set = exiles
-        .get_mut(entity)
-        .expect("This should never happen.");
+      let set = exiles.get_mut(entity).expect("This should never happen.");
       set.0.insert(by);
     } else {
       let mut set = HashSet::new();
@@ -48,14 +45,15 @@ impl Exile {
     }
   }
 
-  pub fn domesticate (entity: Entity, by: &str, exiles: &mut WriteStorage<Exile>) {
-    let by =
-      ExiledBy(by.to_owned());
+  pub fn domesticate(
+    entity: Entity,
+    by: &str,
+    exiles: &mut WriteStorage<Exile>,
+  ) {
+    let by = ExiledBy(by.to_owned());
     if exiles.contains(entity) {
       let set = {
-        let set = exiles
-          .get_mut(entity)
-          .expect("This should never happen.");
+        let set = exiles.get_mut(entity).expect("This should never happen.");
         set.0.remove(&by);
         set.clone()
       };
@@ -79,28 +77,17 @@ impl<'a> System<'a> for SpriteSystem {
     WriteStorage<'a, Sprite>,
   );
 
-  fn run(
-    &mut self,
-    (
-      entities,
-      mut exiles,
-      mut sprites,
-    ): Self::SystemData
-  ) {
+  fn run(&mut self, (entities, mut exiles, mut sprites): Self::SystemData) {
     for (ent, sprite) in (&entities, &mut sprites).join() {
       let should_skip =
-        // If this sprite is exiled, skip it
-        exiles.contains(ent)
+      // If this sprite is exiled, skip it
+      exiles.contains(ent)
         // If this sprite does not need its keyframe switched, skip it.
         || sprite.keyframe.is_none();
       if should_skip {
         continue;
       }
-      let keyframe =
-        sprite
-        .keyframe
-        .take()
-        .unwrap();
+      let keyframe = sprite.keyframe.take().unwrap();
       // Switch the keyframe of the sprite
       sprite.switch_keyframe(&keyframe, &mut exiles);
     }

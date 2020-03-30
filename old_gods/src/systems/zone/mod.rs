@@ -1,19 +1,13 @@
 use specs::prelude::*;
 
-use super::super::prelude::{
-  AABBTree,
-  Barrier,
-  Exile,
-  Position,
-  Shape
-};
+use super::super::prelude::{AABBTree, Barrier, Exile, Position, Shape};
 
 
 /// A Zone is an area that can hold some entities. In order to work properly
 /// an entity with a Zone component should also have a Shape component.
 #[derive(Debug, Clone)]
 pub struct Zone {
-  pub inside: Vec<Entity>
+  pub inside: Vec<Entity>,
 }
 
 
@@ -35,7 +29,7 @@ impl<'a> System<'a> for ZoneSystem {
     ReadStorage<'a, Exile>,
     ReadStorage<'a, Position>,
     ReadStorage<'a, Shape>,
-    WriteStorage<'a, Zone>
+    WriteStorage<'a, Zone>,
   );
 
   fn run(
@@ -47,20 +41,18 @@ impl<'a> System<'a> for ZoneSystem {
       positions,
       shapes,
       mut zones
-    ): Self::SystemData
+    ): Self::SystemData,
   ) {
     // Do some generic zone upkeep
     for (zone_ent, mut zone, ()) in (&entities, &mut zones, !&exiles).join() {
-      let no_barriers:Option<&ReadStorage<Barrier>> =
-        None;
-      let intersections:Vec<Entity> =
-        aabb_tree
+      let no_barriers: Option<&ReadStorage<Barrier>> = None;
+      let intersections: Vec<Entity> = aabb_tree
         .query_intersecting_shapes(
           &entities,
           &zone_ent,
           &shapes,
           &positions,
-          no_barriers
+          no_barriers,
         )
         .into_iter()
         .filter_map(|(e, _, _)| {

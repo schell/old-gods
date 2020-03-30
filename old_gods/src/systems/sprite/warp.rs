@@ -4,22 +4,14 @@ use specs::prelude::*;
 
 
 use super::super::super::components::{
-  Animation,
-  Exile,
-  Name,
-  OriginOffset,
-  Position,
-  Script,
-  Sprite,
-  ZLevel,
-  Zone
+  Animation, Exile, Name, OriginOffset, Position, Script, Sprite, ZLevel, Zone,
 };
 use super::super::super::geom::V2;
 
 
 pub enum WarpStep {
   Start,
-  End
+  End,
 }
 
 
@@ -27,7 +19,7 @@ pub struct WarpGate {
   pub point: Position,
   pub zone: Entity,
   pub effect: Animation,
-  pub effect_offset: OriginOffset
+  pub effect_offset: OriginOffset,
 }
 
 
@@ -35,7 +27,7 @@ pub struct WarpEntry {
   pub entity: Entity,
   pub effect_from: Entity,
   pub effect_to: Entity,
-  pub step: WarpStep
+  pub step: WarpStep,
 }
 
 
@@ -57,16 +49,13 @@ impl WarpSystem {
     &self,
     names: &ReadStorage<Name>,
     positions: &WriteStorage<Position>,
-    sprite: &Sprite
+    sprite: &Sprite,
   ) -> Position {
     for ent in sprite.top_level_children.iter() {
-      let name =
-        names
-        .get(*ent);
+      let name = names.get(*ent);
       if let Some(Name(name)) = name {
         if name == "warp" {
-          return
-            positions
+          return positions
             .get(*ent)
             .cloned()
             .expect("WarpSystem is missing a warp point");
@@ -80,7 +69,7 @@ impl WarpSystem {
   pub fn get_zone_entity(
     &self,
     sprite: &Sprite,
-    zones: &ReadStorage<Zone>
+    zones: &ReadStorage<Zone>,
   ) -> Entity {
     for ent in sprite.top_level_children.iter() {
       if zones.contains(*ent) {
@@ -98,19 +87,13 @@ impl WarpSystem {
     sprite: &Sprite,
   ) -> (Entity, Animation, OriginOffset) {
     for ent in sprite.top_level_children.iter() {
-      let anime =
-        animations
-        .get(*ent);
+      let anime = animations.get(*ent);
       if anime.is_some() {
-        let offset =
-          offsets
+        let offset = offsets
           .get(*ent)
           .cloned()
           .unwrap_or(OriginOffset(V2::origin()));
-        let anime =
-          anime
-          .unwrap()
-          .clone();
+        let anime = anime.unwrap().clone();
         return (*ent, anime, offset);
       }
     }
@@ -130,14 +113,10 @@ impl WarpSystem {
     zlevel: ZLevel,
   ) -> WarpEntry {
     // Create an animation at the entity's position
-    let mut effect =
-      warpgate
-      .effect
-      .clone();
+    let mut effect = warpgate.effect.clone();
     effect.should_repeat = false;
     effect.seek_to(0);
-    let effect_from =
-      lazy
+    let effect_from = lazy
       .create_entity(entities)
       .with(Name("warp effect from".to_string()))
       .with(effect.clone())
@@ -147,8 +126,7 @@ impl WarpSystem {
       .build();
     // Stop the effect before cloning it for effect_to
     effect.stop();
-    let effect_to =
-      lazy
+    let effect_to = lazy
       .create_entity(entities)
       .with(effect)
       .with(warpgate.effect_offset.clone())
@@ -161,7 +139,7 @@ impl WarpSystem {
       entity: ent,
       effect_from,
       effect_to,
-      step: WarpStep::Start
+      step: WarpStep::Start,
     }
   }
 }
@@ -181,7 +159,7 @@ impl<'a> System<'a> for WarpSystem {
     WriteStorage<'a, WarpGate>,
     WriteStorage<'a, WarpEntry>,
     ReadStorage<'a, ZLevel>,
-    ReadStorage<'a, Zone>
+    ReadStorage<'a, Zone>,
   );
 
   fn run(
@@ -199,41 +177,37 @@ impl<'a> System<'a> for WarpSystem {
       mut warps,
       mut entries,
       zlevels,
-      zones
-    ): Self::SystemData) {
+      zones,
+    ): Self::SystemData,
+  ) {
     // First find any scripted sprites that should be turned into warp gates
     for (ent, sprite, script) in (&entities, &sprites, &scripts).join() {
       // Only look for warp scripts
       match script {
-        Script::Other{name, ..} => {
+        Script::Other { name, .. } => {
           if name != "warp" {
             continue;
           }
         }
-        _ => { continue; }
+        _ => {
+          continue;
+        }
       }
       // Construct the warpgate
-      let zone =
-        self.get_zone_entity(&sprite, &zones);
-      let point =
-        self
-        .get_warp_point(&names, &positions, sprite);
+      let zone = self.get_zone_entity(&sprite, &zones);
+      let point = self.get_warp_point(&names, &positions, sprite);
       let (effect_ent, effect, effect_offset) =
-        self
-        .get_effect(&animations, &offsets, sprite);
-      let warpgate =
-        WarpGate {
-          zone,
-          point,
-          effect,
-          effect_offset
-        };
+        self.get_effect(&animations, &offsets, sprite);
+      let warpgate = WarpGate {
+        zone,
+        point,
+        effect,
+        effect_offset,
+      };
       // Exile the original effect
       Exile::exile(effect_ent, "warpgate", &mut exiles);
 
-      let warp_entity =
-        entities
-        .create();
+      let warp_entity = entities.create();
       warps
         .insert(warp_entity, warpgate)
         .expect("Could not insert WarpGate");
@@ -245,19 +219,16 @@ impl<'a> System<'a> for WarpSystem {
 
     // Run through all the warp entries and progress them
     for entry in (&mut entries).join() {
-      let effect_from =
-        animations
+      let effect_from = animations
         .get(entry.effect_from)
         .expect("WarpEntry missing its effect_from");
       if effect_from.has_ended() {
-        let effect_to =
-          animations
+        let effect_to = animations
           .get_mut(entry.effect_to)
           .expect("WarpEntry missing its effect_to");
         if effect_to.has_ended() {
           // Remove the warpee component later
-          lazy
-            .remove::<WarpEntry>(entry.entity);
+          lazy.remove::<WarpEntry>(entry.entity);
           entities
             .delete(entry.effect_to)
             .expect("Could not delete effect_to");
@@ -280,8 +251,7 @@ impl<'a> System<'a> for WarpSystem {
     // Run through all the warp gates and add new warp-entries
     for warpgate in (&warps).join() {
       // Get the zone
-      let zone =
-        zones
+      let zone = zones
         .get(warpgate.zone)
         .expect("WarpGate's zone is referencing an entity that is not a zone");
       // For all entities that are inside the zone, move them to the warp point
@@ -290,49 +260,32 @@ impl<'a> System<'a> for WarpSystem {
           // Exile it
           Exile::exile(*ent, "warpgate", &mut exiles);
           // Find the entity's position and offset and where it should go
-          let entity_position =
-            positions
-            .get(*ent)
-            .unwrap()
-            .clone();
-          let entity_offset =
-            offsets
+          let entity_position = positions.get(*ent).unwrap().clone();
+          let entity_offset = offsets
             .get(*ent)
             .cloned()
             .unwrap_or(OriginOffset(V2::origin()));
-          let from_position =
-            Position(
-              entity_position.0
-                + entity_offset.0
-                - warpgate.effect_offset.0
-            );
-          let mut to_position =
-            Position(warpgate.point.0 - entity_offset.0);
+          let from_position = Position(
+            entity_position.0 + entity_offset.0 - warpgate.effect_offset.0,
+          );
+          let mut to_position = Position(warpgate.point.0 - entity_offset.0);
           // Move the entity there (the actual "warp")
-          lazy
-            .insert(*ent, to_position.clone());
+          lazy.insert(*ent, to_position.clone());
           // The effect just wants to be at the warp point
-          to_position.0 =
-            warpgate.point.0
-            - warpgate.effect_offset.0;
+          to_position.0 = warpgate.point.0 - warpgate.effect_offset.0;
           // Get the entity's zlevel
-          let mut zlevel =
-            zlevels
-            .get(*ent)
-            .cloned()
-            .unwrap_or(ZLevel(0.0));
+          let mut zlevel = zlevels.get(*ent).cloned().unwrap_or(ZLevel(0.0));
           zlevel.0 += 1.0;
           // Enter a new entry component for it
-          let entry =
-            self.get_entry(
-              *ent,
-              &mut exiles,
-              &entities,
-              from_position,
-              &lazy,
-              to_position,
-              &warpgate,
-              zlevel
+          let entry = self.get_entry(
+            *ent,
+            &mut exiles,
+            &entities,
+            from_position,
+            &lazy,
+            to_position,
+            &warpgate,
+            zlevel,
           );
           entries
             .insert(*ent, entry)

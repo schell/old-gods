@@ -1,40 +1,19 @@
+//! The WebEngine definition.
+//!
+//! TODO: Abstract engine details into a trait
+//! TODO: Rename this module WebEngine that implements Engine
 use old_gods::prelude::{
-  ActionSystem,
-  AnimationSystem,
-  EffectSystem,
-  FenceSystem,
-  InventorySystem,
-  ItemSystem,
-  MapLoadingSystem,
-  PlayerSystem,
-  Physics,
-  ScreenSystem,
-  ScriptSystem,
-  SpriteSystem,
-  TweenSystem,
-  GamepadSystem, 
-  WarpSystem,
-  ZoneSystem,
-
-  AABB,
-  FPSCounter,
-  Screen,
-  V2,
-
-  World,
-  WorldExt,
-  Dispatcher,
-  DispatcherBuilder,
-  SystemData
-}; 
-use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, window};
+  ActionSystem, AnimationSystem, Dispatcher, DispatcherBuilder, EffectSystem,
+  FPSCounter, FenceSystem, GamepadSystem, InventorySystem, ItemSystem,
+  MapLoadingSystem, Physics, PlayerSystem, Screen, ScreenSystem, ScriptSystem,
+  SpriteSystem, SystemData, TweenSystem, WarpSystem, World, WorldExt,
+  ZoneSystem, AABB, V2,
+};
 use wasm_bindgen::{JsCast, UnwrapThrowExt};
+use web_sys::{window, CanvasRenderingContext2d, HtmlCanvasElement};
 
 mod render;
-use render::{
-  HtmlResources,
-  DebugRenderingData
-};
+use render::{DebugRenderingData, HtmlResources};
 
 pub use render::RenderingToggles;
 
@@ -51,12 +30,14 @@ pub struct ECS<'a, 'b> {
 
 
 impl<'a, 'b> ECS<'a, 'b> {
-  pub fn new_with(base_url: &str, dispatcher_builder: DispatcherBuilder<'a, 'b>) -> Self {
+  pub fn new_with(
+    base_url: &str,
+    dispatcher_builder: DispatcherBuilder<'a, 'b>,
+  ) -> Self {
     let mut world = World::new();
-    let mut dispatcher =
-      dispatcher_builder
+    let mut dispatcher = dispatcher_builder
       //.with_thread_local(SoundSystem::new())
-      .with_thread_local(MapLoadingSystem{ opt_reader: None })
+      .with_thread_local(MapLoadingSystem { opt_reader: None })
       .with_thread_local(ScreenSystem)
       .with_thread_local(ActionSystem)
       .with_thread_local(ScriptSystem)
@@ -74,22 +55,26 @@ impl<'a, 'b> ECS<'a, 'b> {
       .with_thread_local(GamepadSystem::new())
       .build();
 
-    dispatcher
-      .setup(&mut world);
+    dispatcher.setup(&mut world);
 
     // Maintain once so all our resources are created.
-    world
-      .maintain();
+    world.maintain();
 
-    let pre_rendering_context =
-      window().unwrap_throw()
-      .document().unwrap_throw()
-      .create_element("canvas").unwrap_throw()
-      .dyn_into::<HtmlCanvasElement>().unwrap_throw()
-      .get_context("2d").unwrap_throw().unwrap_throw()
-      .dyn_into::<CanvasRenderingContext2d>().unwrap_throw();
+    let pre_rendering_context = window()
+      .unwrap_throw()
+      .document()
+      .unwrap_throw()
+      .create_element("canvas")
+      .unwrap_throw()
+      .dyn_into::<HtmlCanvasElement>()
+      .unwrap_throw()
+      .get_context("2d")
+      .unwrap_throw()
+      .unwrap_throw()
+      .dyn_into::<CanvasRenderingContext2d>()
+      .unwrap_throw();
 
-    ECS{
+    ECS {
       dispatcher,
       world,
       base_url: base_url.into(),
@@ -123,10 +108,7 @@ impl<'a, 'b> ECS<'a, 'b> {
   /// Get the current resolution.
   /// This is the width and height of the inner rendering context.
   pub fn get_resolution(&self) -> (u32, u32) {
-    self
-      .world
-      .read_resource::<Screen>() 
-      .window_size
+    self.world.read_resource::<Screen>().window_size
   }
 
   pub fn is_debug(&self) -> bool {
@@ -138,21 +120,14 @@ impl<'a, 'b> ECS<'a, 'b> {
   }
 
   pub fn maintain(&mut self) {
-    self
-      .world
-      .write_resource::<FPSCounter>()
-      .next_frame();
+    self.world.write_resource::<FPSCounter>().next_frame();
 
-    self
-      .dispatcher
-      .dispatch(&mut self.world);
+    self.dispatcher.dispatch(&mut self.world);
 
-    self
-      .world
-      .maintain();
+    self.world.maintain();
   }
 
-  // TODO: Separate #rendering into three steps: 
+  // TODO: Separate #rendering into three steps:
   // * Render the map into the pre-context, then aspect fit render to main
   // * Render debug stuff onto main
   // * Render UI onto main
@@ -162,39 +137,32 @@ impl<'a, 'b> ECS<'a, 'b> {
       render::render_map(
         &mut self.world,
         &mut self.resources,
-        &mut self.pre_rendering_context
+        &mut self.pre_rendering_context,
       );
 
       if self.debug_mode {
         render::render_map_debug(
           &mut self.world,
           &mut self.resources,
-          &mut self.pre_rendering_context
+          &mut self.pre_rendering_context,
         );
       }
 
-      let canvas =
-        self
-        .pre_rendering_context 
-        .canvas()
-        .unwrap_throw();
+      let canvas = self.pre_rendering_context.canvas().unwrap_throw();
 
-      let window =
-        ctx
-        .canvas()
-        .unwrap_throw();
+      let window = ctx.canvas().unwrap_throw();
 
-      // Aspect fit our pre_rendering_context inside the final rendering_context 
+      // Aspect fit our pre_rendering_context inside the final rendering_context
       let map_size = V2::new(canvas.width() as f32, canvas.height() as f32);
-      let win_size = V2::new(window.width() as f32, window.height() as f32); 
-      let dest = AABB::aabb_to_aspect_fit_inside(map_size, win_size).round(); 
+      let win_size = V2::new(window.width() as f32, window.height() as f32);
+      let dest = AABB::aabb_to_aspect_fit_inside(map_size, win_size).round();
       ctx
         .draw_image_with_html_canvas_element_and_dw_and_dh(
           &canvas,
           dest.top_left.x as f64,
           dest.top_left.y as f64,
           dest.width() as f64,
-          dest.height() as f64
+          dest.height() as f64,
         )
         .unwrap_throw();
 

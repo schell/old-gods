@@ -1,14 +1,14 @@
 //! Parsing helpers for various Tiled parsing tasks.
-use nom::combinator::map_res;
-pub use nom::{IResult, InputIter, InputTakeAtPosition, AsChar, Slice};
-pub use nom::bytes::complete::{tag, take_till, take_while_m_n};
 pub use nom::branch::alt;
-pub use nom::character::complete::{char, digit1, multispace1, multispace0};
-pub use nom::Err;
+pub use nom::bytes::complete::{tag, take_till, take_while_m_n};
+pub use nom::character::complete::{char, digit1, multispace0, multispace1};
+use nom::combinator::map_res;
 pub use nom::error::ErrorKind;
 pub use nom::multi::separated_list;
-pub use nom::number::complete::{float, be_u32};
+pub use nom::number::complete::{be_u32, float};
 pub use nom::sequence::tuple;
+pub use nom::Err;
+pub use nom::{AsChar, IResult, InputIter, InputTakeAtPosition, Slice};
 
 use super::color::Color;
 
@@ -28,7 +28,8 @@ pub fn params2<I, X, Y, A, B>(
 where
   X: Fn(I) -> IResult<I, A>,
   Y: Fn(I) -> IResult<I, B>,
-  I: InputIter + InputTakeAtPosition + Clone + Slice<std::ops::RangeFrom<usize>>,
+  I:
+    InputIter + InputTakeAtPosition + Clone + Slice<std::ops::RangeFrom<usize>>,
   <I as InputTakeAtPosition>::Item: AsChar + Clone,
   <I as InputIter>::Item: AsChar + Clone,
 {
@@ -47,12 +48,14 @@ where
 
 
 /// Parse a vec
-pub fn vec<I, G, A>(
-  parse_item: &'static G
-) -> impl Fn(I) -> IResult<I, Vec<A>>
+pub fn vec<I, G, A>(parse_item: &'static G) -> impl Fn(I) -> IResult<I, Vec<A>>
 where
   G: Fn(I) -> IResult<I, A>,
-  I: InputIter + InputTakeAtPosition + Clone + PartialEq + Slice<std::ops::RangeFrom<usize>>,
+  I: InputIter
+    + InputTakeAtPosition
+    + Clone
+    + PartialEq
+    + Slice<std::ops::RangeFrom<usize>>,
   <I as InputTakeAtPosition>::Item: AsChar + Clone,
   <I as InputIter>::Item: AsChar + Clone,
 {
@@ -75,10 +78,7 @@ fn is_hex_digit(c: char) -> bool {
 }
 
 fn hex_primary(input: &str) -> IResult<&str, u8> {
-  map_res(
-    take_while_m_n(2, 2, is_hex_digit),
-    from_hex
-  )(input)
+  map_res(take_while_m_n(2, 2, is_hex_digit), from_hex)(input)
 }
 
 
@@ -106,8 +106,5 @@ pub fn hex_color_rgb(input: &str) -> IResult<&str, Color> {
 }
 
 pub fn hex_color(input: &str) -> IResult<&str, Color> {
-  alt((
-    hex_color_rgba,
-    hex_color_rgb
-  ))(input)
+  alt((hex_color_rgba, hex_color_rgb))(input)
 }

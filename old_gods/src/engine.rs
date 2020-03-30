@@ -1,31 +1,31 @@
 //! The engine context.
+use shrev::EventChannel;
 use specs::{DispatcherBuilder, World};
 use std::any::Any;
-use shrev::EventChannel;
 
 use super::color::Color;
+use super::geom::V2;
 use super::systems::{
   //sound::SoundSystem,
   map_loader::{
     //MapLoadingSystem,
-    MapLoadingEvent
+    MapLoadingEvent,
   },
-  //screen::ScreenSystem,
-  //action::ActionSystem,
-  //script::ScriptSystem,
-  //sprite::SpriteSystem,
-  //player::PlayerSystem,
-  //physics::Physics,
-  //animation::AnimationSystem,
-  //inventory::InventorySystem,
-  //effect::EffectSystem,
-  //item::ItemSystem,
-  //zone::ZoneSystem,
-  //sprite::WarpSystem,
-  //fence::FenceSystem,
-  //tween::TweenSystem
+  /*screen::ScreenSystem,
+   *action::ActionSystem,
+   *script::ScriptSystem,
+   *sprite::SpriteSystem,
+   *player::PlayerSystem,
+   *physics::Physics,
+   *animation::AnimationSystem,
+   *inventory::InventorySystem,
+   *effect::EffectSystem,
+   *item::ItemSystem,
+   *zone::ZoneSystem,
+   *sprite::WarpSystem,
+   *fence::FenceSystem,
+   *tween::TweenSystem */
 };
-use super::geom::V2;
 
 pub trait Canvas {
   fn set_draw_color(c: Color);
@@ -34,50 +34,51 @@ pub trait Canvas {
 }
 
 
-pub trait ResourceLoader {
-
-}
+pub trait ResourceLoader {}
 
 
-pub struct EngineLoopBuilder<'a, 'b, X:Any> {
+pub struct EngineLoopBuilder<'a, 'b, X: Any> {
   file: Option<String>,
   dispatcher_builder: Option<DispatcherBuilder<'a, 'b>>,
   setup: Option<Box<dyn Fn(&mut World)>>,
-  exit: Option<Box<dyn Fn(&mut World) -> Option<X>>>
+  exit: Option<Box<dyn Fn(&mut World) -> Option<X>>>,
 }
 
 
-impl<'a, 'b, X:Any> EngineLoopBuilder<'a, 'b, X> {
+impl<'a, 'b, X: Any> EngineLoopBuilder<'a, 'b, X> {
   pub fn new() -> Self {
     EngineLoopBuilder {
       file: None,
       dispatcher_builder: None,
       setup: None,
-      exit: None
+      exit: None,
     }
   }
 
-  pub fn with_file<I:Into<String>>(self, file: I) -> Self {
+  pub fn with_file<I: Into<String>>(self, file: I) -> Self {
     let mut b = self;
     b.file = Some(file.into());
     b
   }
 
-  pub fn with_dispatcher_builder(self, builder: DispatcherBuilder<'a, 'b>) -> Self {
+  pub fn with_dispatcher_builder(
+    self,
+    builder: DispatcherBuilder<'a, 'b>,
+  ) -> Self {
     let mut b = self;
     b.dispatcher_builder = Some(builder);
     b
   }
 
-  pub fn with_setup<F:Fn(&mut World) + 'static>(self, f:F) -> Self {
+  pub fn with_setup<F: Fn(&mut World) + 'static>(self, f: F) -> Self {
     let mut b = self;
     b.setup = Some(Box::new(f));
     b
   }
 
-  pub fn with_exit<F>(self, f:F) -> Self
+  pub fn with_exit<F>(self, f: F) -> Self
   where
-    F: Fn(&mut World) -> Option<X> + 'static
+    F: Fn(&mut World) -> Option<X> + 'static,
   {
     let mut b = self;
     b.exit = Some(Box::new(f));
@@ -191,7 +192,7 @@ impl<'a, 'b, X:Any> EngineLoopBuilder<'a, 'b, X> {
 
 pub trait Engine<'a, 'b>
 where
-  Self: Sized
+  Self: Sized,
 {
   type Canvas;
   type ResourceLoader;
@@ -207,26 +208,19 @@ where
 
   fn unload_map(&mut self) {
     let world = self.world();
-    let mut map_chan =
-      world
-      .fetch_mut::<EventChannel<MapLoadingEvent>>();
-    map_chan
-      .single_write(MapLoadingEvent::UnloadEverything);
+    let mut map_chan = world.fetch_mut::<EventChannel<MapLoadingEvent>>();
+    map_chan.single_write(MapLoadingEvent::UnloadEverything);
   }
 
-  fn load_map<X:Into<String>>(&mut self, file: X) {
+  fn load_map<X: Into<String>>(&mut self, file: X) {
     let file = file.into();
     let world = self.world();
-    let mut map_chan =
-      world
-      .fetch_mut::<EventChannel<MapLoadingEvent>>();
-    map_chan
-      .single_write(MapLoadingEvent::UnloadEverything);
-    map_chan
-      .single_write(MapLoadingEvent::LoadMap(
-        file.to_string(),
-        V2::new(0.0, 0.0)
-      ));
+    let mut map_chan = world.fetch_mut::<EventChannel<MapLoadingEvent>>();
+    map_chan.single_write(MapLoadingEvent::UnloadEverything);
+    map_chan.single_write(MapLoadingEvent::LoadMap(
+      file.to_string(),
+      V2::new(0.0, 0.0),
+    ));
   }
 
   //fn put_canvas(&mut self, c: Self::Canvas);

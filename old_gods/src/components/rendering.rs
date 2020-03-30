@@ -3,9 +3,7 @@ use specs::prelude::*;
 //use sdl2::pixels::Color;
 
 use super::super::{
-  color::Color,
-  geom::*,
-  components::FontDetails,
+  color::Color, components::FontDetails, geom::*,
   tiled::json::AABB as TiledAABB,
 };
 
@@ -54,7 +52,7 @@ pub enum ActionButton {
   A,
   B,
   X,
-  Y
+  Y,
 }
 
 
@@ -74,16 +72,14 @@ pub struct TextureFrame {
 
   pub is_flipped_vertically: bool,
 
-  pub is_flipped_diagonally: bool
+  pub is_flipped_diagonally: bool,
 }
 
 
 impl TextureFrame {
   pub fn scale(&self) -> V2 {
-    let sx =
-      self.size.0 as f32 / self.source_aabb.w as f32;
-    let sy =
-      self.size.1 as f32 / self.source_aabb.h as f32;
+    let sx = self.size.0 as f32 / self.source_aabb.w as f32;
+    let sy = self.size.1 as f32 / self.source_aabb.h as f32;
     V2::new(sx, sy)
   }
 }
@@ -95,7 +91,7 @@ pub struct Text {
   pub text: String,
   pub font: FontDetails,
   pub color: Color,
-  pub size: (u32, u32)
+  pub size: (u32, u32),
 }
 
 
@@ -110,7 +106,7 @@ impl Text {
 #[derive(Debug, Clone, PartialEq, Hash)]
 pub enum RenderingPrimitive {
   TextureFrame(TextureFrame),
-  Text(Text)
+  Text(Text),
 }
 
 
@@ -121,7 +117,7 @@ pub struct Rendering {
   pub alpha: u8,
 
   /// The primitive of this rendering
-  pub primitive: RenderingPrimitive
+  pub primitive: RenderingPrimitive,
 }
 
 
@@ -129,35 +125,29 @@ impl Rendering {
   pub fn from_frame(frame: TextureFrame) -> Rendering {
     Rendering {
       alpha: 255,
-      primitive: RenderingPrimitive::TextureFrame(frame)
+      primitive: RenderingPrimitive::TextureFrame(frame),
     }
   }
 
   pub fn from_text(text: Text) -> Rendering {
     Rendering {
       alpha: 255,
-      primitive: RenderingPrimitive::Text(text)
+      primitive: RenderingPrimitive::Text(text),
     }
   }
 
   pub fn as_frame(&self) -> Option<&TextureFrame> {
     match &self.primitive {
-      RenderingPrimitive::TextureFrame(t) => {
-        Some(t)
-      }
-      _ => { None }
+      RenderingPrimitive::TextureFrame(t) => Some(t),
+      _ => None,
     }
   }
 
 
   pub fn size(&self) -> (u32, u32) {
     match &self.primitive {
-      RenderingPrimitive::TextureFrame(t) => {
-        t.size
-      }
-      RenderingPrimitive::Text(t) => {
-        t.size
-      }
+      RenderingPrimitive::TextureFrame(t) => t.size,
+      RenderingPrimitive::Text(t) => t.size,
     }
   }
 }

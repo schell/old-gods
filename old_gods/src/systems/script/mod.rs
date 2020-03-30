@@ -1,6 +1,6 @@
+use serde_json::Value;
 use specs::prelude::*;
 use std::collections::HashMap;
-use serde_json::Value;
 
 use super::super::components::{Action, Exile, Inventory, Name, Sprite};
 mod container;
@@ -23,13 +23,13 @@ pub enum Script {
   Door,
 
   /// Some other script that will be taken care of by another system
-  Other{
+  Other {
     /// The name of this script
     name: String,
 
     /// Any special properties this script may have
-    properties: HashMap<String, Value>
-  }
+    properties: HashMap<String, Value>,
+  },
 }
 
 
@@ -38,37 +38,33 @@ impl Script {
     "script".to_string()
   }
 
-  pub fn from_str(s: &str, props: Option<HashMap<String, Value>>) -> Result<Script, String> {
+  pub fn from_str(
+    s: &str,
+    props: Option<HashMap<String, Value>>,
+  ) -> Result<Script, String> {
     match s {
-      "container" => { Ok(Script::Container) }
-      "door" => { Ok(Script::Door) }
-      "" => {
-        Err("Object script may not be empty".to_string())
-      }
-      s => {
-        Ok(Script::Other {
-          name: s.to_string(),
-          properties: props.unwrap_or(HashMap::new())
-        })
-      }
+      "container" => Ok(Script::Container),
+      "door" => Ok(Script::Door),
+      "" => Err("Object script may not be empty".to_string()),
+      s => Ok(Script::Other {
+        name: s.to_string(),
+        properties: props.unwrap_or(HashMap::new()),
+      }),
     }
   }
 
   /// Return the contained string in the "Other" case, if possible.
   pub fn other_string(&self) -> Option<&String> {
-    self
-      .other()
-      .map(|(n, _)| n)
+    self.other().map(|(n, _)| n)
   }
 
   /// Return the other script if possible
   pub fn other(&self) -> Option<(&String, &HashMap<String, Value>)> {
     match self {
-      Script::Other{name, properties} => { Some((name, properties)) }
-      _ => { None }
+      Script::Other { name, properties } => Some((name, properties)),
+      _ => None,
     }
   }
-
 }
 
 
@@ -103,19 +99,29 @@ impl<'a> System<'a> for ScriptSystem {
       names,
       scripts,
       sprites
-    ): Self::SystemData
+    ): Self::SystemData,
   ) {
-    for (ent, script, sprite, ()) in (&entities, &scripts, &sprites, !&exiles).join() {
+    for (ent, script, sprite, ()) in
+      (&entities, &scripts, &sprites, !&exiles).join()
+    {
       match script {
         Script::Container => {
-          Container::run(&actions, &entities, ent, &inventories, &lazy, &names, sprite);
+          Container::run(
+            &actions,
+            &entities,
+            ent,
+            &inventories,
+            &lazy,
+            &names,
+            sprite,
+          );
         }
 
         Script::Door => {
           Door::run(&actions, &entities, ent, &lazy, sprite);
         }
 
-        Script::Other{name, ..} => {
+        Script::Other { name, .. } => {
           println!("Seeing sprite with script {:?}", name);
         }
       }
@@ -123,7 +129,7 @@ impl<'a> System<'a> for ScriptSystem {
 
     for (_ent, script, ()) in (&entities, &scripts, !&exiles).join() {
       match script {
-        Script::Other{name, ..} => {
+        Script::Other { name, .. } => {
           println!("Seeing object with script {:?}", name);
         }
         _ => {}

@@ -21,13 +21,13 @@ pub struct Animation {
   pub current_frame_index: usize,
   pub current_frame_progress: f32,
   pub is_playing: bool,
-  pub should_repeat: bool
+  pub should_repeat: bool,
 }
 
 impl Animation {
   pub fn step(&mut self, dt: f32) {
     // Early exit if the animation is not playing.
-    if ! self.is_playing {
+    if !self.is_playing {
       return;
     }
 
@@ -54,9 +54,7 @@ impl Animation {
 
 
   pub fn get_current_frame(&self) -> Option<&Frame> {
-    self
-      .frames
-      .get(self.current_frame_index)
+    self.frames.get(self.current_frame_index)
   }
 
 
@@ -80,9 +78,7 @@ impl Animation {
   }
 
   pub fn has_ended(&self) -> bool {
-    self
-      .get_current_frame()
-      .is_none()
+    self.get_current_frame().is_none()
   }
 }
 
@@ -101,17 +97,12 @@ impl<'a> System<'a> for AnimationSystem {
     Entities<'a>,
     WriteStorage<'a, Animation>,
     ReadStorage<'a, Name>,
-    WriteStorage<'a, Rendering>
+    WriteStorage<'a, Rendering>,
   );
 
   fn run(
     &mut self,
-    ( fps,
-      entities,
-      mut animation,
-      names,
-      mut renderings,
-    ): Self::SystemData
+    (fps, entities, mut animation, names, mut renderings): Self::SystemData,
   ) {
     // Find any animations that don't yet have renderings
     let mut frameless_animes = vec![];

@@ -5,7 +5,8 @@ It reads Tiled map files into a specs based entity component system.
 Rendering is handled by HtmlCanvasElement or the built in SDL2 renderer.
 
 I'm really surprised at the performance. So far without any attention to
-performance the engine is running at about 330FPS, with a high of about 500FPS.
+performance the engine is running at about 330FPS, with a high of about 500FPS 
+(in SDL2). On wasm it's running at a pretty steady 60FPS.
 
 ## Features
 
@@ -29,7 +30,7 @@ After that building is pretty straightforward
 
 ```
 cargo build
-wasm-pack build --debug --target no-modules examples/{some example}
+wasm-pack build --debug --target web examples/{some example}
 basic-http-server -x -a 127.0.0.1:8888 examples/{some example}
 ```
 

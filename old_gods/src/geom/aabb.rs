@@ -1,8 +1,8 @@
 use spade::BoundingRect;
 //use sdl2::rect::Rect;
 
-use super::v2::V2;
 use super::super::prelude::Shape;
+use super::v2::V2;
 
 
 #[derive(Debug, Clone, PartialEq, Copy)]
@@ -12,15 +12,15 @@ pub struct AABB {
   pub top_left: V2,
 
   /// The width and height of the box.
-  pub extents: V2
+  pub extents: V2,
 }
 
 
 impl AABB {
-  pub fn new(x:f32, y:f32, w:f32, h:f32) -> AABB {
+  pub fn new(x: f32, y: f32, w: f32, h: f32) -> AABB {
     AABB {
-      top_left: V2::new(x,y),
-      extents: V2::new(w, h)
+      top_left: V2::new(x, y),
+      extents: V2::new(w, h),
     }
   }
 
@@ -28,7 +28,7 @@ impl AABB {
   pub fn from_points(lower: V2, upper: V2) -> AABB {
     AABB {
       top_left: lower,
-      extents: upper - lower
+      extents: upper - lower,
     }
   }
 
@@ -38,7 +38,7 @@ impl AABB {
   pub fn identity() -> AABB {
     AABB {
       top_left: V2::origin(),
-      extents: V2::origin()
+      extents: V2::origin(),
     }
   }
 
@@ -115,25 +115,22 @@ impl AABB {
   }
 
   pub fn collides_on_x(&self, aabb: &AABB) -> bool {
-    self.right() > aabb.left()
-      && self.left() < aabb.right()
+    self.right() > aabb.left() && self.left() < aabb.right()
   }
 
   pub fn collides_on_y(&self, aabb: &AABB) -> bool {
-    self.bottom() > aabb.top()
-      && self.top() < aabb.bottom()
+    self.bottom() > aabb.top() && self.top() < aabb.bottom()
   }
 
   /// Whether or not the aabb collides with another.
-  pub fn collides_with(&self, aabb:&AABB) -> bool {
+  pub fn collides_with(&self, aabb: &AABB) -> bool {
     // Does it intersect
-    self.collides_on_x(aabb)
-      && self.collides_on_y(aabb)
+    self.collides_on_x(aabb) && self.collides_on_y(aabb)
   }
 
   /// Return the minimum translation vector, if the two are intersecting.
   /// Returns the mtv needed to push the given AABB out of intersection.
-  pub fn mtv_apart(&self, aabb:&AABB) -> Option<V2> {
+  pub fn mtv_apart(&self, aabb: &AABB) -> Option<V2> {
     if self.collides_with(aabb) {
       // The two are intersecting.
       // Figure out the minimum tranlation that will push them out of
@@ -164,18 +161,15 @@ impl AABB {
   /// Returns None if the given AABB cannot fit.
   pub fn mtv_inside(&self, aabb: &AABB) -> Option<V2> {
     let cannot_fit =
-      aabb.width() > self.width()
-      || aabb.height() > self.height();
+      aabb.width() > self.width() || aabb.height() > self.height();
     if cannot_fit {
       return None;
     }
 
     let dy = {
       // Move the y by aligning the tops or bottoms
-      let top_delta =
-        self.top() - aabb.top();
-      let bottom_delta =
-        self.bottom() - aabb.bottom();
+      let top_delta = self.top() - aabb.top();
+      let bottom_delta = self.bottom() - aabb.bottom();
 
       if top_delta.abs() > bottom_delta.abs() {
         top_delta
@@ -186,10 +180,8 @@ impl AABB {
 
     let dx = {
       // move the x by aligning the lefts or rights
-      let left_delta =
-        self.left() - aabb.left();
-      let right_delta =
-        self.right() - aabb.right();
+      let left_delta = self.left() - aabb.left();
+      let right_delta = self.right() - aabb.right();
 
       if left_delta.abs() > right_delta.abs() {
         left_delta
@@ -206,43 +198,43 @@ impl AABB {
   ///
   /// ```
   /// extern crate engine;
-  /// use engine::geom::{V2, AABB};
+  /// use engine::geom::{AABB, V2};
   ///
   /// let a = AABB {
   ///   top_left: V2::new(0.0, 0.0),
-  ///   extents: V2::new(10.0, 10.0)
+  ///   extents: V2::new(10.0, 10.0),
   /// };
   /// let b = AABB {
   ///   top_left: V2::new(20.0, 20.0),
-  ///   extents: V2::new(10.0, 10.0)
+  ///   extents: V2::new(10.0, 10.0),
   /// };
   /// assert_eq!(a.mtv_contact(&b), V2::new(-10.0, -10.0));
   ///
   /// let c = AABB {
   ///   top_left: V2::new(20.0, -20.0),
-  ///   extents: V2::new(10.0, 10.0)
+  ///   extents: V2::new(10.0, 10.0),
   /// };
   /// assert_eq!(a.mtv_contact(&c), V2::new(-10.0, 10.0));
   ///
   /// let d = AABB {
   ///   top_left: V2::new(-20.0, -20.0),
-  ///   extents: V2::new(10.0, 10.0)
+  ///   extents: V2::new(10.0, 10.0),
   /// };
   /// assert_eq!(a.mtv_contact(&d), V2::new(10.0, 10.0));
   ///
   /// let e = AABB {
   ///   top_left: V2::new(10.0, 0.0),
-  ///   extents: V2::new(10.0, 10.0)
+  ///   extents: V2::new(10.0, 10.0),
   /// };
   /// assert_eq!(a.mtv_contact(&e), V2::new(0.0, 0.0));
   ///
   /// let point_aabb = AABB {
   ///   top_left: V2::new(1.0, 0.0),
-  ///   extents: V2::origin()
+  ///   extents: V2::origin(),
   /// };
   /// assert_eq!(a.mtv_contact(&point_aabb), V2::new(0.0, 0.0));
   /// ```
-  pub fn mtv_contact(&self, aabb:&AABB) -> V2 {
+  pub fn mtv_contact(&self, aabb: &AABB) -> V2 {
     let dx = if self.collides_on_x(aabb) {
       if self.top() == aabb.bottom() {
         return V2::new(0.0, 0.0);
@@ -279,10 +271,7 @@ impl AABB {
 
 
   pub fn to_mbr(&self) -> BoundingRect<V2> {
-    BoundingRect::from_points(vec![
-      self.top_left,
-      self.top_left + self.extents
-    ])
+    BoundingRect::from_points(vec![self.top_left, self.top_left + self.extents])
   }
 
 
@@ -315,7 +304,7 @@ impl AABB {
   pub fn to_shape(&self) -> Shape {
     Shape::Box {
       lower: self.top_left,
-      upper: self.upper()
+      upper: self.upper(),
     }
   }
 
@@ -331,45 +320,30 @@ impl AABB {
   }
 
 
-  pub fn scale_needed_to_fit_inside(
-    inside: V2,
-    outside: V2
-  ) -> f32 {
+  pub fn scale_needed_to_fit_inside(inside: V2, outside: V2) -> f32 {
     let width_scale = outside.x / inside.x;
     let height_scale = outside.y / inside.y;
     f32::min(width_scale, height_scale)
   }
 
 
-  pub fn aabb_to_aspect_fit_inside(
-    inside: V2,
-    outside: V2
-  ) -> AABB {
-    let scale =
-      Self::scale_needed_to_fit_inside(inside, outside);
-    let extents =
-      V2::new(scale * inside.x, scale * inside.y);
+  pub fn aabb_to_aspect_fit_inside(inside: V2, outside: V2) -> AABB {
+    let scale = Self::scale_needed_to_fit_inside(inside, outside);
+    let extents = V2::new(scale * inside.x, scale * inside.y);
     let top_left =
       V2::new((outside.x - extents.x) / 2.0, (outside.y - extents.y) / 2.0);
-    AABB {
-      top_left,
-      extents
-    }
+    AABB { top_left, extents }
   }
 
 
   /// Combine two AABBs, forming an AABB that contains them both.
   pub fn union(a: &AABB, b: &AABB) -> AABB {
     let upper =
-      V2::new(
-        f32::min(a.left(), b.left()),
-        f32::min(a.top(), b.top())
-      );
-    let lower =
-      V2::new(
-        f32::max(a.right(), b.right()),
-        f32::max(a.bottom(), b.bottom())
-      );
+      V2::new(f32::min(a.left(), b.left()), f32::min(a.top(), b.top()));
+    let lower = V2::new(
+      f32::max(a.right(), b.right()),
+      f32::max(a.bottom(), b.bottom()),
+    );
     AABB::from_points(upper, lower)
   }
 }

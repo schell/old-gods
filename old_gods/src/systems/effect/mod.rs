@@ -1,21 +1,10 @@
 use specs::prelude::*;
 
-use super::super::systems::tween;
 use super::super::prelude::{
-  AABB,
-  Barrier,
-  Easing,
-  Exile,
-  Inventory,
-  Looting,
-  Position,
-  Name,
-  Shape,
-  Sprite,
-  TweenParam,
-  V2,
-  Velocity
+  Barrier, Easing, Exile, Inventory, Looting, Name, Position, Shape, Sprite,
+  TweenParam, Velocity, AABB, V2,
 };
+use super::super::systems::tween;
 
 
 /// Effects are used to take care of some of the more frequent and
@@ -43,9 +32,7 @@ pub enum Effect {
   /// at some later point.
   // TODO: Remove TakeItemLater.
   // Replace by having `into` be Option<Entity> and item be `Either<String, Entity>`.
-  TakeItemLater {
-    item_name: String,
-  },
+  TakeItemLater { item_name: String },
 
   /// Use an item. Whatever that means. Generally this effect just sits and is.
   /// It should be handled by some system other than the EffectSystem.
@@ -57,7 +44,7 @@ pub enum Effect {
     invoked_by: Entity,
 
     /// The inventory this item was used out of
-    from: Entity
+    from: Entity,
   },
 
   /// Loot an inventory
@@ -67,7 +54,7 @@ pub enum Effect {
 
     /// The entity looting the inventory
     looter: Entity,
-  }
+  },
 }
 
 
@@ -109,10 +96,14 @@ impl<'a> System<'a> for EffectSystem {
       mut positions,
       shapes,
       mut sprites,
-      mut velocities
-    ): Self::SystemData
+      mut velocities,
+    ): Self::SystemData,
   ) {
-    let remove_item_from = |inventories: &mut WriteStorage<Inventory>, item:&Entity, from: &Entity| {
+    let remove_item_from = |
+      inventories: &mut WriteStorage<Inventory>,
+      item: &Entity,
+      from: &Entity,
+    | {
       // Remove the item from the previous inventory, if possible
       let from_inventory =
         inventories
@@ -120,24 +111,24 @@ impl<'a> System<'a> for EffectSystem {
         .expect("Found a remove item effect referencing something that doesn't have an inventory!");
       let ndx =
         from_inventory
-        .items
-        .iter()
-        .position(|i| i == item)
-        .expect(&format!(
-          "Inventory {:?} does not contain {:?}!\nContains: {:?}",
-          names.get(*from),
-          (item, names.get(*item)),
-          from_inventory
-            .items
-            .iter()
-            .map(|item| {
-              names
-                .get(*item)
-                .map(|n| (item, n.0.clone()))
-                .unwrap_or((item, "unnamed".to_string()))
-            })
-            .collect::<Vec<_>>()
-        ));
+          .items
+          .iter()
+          .position(|i| i == item)
+          .expect(&format!(
+            "Inventory {:?} does not contain {:?}!\nContains: {:?}",
+            names.get(*from),
+            (item, names.get(*item)),
+            from_inventory
+              .items
+              .iter()
+              .map(|item| {
+                names
+                  .get(*item)
+                  .map(|n| (item, n.0.clone()))
+                  .unwrap_or((item, "unnamed".to_string()))
+              })
+              .collect::<Vec<_>>()
+          ));
       from_inventory.items.remove(ndx);
       println!(
         "{:?} no longer holds {:?}",
@@ -146,28 +137,30 @@ impl<'a> System<'a> for EffectSystem {
       );
     };
 
-    let insert_item_into =
-      |inventories: &mut WriteStorage<Inventory>, positions: &mut WriteStorage<Position>, item:&Entity, into: &Entity| {
-        // Add the item to the target inventory
-        let into_inventory =
+    let insert_item_into = |
+      inventories: &mut WriteStorage<Inventory>,
+      positions: &mut WriteStorage<Position>,
+      item: &Entity,
+      into: &Entity,
+    | {
+      // Add the item to the target inventory
+      let into_inventory =
           inventories
           .get_mut(*into)
           .expect("Found an insert item effect referencing something that doesn't have an inventory!");
-        into_inventory.items.push(*item);
-        // Remove the item from the map if possible
-        positions.remove(*item);
-        println!(
-          "{:?} now holds {:?}",
-          names.get(*into),
-          names.get(*item)
-        );
-      };
+      into_inventory.items.push(*item);
+      // Remove the item from the map if possible
+      positions.remove(*item);
+      println!("{:?} now holds {:?}", names.get(*into), names.get(*item));
+    };
 
     for (ent, effect, ()) in (&entities, &effects, !&exiles).join() {
       match effect {
-        Effect::ChangeKeyframe{ sprite: sprite_ent, to: keyframe } => {
-          let sprite =
-            sprites
+        Effect::ChangeKeyframe {
+          sprite: sprite_ent,
+          to: keyframe,
+        } => {
+          let sprite = sprites
             .get_mut(*sprite_ent)
             .expect("Could not find a sprite!");
           println!(
@@ -177,70 +170,67 @@ impl<'a> System<'a> for EffectSystem {
             keyframe
           );
           sprite.keyframe = Some(keyframe.clone());
-          entities
-            .delete(ent)
-            .expect("Could not delete an effect");
+          entities.delete(ent).expect("Could not delete an effect");
         }
 
         // Inserting from the map into an inventory
-        Effect::InsertItem{ item, into: Some(into), from: None, ..} => {
+        Effect::InsertItem {
+          item,
+          into: Some(into),
+          from: None,
+          ..
+        } => {
           insert_item_into(&mut inventories, &mut positions, item, into);
-          entities
-            .delete(ent)
-            .expect("Could not delete an effect");
-        },
+          entities.delete(ent).expect("Could not delete an effect");
+        }
 
         // Inserting from one inventory into another
-        Effect::InsertItem{ item, into: Some(into), from: Some(from), ..} => {
+        Effect::InsertItem {
+          item,
+          into: Some(into),
+          from: Some(from),
+          ..
+        } => {
           insert_item_into(&mut inventories, &mut positions, item, into);
           remove_item_from(&mut inventories, item, from);
-          entities
-            .delete(ent)
-            .expect("Could not delete an effect");
+          entities.delete(ent).expect("Could not delete an effect");
         }
 
         // Dropping an item from an inventory onto the map
-        Effect::InsertItem{ item, into: None, from: Some(from) } => {
+        Effect::InsertItem {
+          item,
+          into: None,
+          from: Some(from),
+        } => {
           remove_item_from(&mut inventories, item, from);
           // Give the item a position on the map
-          let mut loc:V2 =
-            positions
+          let mut loc: V2 = positions
             .get(*from)
             .map(|p| p.0)
             .expect("Tried to drop an item but the dropper has no position!");
           // Find a position around the inventory that's out of the way
-          let from_aabb =
-            shapes
+          let from_aabb = shapes
             .get(*from)
             .map(|s| s.aabb())
             .unwrap_or(AABB::identity());
-          let item_aabb =
-            shapes
+          let item_aabb = shapes
             .get(*item)
             .map(|s| s.aabb())
             .unwrap_or(AABB::identity());
           // From there we must offset it some amount to account for
           // the barriers of each
           let radius = {
-            let f =
-              from_aabb
-                .greater_extent();
-            let i =
-              item_aabb
-                .greater_extent();
+            let f = from_aabb.greater_extent();
+            let i = item_aabb.greater_extent();
             f32::max(f, i)
           };
 
           // Place the item
-          let inventory =
-            inventories
-            .get_mut(*from)
-            .expect("Attempting to remove an item from an inventory that doesn't exist");
-          let radians =
-            inventory
-            .dequeue_ejection_in_radians();
-          let dv =
-            V2::new(f32::cos(radians), f32::sin(radians));
+          let inventory = inventories.get_mut(*from).expect(
+            "Attempting to remove an item from an inventory that doesn't exist",
+          );
+          let radians = inventory.dequeue_ejection_in_radians();
+          let dv = V2::new(f32::cos(radians), f32::sin(radians));
           loc = loc + (dv.scalar_mul(radius));
           positions
             .insert(*item, Position(loc))
@@ -248,8 +238,7 @@ impl<'a> System<'a> for EffectSystem {
 
           // Fuckit! Throw the item!
           let speed = 100.0;
-          let starting_v =
-            dv.scalar_mul(speed);
+          let starting_v = dv.scalar_mul(speed);
           velocities
             .insert(*item, Velocity(starting_v))
             .expect("Could not insert a Velocity");
@@ -261,47 +250,46 @@ impl<'a> System<'a> for EffectSystem {
             &lazy,
             TweenParam::Velocity(starting_v, V2::origin()),
             Easing::Linear,
-            0.5
+            0.5,
           );
 
           // This effect is now dead
-          entities
-            .delete(ent)
-            .expect("Could not delete an effect");
+          entities.delete(ent).expect("Could not delete an effect");
         }
 
         // This effect is waiting for some more data...
-        Effect::InsertItem{ into: None, from: None, .. } => {}
+        Effect::InsertItem {
+          into: None,
+          from: None,
+          ..
+        } => {}
 
         Effect::LootInventory { inventory, looter } => {
-          let inventory:Option<Entity> =
-            if let Some(inventory) = inventory {
-              if inventory == looter {
-                None
-              } else {
-                Some(*inventory)
-              }
+          let inventory: Option<Entity> = if let Some(inventory) = inventory {
+            if inventory == looter {
+              None
             } else {
-              *inventory
-            };
+              Some(*inventory)
+            }
+          } else {
+            *inventory
+          };
           lazy
             .create_entity(&entities)
             .with(Looting {
               inventory: inventory,
               looter: *looter,
               is_looking_in_own_inventory: inventory.is_none(),
-              index: None
+              index: None,
             })
             .build();
-          entities
-            .delete(ent)
-            .expect("Could not delete an effect");
+          entities.delete(ent).expect("Could not delete an effect");
         }
 
-        Effect::TakeItemLater{ .. } => {}
+        Effect::TakeItemLater { .. } => {}
 
         // This should be handled by some other system...
-        Effect::UseItem{ .. } => {}
+        Effect::UseItem { .. } => {}
       }
     }
   }

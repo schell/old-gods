@@ -1,34 +1,40 @@
 use spade::PointN;
 //use sdl2::rect::Point;
-use std::ops::*;
 use std::fmt::Debug;
+use std::ops::*;
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct V2 {
   pub x: f32,
-  pub y: f32
+  pub y: f32,
 }
 
 
 impl Sub for V2 {
   type Output = V2;
-  fn sub (self, other:V2) -> V2 {
-    V2 {x: self.x - other.x, y: self.y - other.y}
+  fn sub(self, other: V2) -> V2 {
+    V2 {
+      x: self.x - other.x,
+      y: self.y - other.y,
+    }
   }
 }
 
 
 impl Add for V2 {
   type Output = V2;
-  fn add (self, other:V2) -> V2 {
-    V2 {x: self.x + other.x, y: self.y + other.y}
+  fn add(self, other: V2) -> V2 {
+    V2 {
+      x: self.x + other.x,
+      y: self.y + other.y,
+    }
   }
 }
 
 
 impl AddAssign for V2 {
-  fn add_assign (&mut self, other:V2) {
+  fn add_assign(&mut self, other: V2) {
     self.x += other.x;
     self.y += other.y;
   }
@@ -36,7 +42,7 @@ impl AddAssign for V2 {
 
 
 impl SubAssign for V2 {
-  fn sub_assign (&mut self, other:V2) {
+  fn sub_assign(&mut self, other: V2) {
     self.x -= other.x;
     self.y -= other.y;
   }
@@ -45,23 +51,29 @@ impl SubAssign for V2 {
 
 impl Mul for V2 {
   type Output = V2;
-  fn mul (self, v:V2) -> V2 {
-    V2{x: self.x * v.x, y: self.y * v.y}
+  fn mul(self, v: V2) -> V2 {
+    V2 {
+      x: self.x * v.x,
+      y: self.y * v.y,
+    }
   }
 }
 
 
 impl Div for V2 {
   type Output = V2;
-  fn div (self, v:V2) -> V2 {
-    V2{x: self.x / v.x, y: self.y / v.y}
+  fn div(self, v: V2) -> V2 {
+    V2 {
+      x: self.x / v.x,
+      y: self.y / v.y,
+    }
   }
 }
 
 
 impl V2 {
   pub fn new(x: f32, y: f32) -> V2 {
-    V2{x, y}
+    V2 { x, y }
   }
 
   pub fn origin() -> V2 {
@@ -69,7 +81,10 @@ impl V2 {
   }
 
   pub fn normal(&self) -> V2 {
-    V2{x: self.y * (-1.0), y: self.x}
+    V2 {
+      x: self.y * (-1.0),
+      y: self.x,
+    }
   }
 
   pub fn unitize(&self) -> Option<V2> {
@@ -77,7 +92,10 @@ impl V2 {
     if m == 0.0 {
       None
     } else {
-      Some(V2{x: self.x / m, y: self.y / m})
+      Some(V2 {
+        x: self.x / m,
+        y: self.y / m,
+      })
     }
   }
 
@@ -98,14 +116,17 @@ impl V2 {
   /// this is all in 2d, you only get the z component,
   /// hence this function returns an f32.
   pub fn cross(&self, v: V2) -> f32 {
-    self.x*v.y - self.y*v.x
+    self.x * v.y - self.y * v.x
   }
 
   pub fn scalar_mul(&self, n: f32) -> V2 {
-    V2{x: self.x * n, y: self.y * n}
+    V2 {
+      x: self.x * n,
+      y: self.y * n,
+    }
   }
 
-  pub fn translate(&self, v:&V2) -> V2 {
+  pub fn translate(&self, v: &V2) -> V2 {
     *self + *v
   }
 
@@ -114,9 +135,7 @@ impl V2 {
   }
 
   pub fn angle_degrees(&self) -> i16 {
-    let radians =
-      self
-      .angle_radians();
+    let radians = self.angle_radians();
     (radians * 57.29578) as i16
   }
 
@@ -142,15 +161,15 @@ impl PointN for V2 {
 
   fn nth(&self, index: usize) -> &Self::Scalar {
     match index {
-      0 => {&self.x}
-      _ => {&self.y}
+      0 => &self.x,
+      _ => &self.y,
     }
   }
 
   fn nth_mut(&mut self, index: usize) -> &mut Self::Scalar {
     match index {
-      0 => {&mut self.x}
-      _ => {&mut self.y}
+      0 => &mut self.x,
+      _ => &mut self.y,
     }
   }
 }
@@ -159,11 +178,11 @@ impl PointN for V2 {
 #[derive(Clone, Debug, PartialEq)]
 pub struct KeyVal<K, V> {
   pub key: K,
-  pub value: Option<V>
+  pub value: Option<V>,
 }
 
 
-impl <K: PointN, V: Clone + Debug + PartialEq> PointN for KeyVal<K, V> {
+impl<K: PointN, V: Clone + Debug + PartialEq> PointN for KeyVal<K, V> {
   type Scalar = K::Scalar;
 
   fn dimensions() -> usize {
@@ -173,7 +192,7 @@ impl <K: PointN, V: Clone + Debug + PartialEq> PointN for KeyVal<K, V> {
   fn from_value(value: Self::Scalar) -> Self {
     KeyVal {
       key: K::from_value(value),
-      value: None
+      value: None,
     }
   }
 
@@ -184,5 +203,4 @@ impl <K: PointN, V: Clone + Debug + PartialEq> PointN for KeyVal<K, V> {
   fn nth_mut(&mut self, index: usize) -> &mut Self::Scalar {
     self.key.nth_mut(index)
   }
-
 }

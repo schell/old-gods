@@ -1,12 +1,7 @@
 use specs::prelude::*;
 
+use super::super::components::{Exile, Inventory, Name, Zone};
 use super::super::parser::*;
-use super::super::components::{
-  Exile,
-  Inventory,
-  Name,
-  Zone
-};
 
 
 /// Encodes the strategies by which we evaluate an entity's elligibility to take
@@ -32,12 +27,12 @@ impl FitnessStrategy {
     "fitness".to_string()
   }
 
-  pub fn from_str(input: &str) -> Result<FitnessStrategy, Err<(&str, ErrorKind)>> {
+  pub fn from_str(
+    input: &str,
+  ) -> Result<FitnessStrategy, Err<(&str, ErrorKind)>> {
     let result = FitnessStrategyParser::parse(input);
-    result
-      .map(|(_, f)| f)
+    result.map(|(_, f)| f)
   }
-
 }
 
 
@@ -103,7 +98,7 @@ impl FitnessStrategyParser {
       FitnessStrategyParser::has_item,
       FitnessStrategyParser::has_inventory,
       FitnessStrategyParser::any,
-      FitnessStrategyParser::all
+      FitnessStrategyParser::all,
     ))(i)
   }
 }
@@ -115,7 +110,7 @@ pub enum Lifespan {
   Many(u32),
 
   /// This thing never dies.
-  Forever
+  Forever,
 }
 
 
@@ -130,16 +125,13 @@ impl LifespanParser {
   pub fn many(i: &str) -> IResult<&str, Lifespan> {
     let (i, digits) = digit1(i)?;
     match u32::from_str_radix(digits, 10) {
-      Ok(n) => { Ok((i, Lifespan::Many(n))) }
-      _ => Err(Err::Error((i, ErrorKind::Digit)))
+      Ok(n) => Ok((i, Lifespan::Many(n))),
+      _ => Err(Err::Error((i, ErrorKind::Digit))),
     }
   }
 
   pub fn parse(i: &str) -> IResult<&str, Lifespan> {
-    alt((
-      LifespanParser::many,
-      LifespanParser::forever
-    ))(i)
+    alt((LifespanParser::many, LifespanParser::forever))(i)
   }
 }
 
@@ -147,23 +139,23 @@ impl LifespanParser {
 impl Lifespan {
   pub fn succ(&self) -> Lifespan {
     match self {
-      Lifespan::Many(n) => { Lifespan::Many(n+1) }
-      Lifespan::Forever => { Lifespan::Forever }
+      Lifespan::Many(n) => Lifespan::Many(n + 1),
+      Lifespan::Forever => Lifespan::Forever,
     }
   }
 
   pub fn pred(&self) -> Lifespan {
     match self {
-      Lifespan::Many(0) => { Lifespan::Many(0) }
-      Lifespan::Many(n) => { Lifespan::Many(n-1) }
-      Lifespan::Forever => { Lifespan::Forever }
+      Lifespan::Many(0) => Lifespan::Many(0),
+      Lifespan::Many(n) => Lifespan::Many(n - 1),
+      Lifespan::Forever => Lifespan::Forever,
     }
   }
 
   pub fn is_dead(&self) -> bool {
     match self {
-      Lifespan::Many(0) => { true }
-      _ => { false }
+      Lifespan::Many(0) => true,
+      _ => false,
     }
   }
 
@@ -173,8 +165,7 @@ impl Lifespan {
 
   pub fn from_str(input: &str) -> Result<Lifespan, Err<(&str, ErrorKind)>> {
     let result = LifespanParser::parse(input);
-    result
-      .map(|(_, e)| e)
+    result.map(|(_, e)| e)
   }
 }
 
@@ -195,7 +186,7 @@ pub struct Action {
   pub strategy: FitnessStrategy,
 
   /// The lifespan of this action.
-  pub lifespan: Lifespan
+  pub lifespan: Lifespan,
 }
 
 
@@ -229,7 +220,7 @@ enum FitnessResult {
   Fit,
   UnfitDoesntHaveItem,
   UnfitDoesntHaveInventory,
-  Unfit
+  Unfit,
 }
 
 
@@ -239,20 +230,17 @@ impl FitnessStrategy {
     &self,
     target_entity: &Entity,
     inventories: &ReadStorage<'a, Inventory>,
-    names: &ReadStorage<'a, Name>
+    names: &ReadStorage<'a, Name>,
   ) -> FitnessResult {
     match self {
       FitnessStrategy::HasItem(name) => {
         println!("  looking for item {:?}", name);
-        let has_item =
-          inventories
+        let has_item = inventories
           .get(*target_entity)
           .map(|inv| {
             for item_ent in &inv.items {
               let Name(item_name) =
-                names
-                .get(*item_ent)
-                .expect("An item is missing a name.");
+                names.get(*item_ent).expect("An item is missing a name.");
               println!("  checking item {:?}", item_name);
               if name == item_name {
                 return true;
@@ -269,9 +257,7 @@ impl FitnessStrategy {
       }
 
       FitnessStrategy::HasInventory => {
-        let has_inventory =
-          inventories
-          .contains(*target_entity);
+        let has_inventory = inventories.contains(*target_entity);
         if has_inventory {
           FitnessResult::Fit
         } else {
@@ -282,8 +268,7 @@ impl FitnessStrategy {
       FitnessStrategy::All(strategies) => {
         for strategy in strategies {
           let fitness =
-            strategy
-            .target_is_fit(target_entity, inventories, names);
+            strategy.target_is_fit(target_entity, inventories, names);
           if fitness != FitnessResult::Fit {
             return fitness;
           }
@@ -293,8 +278,8 @@ impl FitnessStrategy {
 
       FitnessStrategy::Any(strategies) => {
         for strategy in strategies {
-          let fitness = strategy
-            .target_is_fit(target_entity, inventories, names);
+          let fitness =
+            strategy.target_is_fit(target_entity, inventories, names);
           if fitness == FitnessResult::Fit {
             return fitness;
           }
@@ -319,7 +304,7 @@ impl<'a> System<'a> for ActionSystem {
     Read<'a, LazyUpdate>,
     ReadStorage<'a, Name>,
     WriteStorage<'a, TakeAction>,
-    ReadStorage<'a, Zone>
+    ReadStorage<'a, Zone>,
   );
 
   fn run(
@@ -332,8 +317,8 @@ impl<'a> System<'a> for ActionSystem {
       lazy,
       names,
       mut take_actions,
-      zones
-    ): Self::SystemData
+      zones,
+    ): Self::SystemData,
   ) {
     // Reset the actions' UI state stuff
     for mut action in (&mut actions).join() {
@@ -344,44 +329,38 @@ impl<'a> System<'a> for ActionSystem {
     // Find any actions that don't have zones, then create zones for them.
     // A zone will keep track of any entities intersecting the action.
     for (ent, _, ()) in (&entities, &actions, !&zones).join() {
-      lazy
-        .insert(ent, Zone{ inside: vec![] });
+      lazy.insert(ent, Zone { inside: vec![] });
     }
 
     // Run through each action and test the fitness of any entities in its zone
-    for (action_ent, mut action, zone, ()) in (&entities, &mut actions, &zones, !&exiles).join() {
+    for (action_ent, mut action, zone, ()) in
+      (&entities, &mut actions, &zones, !&exiles).join()
+    {
       'neighbors: for inside_ent in &zone.inside {
-        let inside_ent =
-          *inside_ent;
+        let inside_ent = *inside_ent;
         // Determine the fitness of the toon for this action
         let fitness =
           action
-          .strategy
-          .target_is_fit(
-            &inside_ent,
-            &inventories,
-            &names
-          );
+            .strategy
+            .target_is_fit(&inside_ent, &inventories, &names);
         if fitness != FitnessResult::Fit {
           continue;
         }
         // Display the action to the player in the UI.
-        println!("{:?} is fit for {:?}", names.get(inside_ent), names.get(action_ent));
+        println!(
+          "{:?} is fit for {:?}",
+          names.get(inside_ent),
+          names.get(action_ent)
+        );
         action.display_ui = true;
         // Is this elligible player already taking an action?
         // NOTE: The TakeAction component is maintained by the PlayerSystem
-        let is_taking_action =
-          take_actions
-          .get(inside_ent)
-          .is_some();
+        let is_taking_action = take_actions.get(inside_ent).is_some();
         if is_taking_action {
           // Eat that take action
-          take_actions
-            .remove(inside_ent);
+          take_actions.remove(inside_ent);
           // Allow some other system to handle it.
-          action
-            .taken_by
-            .push(inside_ent);
+          action.taken_by.push(inside_ent);
           // Decrement the actions life counter, if it's dead we'll cull it next
           // frame.
           action.lifespan = action.lifespan.pred();
