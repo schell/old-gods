@@ -12,7 +12,7 @@ use old_gods::prelude::{
   ScriptSystem,
   SpriteSystem,
   TweenSystem,
-  UISystem, 
+  GamepadSystem, 
   WarpSystem,
   ZoneSystem,
 
@@ -71,7 +71,7 @@ impl<'a, 'b> ECS<'a, 'b> {
       .with_thread_local(WarpSystem)
       .with_thread_local(FenceSystem)
       .with_thread_local(TweenSystem)
-      .with_thread_local(UISystem::new())
+      .with_thread_local(GamepadSystem::new())
       .build();
 
     dispatcher
@@ -184,16 +184,10 @@ impl<'a, 'b> ECS<'a, 'b> {
         .canvas()
         .unwrap_throw();
 
+      // Aspect fit our pre_rendering_context inside the final rendering_context 
       let map_size = V2::new(canvas.width() as f32, canvas.height() as f32);
       let win_size = V2::new(window.width() as f32, window.height() as f32); 
-
-      // Aspect fit our pre_rendering_context inside the final rendering_context 
-      let src = AABB::new( 
-        0.0, 0.0,
-        map_size.x, map_size.y 
-      );
       let dest = AABB::aabb_to_aspect_fit_inside(map_size, win_size).round(); 
-      trace!("drawing {:#?} to {:#?}", src, dest);
       ctx
         .draw_image_with_html_canvas_element_and_dw_and_dh(
           &canvas,

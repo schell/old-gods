@@ -134,7 +134,7 @@ pub mod time;
 //       .expect("Could not init controller system");
 //     may_dispatcher_builder
 //       .unwrap_or(DispatcherBuilder::new())
-//       .with_thread_local(UISystem::new(controller_system, event_pump))
+//       .with_thread_local(GamepadSystem::new(controller_system, event_pump))
 //       .with_thread_local(SoundSystem::new())
 //       .with(MapLoadingSystem{ opt_reader: None }, "map", &[])
 //       .with(ScreenSystem, "screen", &[])

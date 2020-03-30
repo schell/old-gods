@@ -1,11 +1,11 @@
-//! Because Instant::now() doesn't work on arch = wasm32.
+//! Because Instant::now() doesn't work on arch = wasm32. 
 #[cfg(not(target_arch = "wasm32"))]
 pub use std::time::Instant;
 pub use std::time::Duration;
 #[cfg(target_arch = "wasm32")]
 use web_sys::window;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Millis {
   #[cfg(target_arch = "wasm32")]
   millis: u32,

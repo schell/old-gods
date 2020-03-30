@@ -30,12 +30,14 @@ features = [
   "console",
   "ErrorEvent",
   "Gamepad",
+  "GamepadButton",
   "KeyboardEvent",
   "Location",
   "Performance",
   "Blob",
   "FileList",
   "FileReader",
+  "Navigator",
   "Window"
 ]
 #[dependencies.sdl2]
