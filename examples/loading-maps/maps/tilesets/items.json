@@ -244,6 +244,7 @@
          "objectgroup":
             {
              "draworder":"index",
+             "id":2,
              "name":"",
              "objects":[
                     {
@@ -266,7 +267,7 @@
                      "type":"origin_offset",
                      "visible":true,
                      "width":0,
-                     "x":25.1817681818182,
+                     "x":24.1817681818182,
                      "y":37.3636722727273
                     }],
              "opacity":1,

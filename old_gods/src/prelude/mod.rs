@@ -27,4 +27,5 @@ pub use super::systems::sprite::*;
 pub use super::systems::tween::*;
 pub use super::systems::zone::*;
 pub use super::tiled::json::*;
+pub use super::time::*;
 pub use super::utils::*;

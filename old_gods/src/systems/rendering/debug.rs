@@ -376,9 +376,9 @@ impl<'ctx, 'res, 'sys> RenderDebug {
 
     let next_rect =
       if toggles.contains(&RenderingToggles::FPS) {
-        let fps = fps.current_fps();
+        let fps = fps.current_fps_string();
         let fps_text =
-          Self::debug_text(format!("FPS:{:.2}", fps).as_str());
+          Self::debug_text(format!("FPS:{}", fps).as_str());
         let pos =
           V2::new(0.0, 0.0);
         let rect =

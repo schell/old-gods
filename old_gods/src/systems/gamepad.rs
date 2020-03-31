@@ -526,8 +526,7 @@ impl<'a> System<'a> for GamepadSystem {
       let cb = Closure::wrap(Box::new(move |val: JsValue| {
         let gamepad: Gamepad = Reflect::get(&val, &"gamepad".into())
           .expect("no gamepad")
-          .dyn_into()
-          .expect("cant coerce gamepad");
+          .unchecked_into();
         trace!(
           "Gamepad connected at index {}: {}. {} buttons, {} axes.",
           gamepad.index(),
@@ -548,7 +547,7 @@ impl<'a> System<'a> for GamepadSystem {
         trace!("Found {} available gamepads.", nav_gamepads.length());
         for i in 0..nav_gamepads.length() {
           let gamepad_val = nav_gamepads.get(i);
-          let gamepad: Gamepad = gamepad_val.dyn_into().expect("can't coerce gamepad");
+          let gamepad: Gamepad = gamepad_val.unchecked_into();
           if !player_controllers.contains_key(&gamepad.index()) {
             player_controllers.insert(gamepad.index(), PlayerController::new());
           }

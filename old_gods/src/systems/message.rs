@@ -7,7 +7,7 @@ use specs::prelude::*;
 
 use super::super::components::{Exile, Position};
 use super::super::systems::screen::Screen;
-use super::super::utils::FPSCounter;
+use super::super::time::FPSCounter;
 
 
 pub struct WordBubble {

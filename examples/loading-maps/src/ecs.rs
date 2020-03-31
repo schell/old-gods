@@ -9,7 +9,7 @@ use old_gods::prelude::{
   SpriteSystem, SystemData, TweenSystem, WarpSystem, World, WorldExt,
   ZoneSystem, AABB, V2,
 };
-use wasm_bindgen::{JsCast, UnwrapThrowExt};
+use wasm_bindgen::JsCast;
 use web_sys::{window, CanvasRenderingContext2d, HtmlCanvasElement};
 
 mod render;
@@ -74,6 +74,9 @@ impl<'a, 'b> ECS<'a, 'b> {
       .dyn_into::<CanvasRenderingContext2d>()
       .expect("can't coerce canvas rendering context");
 
+
+    pre_rendering_context.set_image_smoothing_enabled(false);
+
     ECS {
       dispatcher,
       world,
@@ -109,7 +112,7 @@ impl<'a, 'b> ECS<'a, 'b> {
 
   /// Get the current resolution.
   /// This is the width and height of the inner rendering context.
-  pub fn get_resolution(&self) -> (u32, u32) {
+  pub fn _get_resolution(&self) -> (u32, u32) {
     let size = self.world.read_resource::<Screen>().get_size();
     (size.x.round() as u32, size.y.round() as u32)
   }
@@ -130,6 +133,13 @@ impl<'a, 'b> ECS<'a, 'b> {
     self.world.maintain();
   }
 
+  /// Restart the simulation's time. This allows animations and other time-based
+  /// components to operate correctly.
+  pub fn restart_time(&mut self) {
+    let mut fps_counter = self.world.write_resource::<FPSCounter>();
+    fps_counter.restart();
+  }
+
   // TODO: Separate #rendering into three steps:
   // * Render the map into the pre-context, then aspect fit render to main
   // * Render debug stuff onto main
@@ -137,6 +147,18 @@ impl<'a, 'b> ECS<'a, 'b> {
   pub fn render(&mut self) {
     let mut may_ctx = self.rendering_context.take();
     if let Some(mut ctx) = may_ctx.as_mut() {
+      let canvas = self
+        .pre_rendering_context
+        .canvas()
+        .expect("pre_rendering_context has no canvas");
+      let map_size = V2::new(canvas.width() as f32, canvas.height() as f32);
+      self.pre_rendering_context.clear_rect(
+        0.0,
+        0.0,
+        map_size.x as f64,
+        map_size.y as f64,
+      );
+
       render::render_map(
         &mut self.world,
         &mut self.resources,
@@ -151,14 +173,13 @@ impl<'a, 'b> ECS<'a, 'b> {
         );
       }
 
-      let canvas = self.pre_rendering_context.canvas().expect("pre_rendering_context has no canvas");
-      let window = ctx.canvas().expect("main rendering context has no canvas");
-
       // Aspect fit our pre_rendering_context inside the final rendering_context
-      let map_size = V2::new(canvas.width() as f32, canvas.height() as f32);
+      let window = ctx.canvas().expect("main rendering context has no canvas");
       let win_size = V2::new(window.width() as f32, window.height() as f32);
       let dest = AABB::aabb_to_aspect_fit_inside(map_size, win_size).round();
-      //trace!("map: {:#?} win: {:#?} dest: {:#?}", map_size, win_size, dest);
+
+      ctx.set_fill_style(&"black".into());
+      ctx.fill_rect(0.0, 0.0, win_size.x as f64, win_size.y as f64);
       ctx
         .draw_image_with_html_canvas_element_and_dw_and_dh(
           &canvas,
@@ -170,9 +191,13 @@ impl<'a, 'b> ECS<'a, 'b> {
         .expect("can't draw map");
 
       // Draw the UI
-      render::render_ui(&mut self.world, &mut self.resources, &mut ctx);
+      let _ = render::render_ui(&mut self.world, &mut self.resources, &mut ctx);
       if self.debug_mode {
-        render::render_ui_debug(&mut self.world, &mut self.resources, &mut ctx);
+        let _ = render::render_ui_debug(
+          &mut self.world,
+          &mut self.resources,
+          &mut ctx,
+        );
       }
     } else {
       warn!("no rendering context");

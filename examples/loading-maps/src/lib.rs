@@ -35,7 +35,7 @@ fn maps() -> Vec<String> {
   vec![
     "maps/tiles_test.json".into(),
     "maps/collision_detection.json".into(),
-    "maps/door_test.json".into(),
+    "maps/full_test.json".into(),
   ]
 }
 
@@ -99,6 +99,7 @@ impl mogwai::prelude::Component for App {
           .expect("can't get rendering context")
           .dyn_into::<CanvasRenderingContext2d>()
           .expect("can't coerce rendering context");
+        context.set_image_smoothing_enabled(false);
         let mut ecs = self.ecs.try_lock().expect("no lock on ecs");
         ecs.rendering_context = Some(context);
         ecs.set_resolution(canvas.width(), canvas.height());
@@ -149,6 +150,7 @@ impl mogwai::prelude::Component for App {
           let map_toggles = RenderingToggles::from_properties(&map.properties);
           *ecs_toggles = map_toggles;
         }
+        ecs.restart_time(); 
       }
     }
   }

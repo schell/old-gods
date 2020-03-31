@@ -3,7 +3,7 @@
 use specs::prelude::*;
 
 use super::super::prelude::{
-  AABBTree, Cardinal, Exile, FPSCounter, Shape, ZLevel, AABB, V2,
+  AABBTree, Cardinal, Exile, FPSCounter, Shape, ZLevel, AABB, V2, 
 };
 
 

@@ -3,7 +3,7 @@
 use specs::prelude::*;
 
 use super::super::prelude::{Position, Velocity, V2};
-use super::super::utils::FPSCounter;
+use super::super::time::FPSCounter;
 
 
 /// The thing that's being tweened.

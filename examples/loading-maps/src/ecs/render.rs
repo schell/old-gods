@@ -5,7 +5,7 @@ use std::{
   sync::{Arc, Mutex},
 };
 use wasm_bindgen::prelude::*;
-use wasm_bindgen::{JsCast, UnwrapThrowExt};
+use wasm_bindgen::JsCast;
 use web_sys::{
   window, CanvasRenderingContext2d, EventTarget, HtmlImageElement,
 };
@@ -293,7 +293,7 @@ pub fn draw_rendering(
 
 type RenderData<'s> = (
   Read<'s, BackgroundColor>,
-  Write<'s, Screen>,
+  Read<'s, Screen>,
   //Read<'s, UI>,
   Entities<'s>,
   ReadStorage<'s, Position>,
@@ -312,7 +312,7 @@ pub fn render_map(
 ) {
   let (
     background_color,
-    mut screen,
+    screen,
     //_ui,
     entities,
     positions,
@@ -569,7 +569,6 @@ pub fn draw_lines(lines: &Vec<V2>, context: &CanvasRenderingContext2d) {
 }
 
 fn draw_map_aabb(
-  aabb: &AABB,
   screen: &Screen,
   context: &CanvasRenderingContext2d,
 ) {
@@ -610,7 +609,7 @@ pub fn render_map_debug(
     aabb_tree,
     entities,
     toggles,
-    fps,
+    _fps,
     screen,
     velocities,
     barriers,
@@ -638,35 +637,11 @@ pub fn render_map_debug(
     .first()
     .cloned();
 
-  let next_rect = if toggles.contains(&RenderingToggles::FPS) {
-    let fps = fps.current_fps();
-    let fps_text = debug_text(format!("FPS:{:.2}", fps).as_str());
-    let pos = V2::new(0.0, 0.0);
-    draw_text(&fps_text, &pos, context);
-    let size = measure_text(&fps_text, context);
-    AABB {
-      top_left: pos,
-      extents: V2 {
-        x: size.0,
-        y: size.1,
-      },
-    }
-  } else {
-    AABB::identity()
-  };
-
-  if toggles.contains(&RenderingToggles::EntityCount) {
-    let count: u32 = (&entities).join().fold(0, |n, _| n + 1);
-    let text = debug_text(format!("Entities: {}", count).as_str());
-    let pos = V2::new(0.0, next_rect.bottom() as f32);
-    draw_text(&text, &pos, context);
-  }
-
   if toggles.contains(&RenderingToggles::Velocities) {
     let joints = (&entities, &positions, &velocities).join();
     for (entity, position, velo) in joints {
       let v = if velo.0.magnitude() < 1e-10 {
-        return;
+        break;
       } else {
         velo.0
       };
@@ -942,8 +917,7 @@ pub fn render_map_debug(
             // broad phase collision
             let color = Color::rgb(255, 128, 64); // orange
             set_stroke_color(&color, context);
-            let union = AABB::union(&aabb, &other_aabb);
-            draw_map_aabb(&union, &screen, context);
+            draw_map_aabb(&screen, context);
 
             // Find out if they actually collide and what the
             // mtv is
@@ -977,16 +951,93 @@ pub fn render_map_debug(
 pub fn render_ui(
   _world: &mut World,
   _resources: &mut HtmlResources,
-  _context: &mut CanvasRenderingContext2d,
-) {
+  context: &mut CanvasRenderingContext2d,
+) -> Result<(), String> {
+  let canvas = context.canvas().ok_or("render_ui: no canvas")?;
+  let canvas_size = (canvas.width(), canvas.height());
+
+  Ok(())
 }
 
 // TODO: Render Debug UI
 pub fn render_ui_debug(
-  _world: &mut World,
+  world: &mut World,
   _resources: &mut HtmlResources,
-  _context: &mut CanvasRenderingContext2d,
-) {
+  context: &mut CanvasRenderingContext2d,
+) -> Result<(), String> {
+  let (
+    _aabb_tree,
+    entities,
+    toggles,
+    fps,
+    _screen,
+    _velocities,
+    _barriers,
+    _exiles,
+    _items,
+    _tag_store,
+    _players,
+    _positions,
+    _offsets,
+    _actions,
+    _names,
+    _loots,
+    _inventories,
+    _zones,
+    _fences,
+    _shapes,
+    _step_fences,
+    _zlevels,
+  ): DebugRenderingData = world.system_data();
+
+  let canvas = context.canvas().ok_or("render_ui_debug: no canvas")?;
+  let _canvas_size = (canvas.width(), canvas.height());
+
+  let next_rect = if toggles.contains(&RenderingToggles::FPS) {
+    let fps_text = debug_text(&fps.current_fps_string());
+    let pos = V2::new(0.0, 10.0);
+    draw_text(&fps_text, &pos, context);
+    let size = measure_text(&fps_text, context);
+
+    // Draw a graph of the FPS
+    {
+      let averages = fps.second_averages();
+      let max_average = averages.iter().fold(0.0, |a, b| f32::max(a, *b));
+      let mut x = pos.x + size.0;
+      let height = size.1 + 10.0;
+      let y = (pos.y + height).round();
+      let mut points = vec![
+        V2::new(pos.x + size.0 + FPS_COUNTER_BUFFER_SIZE as f32, y), 
+        V2::new(pos.x + size.0, y),
+      ];
+      for avg in averages.into_iter() {
+        let percent = avg / max_average;
+        points.push(V2::new(x, y - (percent * height)));
+        x += 1.0
+      }
+      context.set_stroke_style(&"gold".into());
+      draw_lines(&points, context);
+    }
+
+    AABB {
+      top_left: pos,
+      extents: V2 {
+        x: size.0,
+        y: size.1,
+      },
+    }
+  } else {
+    AABB::identity()
+  };
+
+  if toggles.contains(&RenderingToggles::EntityCount) {
+    let count: u32 = (&entities).join().fold(0, |n, _| n + 1);
+    let text = debug_text(format!("Entities: {}", count).as_str());
+    let pos = V2::new(0.0, next_rect.bottom() as f32 + 10.0);
+    draw_text(&text, &pos, context);
+  }
+
+  Ok(())
 }
 
 
