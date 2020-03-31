@@ -43,6 +43,11 @@
                          "value":"player"
                         }, 
                         {
+                         "name":"inventory_name",
+                         "type":"string",
+                         "value":"hero_inv"
+                        }, 
+                        {
                          "name":"player_index",
                          "type":"int",
                          "value":0
@@ -95,9 +100,31 @@
          "visible":true,
          "x":0,
          "y":0
+        }, 
+        {
+         "draworder":"topdown",
+         "id":4,
+         "name":"inventories",
+         "objects":[
+                {
+                 "height":117.333333333333,
+                 "id":9,
+                 "name":"hero_inv",
+                 "rotation":0,
+                 "type":"inventory",
+                 "visible":true,
+                 "width":247.333333333333,
+                 "x":-52.6666666666667,
+                 "y":274
+                }],
+         "opacity":1,
+         "type":"objectgroup",
+         "visible":true,
+         "x":0,
+         "y":0
         }],
- "nextlayerid":4,
- "nextobjectid":9,
+ "nextlayerid":5,
+ "nextobjectid":10,
  "orientation":"orthogonal",
  "properties":[
         {
