@@ -55,7 +55,30 @@
                  "duration":200,
                  "tileid":7
                 }],
-         "id":4
+         "id":4,
+         "objectgroup":
+            {
+             "draworder":"index",
+             "id":2,
+             "name":"",
+             "objects":[
+                    {
+                     "height":5.09090909090909,
+                     "id":1,
+                     "name":"",
+                     "rotation":0,
+                     "type":"barrier",
+                     "visible":true,
+                     "width":20,
+                     "x":13.2727272727273,
+                     "y":36.5454545454545
+                    }],
+             "opacity":1,
+             "type":"objectgroup",
+             "visible":true,
+             "x":0,
+             "y":0
+            }
         }, 
         {
          "animation":[

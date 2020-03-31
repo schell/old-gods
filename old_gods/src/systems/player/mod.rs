@@ -4,9 +4,9 @@
 ///   its job
 use specs::prelude::*;
 
+use super::gamepad::PlayerControllers;
 use super::super::components::{Exile, TakeAction, Velocity};
-//use super::super::geom::V2;
-//use super::ui::UI;
+use super::super::geom::V2;
 
 mod record;
 pub use self::record::*;
@@ -29,7 +29,7 @@ pub struct PlayerSystem;
 impl<'a> System<'a> for PlayerSystem {
   type SystemData = (
     Entities<'a>,
-    //Read<'a, UI>,
+    Read<'a, PlayerControllers>,
     ReadStorage<'a, Player>,
     ReadStorage<'a, Exile>,
     ReadStorage<'a, MaxSpeed>,
@@ -42,7 +42,7 @@ impl<'a> System<'a> for PlayerSystem {
     &mut self,
     (
       entities,
-      //ui,
+      player_controllers,
       players,
       exiles,
       max_speeds,
@@ -56,11 +56,11 @@ impl<'a> System<'a> for PlayerSystem {
       // Remove any previous TakeAction from this toon to begin with
       take_actions.remove(ent);
 
-      let _v = velocities
+      let v = velocities
         .get_mut(ent)
         .expect(&format!("Player {:?} does not have velocity.", player));
 
-      let _max_speed: MaxSpeed = max_speeds
+      let max_speed: MaxSpeed = max_speeds
         .get(ent)
         .map(|mv| mv.clone())
         .unwrap_or(MaxSpeed(100.0));
@@ -72,24 +72,27 @@ impl<'a> System<'a> for PlayerSystem {
       }
 
       //// Get the player's controller
-      //if let Some(ctrl) = ui.get_player_controller(player.0) {
-      //  // Update the velocity of the toon based on the
-      //  // player's controller
-      //  let ana = ctrl.analog_rate();
-      //  let rate =
-      //    ana
-      //    .unitize()
-      //    .unwrap_or(V2::new(0.0, 0.0));
-      //  let mult = rate.scalar_mul(max_speed.0);
-      //  v.0 = mult;
+      let _ = player_controllers.with_player_controller_at(
+        player.0,
+        |ctrl| {
+          // Update the velocity of the toon based on the
+          // player's controller
+          let ana = ctrl.analog_rate();
+          let rate =
+            ana
+            .unitize()
+            .unwrap_or(V2::new(0.0, 0.0));
+          let mult = rate.scalar_mul(max_speed.0);
+          v.0 = mult; 
 
-      //  // Add a TakeAction if the player has hit the A button
-      //  if ctrl.a().is_on_this_frame() {
-      //    take_actions
-      //      .insert(ent, TakeAction)
-      //      .expect("Could not insert TakeAction.");
-      //  }
-      //}
+          // Add a TakeAction if the player has hit the A button
+          if ctrl.a().is_on_this_frame() {
+            take_actions
+              .insert(ent, TakeAction)
+              .expect("Could not insert TakeAction.");
+          }
+        }
+      );
     }
   }
 }

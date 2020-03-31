@@ -486,7 +486,7 @@ impl PlayerControllers {
 
   pub fn with_player_controller_at<F, X>(&self, ndx: u32, f: F) -> Option<X>
   where
-    F: Fn(&PlayerController) -> X,
+    F: FnOnce(&PlayerController) -> X,
   {
     if let Ok(controllers) = self.controllers.try_lock() {
       controllers.get(&ndx).map(f)

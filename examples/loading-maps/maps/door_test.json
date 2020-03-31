@@ -60,6 +60,18 @@
                  "width":48,
                  "x":57.016333938294,
                  "y":232.551724137931
+                }, 
+                {
+                 "gid":849,
+                 "height":48,
+                 "id":6,
+                 "name":"other",
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":48,
+                 "x":142.736842105263,
+                 "y":89.8584392014519
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -68,23 +80,38 @@
          "y":0
         }],
  "nextlayerid":4,
- "nextobjectid":6,
+ "nextobjectid":7,
  "orientation":"orthogonal",
  "properties":[
+        {
+         "name":"toggle_rendering_barriers",
+         "type":"bool",
+         "value":true
+        }, 
+        {
+         "name":"toggle_rendering_entity_count",
+         "type":"bool",
+         "value":true
+        }, 
         {
          "name":"toggle_rendering_fps",
          "type":"bool",
          "value":true
         }, 
         {
+         "name":"toggle_rendering_velocities",
+         "type":"bool",
+         "value":true
+        }, 
+        {
          "name":"viewport_height_tiles",
          "type":"int",
-         "value":5
+         "value":10
         }, 
         {
          "name":"viewport_width_tiles",
          "type":"int",
-         "value":5
+         "value":10
         }],
  "renderorder":"right-down",
  "tiledversion":"1.3.1",

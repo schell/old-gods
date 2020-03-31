@@ -557,13 +557,14 @@ pub fn point_lines(p: V2) -> Vec<V2> {
 
 
 pub fn draw_lines(lines: &Vec<V2>, context: &CanvasRenderingContext2d) {
+  context.begin_path();
   let mut iter = lines.iter();
   iter
     .next()
     .iter()
     .for_each(|point| context.move_to(point.x as f64, point.y as f64));
   iter.for_each(|point| context.line_to(point.x as f64, point.y as f64));
-
+  context.close_path();
   context.stroke();
 }
 
