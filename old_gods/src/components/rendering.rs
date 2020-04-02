@@ -1,6 +1,5 @@
 //! Rendering data.
 use specs::prelude::*;
-//use sdl2::pixels::Color;
 
 use super::super::{
   color::Color, components::FontDetails, geom::*,

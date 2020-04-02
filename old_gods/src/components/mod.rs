@@ -13,7 +13,6 @@ pub use super::systems::inventory::{Inventory, Looting};
 pub use super::systems::item::Item;
 pub use super::systems::physics::{Barrier, Position, Velocity};
 pub use super::systems::player::{MaxSpeed, Player, SuspendPlayer, AI};
-//pub use super::systems::rendering::{ZLevel, Rendering, OriginOffset};
 pub use super::systems::script::Script;
 //pub use super::systems::sound::{Music, Sound};
 pub use super::systems::sprite::{Exile, ExiledBy, Sprite};

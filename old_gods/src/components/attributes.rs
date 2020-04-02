@@ -231,7 +231,7 @@ impl Attributes {
           })?;
 
         let action = Action {
-          display_ui: false,
+          elligibles: vec![],
           taken_by: vec![],
           text,
           strategy,

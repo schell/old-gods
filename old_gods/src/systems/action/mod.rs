@@ -1,5 +1,6 @@
 use specs::prelude::*;
 
+use log::trace;
 use super::super::components::{Exile, Inventory, Name, Zone};
 use super::super::parser::*;
 
@@ -172,10 +173,10 @@ impl Lifespan {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Action {
-  /// Whether or not this action should be displayed in the UI.
-  pub display_ui: bool,
+  /// Any entities that are elligible to take this action.
+  pub elligibles: Vec<Entity>,
 
-  /// All the entities that have taken this action in one frame.
+  /// All the entities that have taken this action.
   pub taken_by: Vec<Entity>,
 
   /// Some text about the action to display to the user.
@@ -320,12 +321,6 @@ impl<'a> System<'a> for ActionSystem {
       zones,
     ): Self::SystemData,
   ) {
-    // Reset the actions' UI state stuff
-    for mut action in (&mut actions).join() {
-      action.display_ui = false;
-      action.taken_by = vec![];
-    }
-
     // Find any actions that don't have zones, then create zones for them.
     // A zone will keep track of any entities intersecting the action.
     for (ent, _, ()) in (&entities, &actions, !&zones).join() {
@@ -336,6 +331,10 @@ impl<'a> System<'a> for ActionSystem {
     for (action_ent, mut action, zone, ()) in
       (&entities, &mut actions, &zones, !&exiles).join()
     {
+      // Reset the action's coffers
+      action.taken_by = vec![];
+      action.elligibles = vec![];
+
       'neighbors: for inside_ent in &zone.inside {
         let inside_ent = *inside_ent;
         // Determine the fitness of the toon for this action
@@ -347,12 +346,13 @@ impl<'a> System<'a> for ActionSystem {
           continue;
         }
         // Display the action to the player in the UI.
-        println!(
+        trace!(
           "{:?} is fit for {:?}",
           names.get(inside_ent),
           names.get(action_ent)
         );
-        action.display_ui = true;
+        action.elligibles.push(inside_ent);
+
         // Is this elligible player already taking an action?
         // NOTE: The TakeAction component is maintained by the PlayerSystem
         let is_taking_action = take_actions.get(inside_ent).is_some();

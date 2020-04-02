@@ -43,7 +43,7 @@ impl ItemSystem {
     item_shape: Option<&Shape>,
   ) -> Entity {
     let a = Action {
-      display_ui: false,
+      elligibles: vec![],
       taken_by: vec![],
       text: format!("Pick up {}", name),
       strategy: FitnessStrategy::HasInventory,

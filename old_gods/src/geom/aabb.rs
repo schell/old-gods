@@ -327,6 +327,17 @@ impl AABB {
   }
 
 
+  /// Convert a point using the same scale and translation needed to make one
+  /// AABB aspect fit inside another.
+  pub fn point_inside_aspect(point: V2, inside: V2, outside: V2) -> V2 {
+    let scale = Self::scale_needed_to_fit_inside(inside, outside);
+    let extents = V2::new(scale * inside.x, scale * inside.y);
+    let delta =
+      V2::new((outside.x - extents.x) / 2.0, (outside.y - extents.y) / 2.0);
+    point.scalar_mul(scale) + delta
+  }
+
+
   pub fn aabb_to_aspect_fit_inside(inside: V2, outside: V2) -> AABB {
     let scale = Self::scale_needed_to_fit_inside(inside, outside);
     let extents = V2::new(scale * inside.x, scale * inside.y);

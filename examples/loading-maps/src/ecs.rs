@@ -190,13 +190,23 @@ impl<'a, 'b> ECS<'a, 'b> {
         )
         .expect("can't draw map");
 
+      let viewport_to_context = |point: V2| -> V2 {
+        AABB::point_inside_aspect(point, map_size, win_size)
+      };
+
       // Draw the UI
-      let _ = render::render_ui(&mut self.world, &mut self.resources, &mut ctx);
+      let _ = render::render_ui(
+        &mut self.world,
+        &mut self.resources,
+        &mut ctx,
+        viewport_to_context
+      );
       if self.debug_mode {
         let _ = render::render_ui_debug(
           &mut self.world,
           &mut self.resources,
           &mut ctx,
+          viewport_to_context
         );
       }
     } else {
