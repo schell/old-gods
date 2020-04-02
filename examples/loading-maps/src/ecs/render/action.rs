@@ -1,7 +1,5 @@
 use old_gods::prelude::*;
-use web_sys::{
-  window, CanvasRenderingContext2d, EventTarget, HtmlImageElement,
-};
+use web_sys::CanvasRenderingContext2d;
 
 use super::HtmlResources;
 
@@ -26,8 +24,8 @@ fn button_text(btn: &ActionButton) -> String {
 }
 
 /// Draw an action button at a point with an optional message to the right.
-fn draw_button(
-  canvas: &mut CanvasRenderingContext2d,
+pub fn draw_button(
+  context: &mut CanvasRenderingContext2d,
   _resources: &mut HtmlResources,
   btn: ActionButton,
   point: &V2,
@@ -35,9 +33,9 @@ fn draw_button(
 ) -> AABB {
   let mut btn_text = super::fancy_text(&button_text(&btn).as_str());
   btn_text.color = button_color(&btn);
-  super::draw_text(&btn_text, point, canvas);
+  super::draw_text(&btn_text, point, context);
 
-  let dest_size = super::measure_text(&btn_text, canvas);
+  let dest_size = super::measure_text(&btn_text, context);
   let btn_rect = AABB {
     top_left: *point,
     extents: V2::new(dest_size.0, dest_size.1)
@@ -48,11 +46,11 @@ fn draw_button(
     super::draw_text(
       &text,
       &point,
-      canvas,
+      context,
     );
     let text_size = super::measure_text(
       &text,
-      canvas
+      context
     );
     AABB {
       top_left: point,
@@ -68,7 +66,7 @@ fn draw_button(
 /// Draw an Action.
 pub fn draw(
   canvas: &mut CanvasRenderingContext2d,
-  resources: &mut HtmlResources, 
+  resources: &mut HtmlResources,
   point: &V2,
   action: &Action,
 ) {

@@ -76,6 +76,12 @@
                  "height":48,
                  "id":7,
                  "name":"treasure",
+                 "properties":[
+                        {
+                         "name":"inventory_name",
+                         "type":"string",
+                         "value":"treasure_inv"
+                        }],
                  "rotation":0,
                  "type":"",
                  "visible":true,
@@ -116,6 +122,119 @@
                  "width":247.333333333333,
                  "x":-52.6666666666667,
                  "y":274
+                }, 
+                {
+                 "gid":1288,
+                 "height":48,
+                 "id":10,
+                 "name":"empty glass",
+                 "rotation":0,
+                 "type":"item",
+                 "visible":true,
+                 "width":48,
+                 "x":34,
+                 "y":340
+                }, 
+                {
+                 "gid":1289,
+                 "height":48,
+                 "id":11,
+                 "name":"blue glass",
+                 "rotation":0,
+                 "type":"item",
+                 "visible":true,
+                 "width":48,
+                 "x":1.33333333333333,
+                 "y":365.333333333333
+                }, 
+                {
+                 "gid":1290,
+                 "height":48,
+                 "id":12,
+                 "name":"green glass",
+                 "rotation":0,
+                 "type":"item",
+                 "visible":true,
+                 "width":48,
+                 "x":52.6666666666667,
+                 "y":368
+                }, 
+                {
+                 "gid":1291,
+                 "height":48,
+                 "id":13,
+                 "name":"red glass",
+                 "rotation":0,
+                 "type":"item",
+                 "visible":true,
+                 "width":48,
+                 "x":100,
+                 "y":366.666666666667
+                }, 
+                {
+                 "gid":1292,
+                 "height":48,
+                 "id":14,
+                 "name":"white glass",
+                 "rotation":0,
+                 "type":"item",
+                 "visible":true,
+                 "width":48,
+                 "x":115.333333333333,
+                 "y":338
+                }, 
+                {
+                 "gid":1293,
+                 "height":48,
+                 "id":15,
+                 "name":"black glass",
+                 "rotation":0,
+                 "type":"item",
+                 "visible":true,
+                 "width":48,
+                 "x":-49.3333333333333,
+                 "y":356
+                }, 
+                {
+                 "gid":1296,
+                 "height":48,
+                 "id":16,
+                 "name":"gold coin",
+                 "properties":[
+                        {
+                         "name":"stack_count",
+                         "type":"int",
+                         "value":25
+                        }],
+                 "rotation":0,
+                 "type":"item",
+                 "visible":true,
+                 "width":48,
+                 "x":138,
+                 "y":370.666666666667
+                }, 
+                {
+                 "height":137.333333333333,
+                 "id":17,
+                 "name":"treasure_inv",
+                 "rotation":0,
+                 "type":"inventory",
+                 "visible":true,
+                 "width":272.666666666667,
+                 "x":257.333333333333,
+                 "y":276.666666666667
+                }, 
+                {
+                 "gid":1318,
+                 "height":48,
+                 "id":18,
+                 "name":"bag",
+                 "rotation":0,
+                 "type":"item",
+                 "visible":true,
+                 "width":48,
+                 "x":277.333333333333,
+                 "y":350.666666666667
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -124,7 +243,7 @@
          "y":0
         }],
  "nextlayerid":5,
- "nextobjectid":10,
+ "nextobjectid":19,
  "orientation":"orthogonal",
  "properties":[
         {

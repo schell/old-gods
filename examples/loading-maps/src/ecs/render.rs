@@ -11,6 +11,7 @@ use web_sys::{
 };
 
 mod action;
+mod inventory;
 
 
 #[derive(Clone)]
@@ -29,6 +30,36 @@ trait Resources {
   fn load_sprite_sheet<S: Into<String>>(&mut self, s: S);
   fn take_sprite_sheet(&mut self, s: &str) -> Option<Self::Texture>;
   fn put_sprite_sheet<S: Into<String>>(&mut self, s: S, tex: Self::Texture);
+  fn when_sprite_sheet_loaded<S, F>(&mut self, s: S, f: F)
+  where
+    S: Into<String>,
+    F: FnOnce(&Self::Texture),
+  {
+    let loc: String = s.into();
+    let texture_status = self.status_sprite_sheet(&loc);
+    match texture_status {
+      LoadStatus::None => {
+        // Load it and come back later
+        self.load_sprite_sheet(&loc);
+        return;
+      }
+      LoadStatus::Started => {
+        // Come back later because it's loading etc.
+        return;
+      }
+      LoadStatus::Complete => {}
+      LoadStatus::Error(msg) => {
+        warn!("sprite sheet loading error: {}", msg);
+        return;
+      }
+    }
+
+    let tex = self
+      .take_sprite_sheet(&loc)
+      .expect("Could not take sprite sheet");
+    f(&tex);
+    self.put_sprite_sheet(&loc, tex);
+  }
 }
 
 
@@ -284,47 +315,28 @@ pub fn draw_rendering(
 ) {
   match &r.primitive {
     RenderingPrimitive::TextureFrame(f) => {
-      let texture_status = resources.status_sprite_sheet(&f.sprite_sheet);
-      match texture_status {
-        LoadStatus::None => {
-          // Load it and come back later
-          resources.load_sprite_sheet(f.sprite_sheet.as_str());
-          return;
-        }
-        LoadStatus::Started => {
-          // Come back later because it's loading etc.
-          return;
-        }
-        LoadStatus::Complete => {}
-        LoadStatus::Error(msg) => {
-          warn!("sprite sheet loading error: {}", msg);
-          return;
-        }
-      }
-
-      let tex = resources
-        .take_sprite_sheet(&f.sprite_sheet)
-        .expect("Could not take sprite sheet");
-      let dest = AABB::new(point.x, point.y, f.size.0 as f32, f.size.1 as f32);
-      let src = AABB::new(
-        f.source_aabb.x as f32,
-        f.source_aabb.y as f32,
-        f.source_aabb.w as f32,
-        f.source_aabb.h as f32,
-      );
-      let alpha = context.global_alpha();
-      context.set_global_alpha(r.alpha as f64 / 255.0);
-      draw_sprite(
-        context,
-        src,
-        dest,
-        f.is_flipped_horizontally,
-        f.is_flipped_vertically,
-        f.is_flipped_diagonally,
-        &tex,
-      );
-      context.set_global_alpha(alpha);
-      resources.put_sprite_sheet(&f.sprite_sheet, tex);
+      resources.when_sprite_sheet_loaded(&f.sprite_sheet, |tex| {
+        let dest =
+          AABB::new(point.x, point.y, f.size.0 as f32, f.size.1 as f32);
+        let src = AABB::new(
+          f.source_aabb.x as f32,
+          f.source_aabb.y as f32,
+          f.source_aabb.w as f32,
+          f.source_aabb.h as f32,
+        );
+        let alpha = context.global_alpha();
+        context.set_global_alpha(r.alpha as f64 / 255.0);
+        draw_sprite(
+          context,
+          src,
+          dest,
+          f.is_flipped_horizontally,
+          f.is_flipped_vertically,
+          f.is_flipped_diagonally,
+          &tex,
+        );
+        context.set_global_alpha(alpha);
+      });
     }
     RenderingPrimitive::Text(t) => {
       draw_text(t, point, context);
@@ -983,14 +995,18 @@ type UIRenderingData<'s> = (
   Read<'s, Screen>,
   ReadStorage<'s, Action>,
   ReadStorage<'s, Exile>,
+  ReadStorage<'s, Inventory>,
+  ReadStorage<'s, Item>,
+  ReadStorage<'s, Looting>,
+  ReadStorage<'s, Name>,
   ReadStorage<'s, OriginOffset>,
   ReadStorage<'s, Player>,
   ReadStorage<'s, Position>,
+  ReadStorage<'s, Rendering>,
   ReadStorage<'s, Shape>,
 );
 
 
-// TODO: Render UI
 pub fn render_ui(
   world: &mut World,
   resources: &mut HtmlResources,
@@ -1003,9 +1019,14 @@ pub fn render_ui(
     screen,
     actions,
     exiles,
+    inventories,
+    items,
+    lootings,
+    names,
     origin_offsets,
     players,
     positions,
+    renderings,
     shapes,
   ): UIRenderingData = world.system_data();
 
@@ -1027,6 +1048,43 @@ pub fn render_ui(
       }
     }
   }
+
+  // Draw lootings involving a player that are on the screen
+  for (loot, _) in (&lootings, !&exiles).join() {
+    let has_position = positions.contains(loot.looter)
+      || (loot.inventory.is_some()
+        && positions.contains(loot.inventory.unwrap()));
+    let has_player = players.contains(loot.looter)
+      || (loot.inventory.is_some()
+        && players.contains(loot.inventory.unwrap()));
+    if !has_position || !has_player {
+      continue;
+    }
+    let mut players_vec = vec![players.get(loot.looter).cloned()];
+    loot.inventory.map(|i| {
+      let player = players.get(i).cloned();
+      players_vec.push(player);
+    });
+    let players_vec: Vec<Player> =
+      players_vec.into_iter().filter_map(|t| t).collect();
+    let may_player: Option<&Player> = players_vec.first();
+    if may_player.is_some() {
+      let loot_rendering = inventory::make_loot_rendering(
+        &loot,
+        &inventories,
+        &items,
+        &renderings,
+        &names,
+      );
+      inventory::draw_looting(
+        context,
+        resources,
+        &V2::new(10.0, 10.0),
+        loot_rendering,
+      );
+    }
+  }
+
 
   Ok(())
 }

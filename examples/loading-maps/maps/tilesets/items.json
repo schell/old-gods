@@ -885,6 +885,44 @@
             }
         }, 
         {
+         "id":37,
+         "objectgroup":
+            {
+             "draworder":"index",
+             "id":2,
+             "name":"",
+             "objects":[
+                    {
+                     "height":3.81818181818181,
+                     "id":1,
+                     "name":"",
+                     "rotation":0,
+                     "type":"barrier",
+                     "visible":true,
+                     "width":18.1818181818182,
+                     "x":15.0909090909091,
+                     "y":32.3636363636364
+                    }, 
+                    {
+                     "ellipse":true,
+                     "height":0,
+                     "id":2,
+                     "name":"",
+                     "rotation":0,
+                     "type":"origin_offset",
+                     "visible":true,
+                     "width":0,
+                     "x":24,
+                     "y":33.2727272727273
+                    }],
+             "opacity":1,
+             "type":"objectgroup",
+             "visible":true,
+             "x":0,
+             "y":0
+            }
+        }, 
+        {
          "id":38,
          "objectgroup":
             {
