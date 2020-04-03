@@ -1,6 +1,6 @@
 //! Because Instant::now() doesn't work on arch = wasm32.
 pub use std::time::Duration;
-#[cfg(not(target_arch = "wasm32"))] 
+#[cfg(not(target_arch = "wasm32"))]
 pub use std::time::Instant;
 #[cfg(target_arch = "wasm32")]
 use web_sys::window;
@@ -78,14 +78,14 @@ pub struct CounterBuffer<T> {
 
 
 impl CounterBuffer<f32> {
-  pub fn new(init:f32) -> Self {
+  pub fn new(init: f32) -> Self {
     CounterBuffer {
       buffer: [init; FPS_COUNTER_BUFFER_SIZE],
-      index: 0
+      index: 0,
     }
   }
 
-  pub fn write(&mut self, val:f32) {
+  pub fn write(&mut self, val: f32) {
     self.buffer[self.index] = val;
     self.index = (self.index + 1) % self.buffer.len();
   }
@@ -95,12 +95,11 @@ impl CounterBuffer<f32> {
   }
 
   pub fn current(&self) -> f32 {
-    let last_index =
-      if self.index == 0 {
-        self.buffer.len() - 1
-      } else {
-        self.index - 1
-      };
+    let last_index = if self.index == 0 {
+      self.buffer.len() - 1
+    } else {
+      self.index - 1
+    };
     self.buffer[last_index]
   }
 
@@ -114,7 +113,7 @@ pub struct FPSCounter {
   counter: CounterBuffer<f32>,
   last_instant: Millis,
   last_dt: f32,
-  averages: CounterBuffer<f32> 
+  averages: CounterBuffer<f32>,
 }
 
 
@@ -124,7 +123,7 @@ impl FPSCounter {
       counter: CounterBuffer::new(0.0),
       last_instant: Millis::now(),
       last_dt: 0.0,
-      averages: CounterBuffer::new(0.0)
+      averages: CounterBuffer::new(0.0),
     }
   }
 

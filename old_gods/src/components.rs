@@ -1,36 +1,55 @@
+use serde_json::Value;
 use specs::prelude::{
-  Component, Entities, Entity, Join, ReadStorage, World, WorldExt, WriteStorage,
+  Component, Entities, Entity, HashMapStorage, Join, ReadStorage, VecStorage,
+  World, WorldExt, WriteStorage,
 };
+use std::collections::HashMap;
 
 pub use super::geom::*;
-pub use super::systems::action::{
-  Action, FitnessStrategy, Lifespan, TakeAction,
-};
+//pub use super::systems::action::{
+//  Action, FitnessStrategy, Lifespan, TakeAction,
+//};
 pub use super::systems::animation::Animation;
-pub use super::systems::effect::Effect;
+//pub use super::systems::effect::Effect;
 pub use super::systems::fence::{Fence, StepFence};
-pub use super::systems::inventory::{Inventory, Looting};
-pub use super::systems::item::Item;
 pub use super::systems::physics::{Barrier, Position, Velocity};
-pub use super::systems::player::{MaxSpeed, Player, SuspendPlayer, AI};
-pub use super::systems::script::Script;
+//pub use super::systems::script::Script;
 //pub use super::systems::sound::{Music, Sound};
-pub use super::systems::sprite::{Exile, ExiledBy, Sprite};
 pub use super::systems::tween::{Easing, Tween, TweenParam};
-//pub use super::systems::ui::Cardinal;
 pub use super::systems::zone::Zone;
+pub use super::tiled::json::{Object, Property};
 
-mod attributes;
-pub use self::attributes::*;
-
-mod rendering;
-pub use self::rendering::*;
+mod action;
+pub use action::*;
 
 mod cardinal;
-pub use self::cardinal::*;
+pub use cardinal::*;
+
+mod exile;
+pub use exile::*;
 
 mod font_details;
-pub use self::font_details::*;
+pub use font_details::*;
+
+mod player;
+pub use player::*;
+
+mod rendering;
+pub use rendering::*;
+
+mod sprite;
+pub use sprite::*;
+
+
+/// One of the simplest and most common components.
+/// Anything that can be identified by a name.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Name(pub String);
+
+
+impl Component for Name {
+  type Storage = VecStorage<Name>;
+}
 
 
 /// Find a component and entity by another component
@@ -129,4 +148,14 @@ pub fn with_ent_counts<F: FnMut(), G: Fn(u32, u32)>(
   f();
   let after_entity_count = &entities.join().fold(0, |n, _| n + 1);
   g(*before_entity_count, *after_entity_count);
+}
+
+
+/// A component that stores any unused JSON propreties left on an object.
+#[derive(Debug, Clone)]
+pub struct JSON(pub HashMap<String, Value>);
+
+
+impl Component for JSON {
+  type Storage = HashMapStorage<Self>;
 }

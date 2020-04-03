@@ -45,14 +45,12 @@ impl<'a> System<'a> for ZoneSystem {
   ) {
     // Do some generic zone upkeep
     for (zone_ent, mut zone, ()) in (&entities, &mut zones, !&exiles).join() {
-      let no_barriers: Option<&ReadStorage<Barrier>> = None;
       let intersections: Vec<Entity> = aabb_tree
         .query_intersecting_shapes(
           &entities,
           &zone_ent,
           &shapes,
           &positions,
-          no_barriers,
         )
         .into_iter()
         .filter_map(|(e, _, _)| {

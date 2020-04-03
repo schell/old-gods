@@ -45,6 +45,24 @@ pub struct Tween {
 }
 
 
+impl Tween {
+  pub fn new(
+    subject: Entity,
+    param: TweenParam,
+    easing: Easing,
+    duration: f32,
+  ) -> Self {
+    Tween {
+      subject,
+      param,
+      easing,
+      duration,
+      dt: 0.0,
+    }
+  }
+}
+
+
 impl Component for Tween {
   type Storage = HashMapStorage<Self>;
 }

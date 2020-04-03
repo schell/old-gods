@@ -6,9 +6,6 @@ use super::super::prelude::{
   Shape, Sprite, V2,
 };
 
-mod record;
-pub use self::record::*;
-
 
 pub struct ItemSystem;
 

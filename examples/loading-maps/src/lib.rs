@@ -22,7 +22,7 @@ use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, HtmlElement};
 mod ecs;
 mod fetch;
 
-use ecs::{RenderingToggles, ECS};
+use ecs::{ECS, RenderingToggles};
 
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
@@ -113,7 +113,7 @@ impl mogwai::prelude::Component for App {
         let base_url = ecs.base_url.clone();
         sub.send_async(async move {
           let tiledmap =
-            Tiledmap::from_url(&base_url, &path, |url| fetch::from_url(url))
+            Tiledmap::from_url(&base_url, &path, fetch::from_url)
               .await;
           match tiledmap {
             Err(msg) => InMsg::LoadError(msg),
@@ -128,9 +128,7 @@ impl mogwai::prelude::Component for App {
       InMsg::Loaded(map) => {
         let mut ecs = self.ecs.try_lock().expect("no lock on ecs");
         ecs.world.delete_all();
-        let mut loader = MapLoader::new(&mut ecs.world);
-        let mut map = map.clone();
-        let _ = loader.insert_map(&mut map, None, None).expect("insert map failed");
+
         if let Some((width, height)) = map.get_suggested_viewport_size() {
           trace!("got map viewport size: {} {}", width, height);
           ecs.set_resolution(width, height);
@@ -150,7 +148,12 @@ impl mogwai::prelude::Component for App {
           let map_toggles = RenderingToggles::from_properties(&map.properties);
           *ecs_toggles = map_toggles;
         }
-        ecs.restart_time(); 
+        {
+            let mut data:ecs::systems::tiled::InsertMapData = ecs.world.system_data();
+            ecs::systems::tiled::insert_map(map, &mut data);
+        }
+
+        ecs.restart_time();
       }
     }
   }
@@ -178,14 +181,16 @@ impl mogwai::prelude::Component for App {
         .with(
           div().class("embed-responsive embed-responsive-16by9").with(
             canvas()
-              .downcast::<HtmlCanvasElement>().ok().expect("not a canvas") 
+              .downcast::<HtmlCanvasElement>()
+              .ok()
+              .expect("not a canvas")
               .class("embed-responsive-item")
               .attribute("id", "screen")
               .attribute("width", "1600")
               .attribute("height", "900")
-              .tx_post_build(
-                tx.contra_map(|canvas: &HtmlCanvasElement| InMsg::PostBuild(canvas.clone())),
-              ),
+              .tx_post_build(tx.contra_map(|canvas: &HtmlCanvasElement| {
+                InMsg::PostBuild(canvas.clone())
+              })),
           ),
         ),
     )
@@ -209,7 +214,9 @@ pub fn main() -> Result<(), JsValue> {
   // Set up the game loop
   let ecs = app_ecs.clone();
   request_animation_frame(move || {
-    let mut ecs = ecs.try_lock().expect("no lock on ecs - request animation loop");
+    let mut ecs = ecs
+      .try_lock()
+      .expect("no lock on ecs - request animation loop");
     ecs.maintain();
     ecs.render();
     // We always want to reschedule this animation frame

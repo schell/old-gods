@@ -280,27 +280,21 @@ impl<'a> MapLoader<'a> {
       layers.iter().collect()
     };
 
-    let loaded_layers = layers_to_load.iter().fold(
-      Ok(LoadedLayers::new()),
-      |result: Result<LoadedLayers, String>, layer: &&Layer| {
-        let mut layers = result?;
+    let mut layers = LoadedLayers::new();
+    for layer in layers_to_load.iter() {
+      self.increment_z_by_layer(&layer);
+      let mut ents =
+        self.load_layer_data(&layer.name, &layer.layer_data, map)?;
 
-        self.increment_z_by_layer(&layer);
-        let mut ents =
-          self.load_layer_data(&layer.name, &layer.layer_data, map)?;
+      // If this layer is part of a group, add it as a keyframe
+      if layer.is_group() {
+        layers.groups.insert(layer.name.clone(), ents);
+      } else {
+        layers.top_level_entities.append(&mut ents);
+      }
+    }
 
-        // If this layer is part of a group, add it as a keyframe
-        if layer.is_group() {
-          layers.groups.insert(layer.name.clone(), ents);
-        } else {
-          layers.top_level_entities.append(&mut ents);
-        }
-
-        Ok(layers)
-      },
-    );
-
-    loaded_layers
+    Ok(layers)
   }
 
   /// ## Loading tiles
@@ -428,12 +422,12 @@ impl<'a> MapLoader<'a> {
           let mut attribs = Attributes::read_gid(map, &gid, Some(size))?;
           attribs.push(Attribute::Position(Position(p)));
 
-          let props = object.properties
+          let props = object
+            .properties
             .iter()
             .map(|p| (&p.name, p))
             .collect::<HashMap<_, _>>();
-          let mut prop_attribs =
-            Attributes::read_properties(&props)?;
+          let mut prop_attribs = Attributes::read_properties(&props)?;
           attribs.append(&mut prop_attribs);
 
           let attributes = Attributes { attribs };

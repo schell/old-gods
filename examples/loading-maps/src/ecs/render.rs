@@ -13,54 +13,10 @@ use web_sys::{
 mod action;
 mod inventory;
 
-
-#[derive(Clone)]
-pub enum LoadStatus {
-  None,
-  Started,
-  Complete,
-  Error(String),
-}
-
-
-trait Resources {
-  type Texture;
-
-  fn status_sprite_sheet<S: Into<String>>(&self, s: S) -> LoadStatus;
-  fn load_sprite_sheet<S: Into<String>>(&mut self, s: S);
-  fn take_sprite_sheet(&mut self, s: &str) -> Option<Self::Texture>;
-  fn put_sprite_sheet<S: Into<String>>(&mut self, s: S, tex: Self::Texture);
-  fn when_sprite_sheet_loaded<S, F>(&mut self, s: S, f: F)
-  where
-    S: Into<String>,
-    F: FnOnce(&Self::Texture),
-  {
-    let loc: String = s.into();
-    let texture_status = self.status_sprite_sheet(&loc);
-    match texture_status {
-      LoadStatus::None => {
-        // Load it and come back later
-        self.load_sprite_sheet(&loc);
-        return;
-      }
-      LoadStatus::Started => {
-        // Come back later because it's loading etc.
-        return;
-      }
-      LoadStatus::Complete => {}
-      LoadStatus::Error(msg) => {
-        warn!("sprite sheet loading error: {}", msg);
-        return;
-      }
-    }
-
-    let tex = self
-      .take_sprite_sheet(&loc)
-      .expect("Could not take sprite sheet");
-    f(&tex);
-    self.put_sprite_sheet(&loc, tex);
-  }
-}
+use super::systems::inventory::{
+  Inventory, Looting, Item
+};
+use super::resources::{LoadStatus, Resources};
 
 
 pub struct Callbacks(
@@ -86,15 +42,11 @@ impl HtmlResources {
 }
 
 
-// TODO: Test Resources for HtmlResources implementation
-// Possibly by testing draw_sprite
-impl Resources for HtmlResources {
-  type Texture = HtmlImageElement;
-
-  fn status_sprite_sheet<S: Into<String>>(&self, s: S) -> LoadStatus {
+impl Resources<HtmlImageElement> for HtmlResources {
+  fn status_of(&self, s: &str) -> LoadStatus {
     self
       .sprite_sheets
-      .get(&s.into())
+      .get(s)
       .map(|payload| {
         let status_and_may_img = payload.try_lock().unwrap();
         status_and_may_img.0.clone()
@@ -102,9 +54,8 @@ impl Resources for HtmlResources {
       .unwrap_or(LoadStatus::None)
   }
 
-  fn load_sprite_sheet<S: Into<String>>(&mut self, s: S) {
-    let path = s.into();
-    trace!("loading sprite sheet: {}", &path);
+  fn load(&mut self, path: &str) {
+    trace!("loading sprite sheet: {}", path);
     let img = window()
       .expect("no window")
       .document()
@@ -113,12 +64,12 @@ impl Resources for HtmlResources {
       .expect("can't create img")
       .dyn_into::<HtmlImageElement>()
       .expect("can't coerce img");
-    img.set_src(&path);
+    img.set_src(path);
     let status = Arc::new(Mutex::new((LoadStatus::Started, Some(img.clone()))));
     let target: &EventTarget =
       img.dyn_ref().expect("can't coerce img as EventTarget");
     let load_status = status.clone();
-    let load_path = path.clone();
+    let load_path = path.to_string();
     let load = Closure::wrap(Box::new(move |_: JsValue| {
       let mut status_and_img = load_status
         .try_lock()
@@ -127,7 +78,7 @@ impl Resources for HtmlResources {
       status_and_img.0 = LoadStatus::Complete;
     }) as Box<dyn Fn(JsValue)>);
     let err_status = status.clone();
-    let err_path = path.clone();
+    let err_path = path.to_string();
     let err = Closure::wrap(Box::new(move |event: JsValue| {
       let mut status_and_img = err_status
         .try_lock()
@@ -149,22 +100,21 @@ impl Resources for HtmlResources {
       .unwrap();
     self
       .callbacks
-      .insert(path.clone(), Callbacks(Arc::new(load), Arc::new(err)));
-    self.sprite_sheets.insert(path, status);
+      .insert(path.to_string(), Callbacks(Arc::new(load), Arc::new(err)));
+    self.sprite_sheets.insert(path.to_string(), status);
   }
 
-  fn take_sprite_sheet(&mut self, s: &str) -> Option<Self::Texture> {
+  fn take(&mut self, s: &str) -> Option<HtmlImageElement> {
     let _ = self.callbacks.remove(s);
     let status_and_img = self.sprite_sheets.remove(s)?;
     let status_and_img = status_and_img.try_lock().ok()?;
     status_and_img.1.clone()
   }
 
-  fn put_sprite_sheet<S: Into<String>>(&mut self, s: S, tex: Self::Texture) {
-    let path = s.into();
+  fn put(&mut self, path: &str, tex: HtmlImageElement) {
     let status_and_img =
       Arc::new(Mutex::new((LoadStatus::Complete, Some(tex))));
-    self.sprite_sheets.insert(path, status_and_img);
+    self.sprite_sheets.insert(path.to_string(), status_and_img);
   }
 }
 
@@ -315,7 +265,7 @@ pub fn draw_rendering(
 ) {
   match &r.primitive {
     RenderingPrimitive::TextureFrame(f) => {
-      resources.when_sprite_sheet_loaded(&f.sprite_sheet, |tex| {
+      resources.when_loaded(&f.sprite_sheet, |tex| {
         let dest =
           AABB::new(point.x, point.y, f.size.0 as f32, f.size.1 as f32);
         let src = AABB::new(
@@ -336,7 +286,7 @@ pub fn draw_rendering(
           &tex,
         );
         context.set_global_alpha(alpha);
-      });
+      }).unwrap();
     }
     RenderingPrimitive::Text(t) => {
       draw_text(t, point, context);
@@ -554,15 +504,14 @@ pub type DebugRenderingData<'s> = (
   ReadStorage<'s, Velocity>,
   ReadStorage<'s, Barrier>,
   ReadStorage<'s, Exile>,
-  ReadStorage<'s, Item>,
-  ReadStorage<'s, Tags>,
+  //ReadStorage<'s, Item>,
   ReadStorage<'s, Player>,
   ReadStorage<'s, Position>,
   ReadStorage<'s, OriginOffset>,
   ReadStorage<'s, Action>,
   ReadStorage<'s, Name>,
-  ReadStorage<'s, Looting>,
-  ReadStorage<'s, Inventory>,
+  //ReadStorage<'s, Looting>,
+  //ReadStorage<'s, Inventory>,
   ReadStorage<'s, Zone>,
   ReadStorage<'s, Fence>,
   ReadStorage<'s, Shape>,
@@ -658,15 +607,15 @@ pub fn render_map_debug(
     velocities,
     barriers,
     exiles,
-    _items,
-    _tag_store,
+    //_items,
+    //_tag_store,
     players,
     positions,
     offsets,
     actions,
     names,
-    _loots,
-    _inventories,
+    //_loots,
+    //_inventories,
     zones,
     fences,
     shapes,
@@ -807,30 +756,6 @@ pub fn render_map_debug(
       }
     }
   }
-
-  //if self.toggles.contains(&RenderingToggles::Positions) {
-  //  self.canvas.set_fill_color(Color::rgb(0, 0, 255));
-  //  let p = position.0 + *offset;
-  //  self.canvas.draw_rect(
-  //    Rect::new(
-  //      (p.x - focus_offset.x) as i32 - 2,
-  //      (p.y - focus_offset.y) as i32 - 2,
-  //      4,
-  //      4
-  //    )
-  //  ).expect("Could not draw position.");
-
-  //  let pos_str = format!(
-  //    "({}, {}, z{})",
-  //    position.0.x.round() as i32,
-  //    position.0.y.round() as i32,
-  //    may_z.unwrap_or(&ZLevel(0.0)).0
-  //  );
-  //  self.draw_text(&pos_str, position.0);
-  //} else if self.toggles.contains(&RenderingToggles::ZLevels) {
-  //  let z = may_z.unwrap_or(&ZLevel(0.0)).0;
-  //  self.draw_text(&format!("z{}", z), position.0 - *focus_offset);
-  //}
 
   if toggles.contains(&RenderingToggles::Players)
     && !toggles.contains(&RenderingToggles::Barriers)
@@ -996,13 +921,11 @@ type UIRenderingData<'s> = (
   ReadStorage<'s, Action>,
   ReadStorage<'s, Exile>,
   ReadStorage<'s, Inventory>,
-  ReadStorage<'s, Item>,
   ReadStorage<'s, Looting>,
   ReadStorage<'s, Name>,
   ReadStorage<'s, OriginOffset>,
   ReadStorage<'s, Player>,
   ReadStorage<'s, Position>,
-  ReadStorage<'s, Rendering>,
   ReadStorage<'s, Shape>,
 );
 
@@ -1020,13 +943,11 @@ pub fn render_ui(
     actions,
     exiles,
     inventories,
-    items,
     lootings,
     names,
     origin_offsets,
     players,
     positions,
-    renderings,
     shapes,
   ): UIRenderingData = world.system_data();
 
@@ -1072,8 +993,6 @@ pub fn render_ui(
       let loot_rendering = inventory::make_loot_rendering(
         &loot,
         &inventories,
-        &items,
-        &renderings,
         &names,
       );
       inventory::draw_looting(
@@ -1085,7 +1004,6 @@ pub fn render_ui(
     }
   }
 
-
   Ok(())
 }
 
@@ -1095,7 +1013,7 @@ pub fn render_ui_debug(
   _resources: &mut HtmlResources,
   context: &mut CanvasRenderingContext2d,
   // The function needed to convert a point in the map viewport to the context.
-  _viewport_to_context: impl Fn(V2) -> V2,
+  viewport_to_context: impl Fn(V2) -> V2,
 ) -> Result<(), String> {
   let (
     _aabb_tree,
@@ -1106,15 +1024,15 @@ pub fn render_ui_debug(
     _velocities,
     _barriers,
     _exiles,
-    _items,
-    _tag_store,
+    //_items,
+    //_tag_store,
     _players,
-    _positions,
-    _offsets,
+    positions,
+    offsets,
     _actions,
     _names,
-    _loots,
-    _inventories,
+    //_loots,
+    //_inventories,
     _zones,
     _fences,
     _shapes,
@@ -1168,6 +1086,37 @@ pub fn render_ui_debug(
     let pos = V2::new(0.0, next_rect.bottom() as f32 + 10.0);
     draw_text(&text, &pos, context);
   }
+
+  if toggles.contains(&RenderingToggles::Positions) {
+    context.set_stroke_style(&"blue".into());
+    for (entity, &Position(position)) in (&entities, &positions).join() {
+      let offset = offsets.get(entity).map(|o| o.0).unwrap_or(V2::origin());
+      let p = viewport_to_context(position - offset);
+      context.stroke_rect(
+        p.x as f64 - 2.0,
+        p.y as f64 - 2.0,
+        4.0,
+        4.0
+      );
+
+      let pos_str = format!(
+        "pos: ({:.1}, {:.1})",
+        position.x + offset.x,
+        position.y + offset.y,
+      );
+      let offset_str = format!(
+        "offset: ({:.1}, {:.1})",
+        offset.x,
+        offset.y
+      );
+      let text = debug_text(&vec![pos_str, offset_str].join(" "));
+      draw_text(&text, &p, context);
+    }
+  }
+  //else if self.toggles.contains(&RenderingToggles::ZLevels) {
+  //  let z = may_z.unwrap_or(&ZLevel(0.0)).0;
+  //  self.draw_text(&format!("z{}", z), position.0 - *focus_offset);
+  //}
 
   Ok(())
 }

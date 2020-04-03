@@ -1,4 +1,11 @@
 { "compressionlevel":0,
+ "editorsettings":
+    {
+     "export":
+        {
+         "target":"."
+        }
+    },
  "height":5,
  "infinite":false,
  "layers":[
@@ -243,7 +250,7 @@
          "y":0
         }],
  "nextlayerid":5,
- "nextobjectid":19,
+ "nextobjectid":20,
  "orientation":"orthogonal",
  "properties":[
         {
@@ -258,6 +265,11 @@
         }, 
         {
          "name":"toggle_rendering_fps",
+         "type":"bool",
+         "value":true
+        }, 
+        {
+         "name":"toggle_rendering_positions",
          "type":"bool",
          "value":true
         }, 

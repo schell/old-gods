@@ -29,6 +29,7 @@ use super::super::prelude::{
   Lifespan,
   MaxSpeed,
   //Music,
+  Name,
   Object,
   ObjectGroup,
   OriginOffset,
@@ -37,7 +38,6 @@ use super::super::prelude::{
   Position,
   Property,
   Rendering,
-  Script,
   Shape,
   //Sound,
   StepFence,
@@ -49,18 +49,6 @@ use super::super::prelude::{
   //Trigger,
   V2,
 };
-
-
-/// ## Name
-/// Name is one of the simplest and most common components.
-/// Anything with a name can be talked about.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Name(pub String);
-
-
-impl Component for Name {
-  type Storage = DenseVecStorage<Name>;
-}
 
 
 /// An enumeration of attributes that many entities may have.
@@ -80,11 +68,11 @@ pub enum Attribute {
   OriginOffset(OriginOffset),
   Position(Position),
   RenderingOrAnime(Either<Rendering, Animation>),
-  Script(Script),
   Shape(Shape),
   //Sound(Sound),
   ZIncrement(i32),
   Zone(Shape),
+  //JSON(JSON)
 }
 
 
@@ -160,6 +148,7 @@ impl Attributes {
   /// * OriginOffset
   /// * Fence
   /// * StepFence
+  /// TODO: Put all the Tiled object parsing in one place.
   pub fn read_single_attribute(obj: &Object) -> Result<Attribute, String> {
     let properties = obj
       .properties
@@ -203,7 +192,7 @@ impl Attributes {
 
       "action" => {
         let text_value: &Value = properties
-          .get(&Action::tiled_key_text())
+          .get("text")
           .ok_or("An action must have a 'text' property")?;
         let text: String = text_value
           .as_str()
@@ -220,15 +209,33 @@ impl Attributes {
             format!("Could not parse action's fitness strategy: {:?}", e)
           })?;
         let lifespan_value: &Value = properties
-          .get(&Lifespan::tiled_key())
+          .get("lifespan")
           .ok_or("An action must have a 'lifespan' property")?;
-        let lifespan_str: &str = lifespan_value
-          .as_str()
-          .ok_or("An action's 'lifespan' property must be a string")?;
-        let lifespan: Lifespan =
-          Lifespan::from_str(lifespan_str).map_err(|e| {
-            format!("Could not parse lifespan {:?}: {:?}", lifespan_str, e)
-          })?;
+
+        let lifespan: Lifespan = if let Some(lifespan_str) =
+          lifespan_value.as_str()
+        {
+          match lifespan_str {
+            "forever" => Lifespan::Forever,
+            s => {
+              return Err(format!(
+                "Lifespan value must be the string \"forever\" or an int. Found '{}'",
+                s
+              ));
+            }
+          }
+        } else {
+          let num =
+            lifespan_value
+            .as_u64()
+            .ok_or(
+              format!(
+                "Lifespan value must be the string \"forever\" or an int. Found {:#?}",
+                lifespan_value
+              )
+            )? as u32;
+          Lifespan::Many(num)
+        };
 
         let action = Action {
           elligibles: vec![],
@@ -295,11 +302,12 @@ impl Attributes {
         .ok_or("player object's control_scheme must be a string".to_string())?;
       let control = match control_scheme.as_ref() {
         "player" => {
-          let ndx_prop = properties.get(&"player_index".to_string()).ok_or({
-            trace!("properties:\n{:#?}", properties);
-            "Object must have a 'player_index' custom property for control."
-              .to_string()
-          })?;
+          let ndx_prop =
+            properties.get(&"player_index".to_string()).ok_or({
+              trace!("properties:\n{:#?}", properties);
+              "Object must have a 'player_index' custom property for control."
+                .to_string()
+            })?;
           let ndx = ndx_prop.value.as_u64().ok_or(
             "Object 'player_index' must be an unsigned integer: {:?}"
               .to_string(),
@@ -319,8 +327,10 @@ impl Attributes {
     }
 
     // ZIncrement
-    if let Some(z_inc) =
-      properties.get(&"z_inc".to_string()).map(|p| p.value.as_i64()).flatten()
+    if let Some(z_inc) = properties
+      .get(&"z_inc".to_string())
+      .map(|p| p.value.as_i64())
+      .flatten()
     {
       attribs.push(Attribute::ZIncrement(z_inc as i32));
     }
@@ -341,19 +351,19 @@ impl Attributes {
       }
     }
 
-    // Script
-    if let Some(script) = properties
-      .get(&Script::tiled_key())
-      .map(|p| p.value.as_str().map(|s| s.to_string()))
-      .flatten()
-    {
-      let mut property_map = HashMap::new();
-      for prop in properties.values() {
-        property_map.insert(prop.name.clone(), prop.value.clone());
-      }
-      let script = Script::from_str(&script, Some(property_map))?;
-      attribs.push(Attribute::Script(script));
-    }
+    //// Script
+    //if let Some(script) = properties
+    //  .get(&Script::tiled_key())
+    //  .map(|p| p.value.as_str().map(|s| s.to_string()))
+    //  .flatten()
+    //{
+    //  let mut property_map = HashMap::new();
+    //  for prop in properties.values() {
+    //    property_map.insert(prop.name.clone(), prop.value.clone());
+    //  }
+    //  let script = Script::from_str(&script, Some(property_map))?;
+    //  attribs.push(Attribute::Script(script));
+    //}
 
     Ok(attribs)
   }
@@ -553,12 +563,12 @@ impl Attributes {
             .insert(ent, item)
             .expect("Could not insert an Item component");
         }
-        Attribute::Script(script) => {
-          world
-            .write_storage::<Script>()
-            .insert(ent, script)
-            .expect("Could not insert Script component.");
-        }
+        //Attribute::Script(script) => {
+        //  world
+        //    .write_storage::<Script>()
+        //    .insert(ent, script)
+        //    .expect("Could not insert Script component.");
+        //}
         Attribute::Action(action) => {
           world
             .write_storage::<Action>()
@@ -823,15 +833,15 @@ impl Attributes {
     None
   }
 
-  pub fn script(&self) -> Option<Script> {
-    for a in &self.attribs {
-      match a {
-        Attribute::Script(m) => return Some(m.clone()),
-        _ => {}
-      }
-    }
-    None
-  }
+  //pub fn script(&self) -> Option<Script> {
+  //  for a in &self.attribs {
+  //    match a {
+  //      Attribute::Script(m) => return Some(m.clone()),
+  //      _ => {}
+  //    }
+  //  }
+  //  None
+  //}
 
   pub fn shape(&self) -> Option<Shape> {
     for a in &self.attribs {
