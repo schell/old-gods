@@ -1,9 +1,24 @@
-# The Old Gods Engine
+<div align="center">
+  <h1>
+    The Old Gods Engine
+    <img src="old_gods/manual/src/img/logo.png" />
+  </h1>
+</div>
 
-This is a bespoke game engine meant for games targeting the web and SDL2.
+This is a handmade game engine meant for games targeting the web and SDL2.
 It reads Tiled map files into a specs based entity component system.
+
 Rendering is handled by HtmlCanvasElement or the built in SDL2 renderer.
 
+A number of base systems handle the core of the engine:
+* TiledmapSystem - loads maps 
+* Physics - collision detection and handling 
+* AnimationSystem - sprite animation 
+* GamepadSystem - controller support 
+
+More specific add-ons are available as separate crates.
+
+## Performance
 I'm really surprised at the performance. So far without any attention to
 performance the engine is running at about 330FPS, with a high of about 500FPS 
 (in SDL2). On wasm it's running at a pretty steady 60FPS.
