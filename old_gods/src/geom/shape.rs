@@ -5,7 +5,7 @@ use super::super::prelude::{AABB, V2};
 // TODO: Real SAT for polygons, AABB and circles.
 // See http://www.metanetsoftware.com/2016/n-tutorial-a-collision-detection-and-response
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 /// A number of different shapes. A shape itself doesn't have a position, it
 /// only describes the dimensions and separating axes.
 pub enum Shape {

@@ -38,23 +38,16 @@ pub fn draw_button(
   let dest_size = super::measure_text(&btn_text, context);
   let btn_rect = AABB {
     top_left: *point,
-    extents: V2::new(dest_size.0, dest_size.1)
+    extents: V2::new(dest_size.0, dest_size.1),
   };
   let text_rect = if let Some(text) = msg {
     let point = V2::new(point.x + dest_size.0, point.y);
     let text = super::normal_text(&text.as_str());
-    super::draw_text(
-      &text,
-      &point,
-      context,
-    );
-    let text_size = super::measure_text(
-      &text,
-      context
-    );
+    super::draw_text(&text, &point, context);
+    let text_size = super::measure_text(&text, context);
     AABB {
       top_left: point,
-      extents: V2::new(text_size.0, text_size.1)
+      extents: V2::new(text_size.0, text_size.1),
     }
   } else {
     btn_rect

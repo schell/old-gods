@@ -1,9 +1,10 @@
 use serde_json::Value;
 use specs::prelude::*;
 use std::collections::HashMap;
+use std::marker::PhantomData;
 
 use super::super::components::{Action, Exile, Inventory, Name, Sprite};
-mod container;
+//mod container;
 mod door;
 
 use container::Container;
@@ -73,32 +74,43 @@ impl Component for Script {
 }
 
 
-pub struct ScriptSystem;
+trait ScriptFromKey
+where
+  Self: std::any::Any + Sized
+{
+  type Storage;
+
+  fn insert(key: &str) -> Option<Self>;
+}
 
 
-impl<'a> System<'a> for ScriptSystem {
+pub struct ScriptSystem<S> {
+  phantom: PhantomData<S>
+}
+
+
+impl<S:ScriptFromKey> ScriptSystem<S> {
+  pub fn new() -> Self {
+    ScriptSystem {
+      phantom: PhantomData
+    }
+  }
+}
+
+
+impl<'a, S:ScriptFromKey> System<'a> for ScriptSystem<S> {
   type SystemData = (
-    ReadStorage<'a, Action>,
     Entities<'a>,
-    ReadStorage<'a, Exile>,
-    ReadStorage<'a, Inventory>,
     Read<'a, LazyUpdate>,
-    ReadStorage<'a, Name>,
-    ReadStorage<'a, Script>,
-    WriteStorage<'a, Sprite>,
+    WriteStorage<'a, Script>,
   );
 
   fn run(
     &mut self,
     (
-      actions,
       entities,
-      exiles,
-      inventories,
       lazy,
-      names,
-      scripts,
-      sprites
+      mut scripts,
     ): Self::SystemData,
   ) {
     for (ent, script, sprite, ()) in

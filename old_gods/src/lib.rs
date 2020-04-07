@@ -11,7 +11,7 @@ extern crate spade;
 extern crate specs;
 
 pub mod color;
-pub mod engine;
+//pub mod engine;
 pub mod systems;
 pub mod tiled;
 //pub mod resource_manager;

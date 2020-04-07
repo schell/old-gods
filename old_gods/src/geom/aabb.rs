@@ -96,12 +96,12 @@ impl AABB {
     f32::max(self.extents.x, self.extents.y)
   }
 
-  /// The x coord of the top left point 
+  /// The x coord of the top left point
   pub fn x(&self) -> f32 {
     self.top_left.x
   }
 
-  /// The x coord of the top left point 
+  /// The x coord of the top left point
   pub fn y(&self) -> f32 {
     self.top_left.y
   }

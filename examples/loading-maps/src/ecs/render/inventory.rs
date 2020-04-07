@@ -2,6 +2,9 @@ use old_gods::prelude::*;
 use web_sys::CanvasRenderingContext2d;
 
 use super::{HtmlResources, Resources};
+use super::super::systems::inventory::{
+  Inventory, Loot, Item
+};
 
 
 /// A renderable inventory item.
@@ -102,7 +105,7 @@ pub fn draw_loot(
     for (item, n) in inv.items.iter().zip(0..inv.items.len()) {
       let pos = origin
         + V2::new(0.0, name_height as f32 + item_height as f32 * n as f32);
-      resources.when_sprite_sheet_loaded(&item.frame.sprite_sheet, |tex| {
+      resources.when_loaded(&item.frame.sprite_sheet, |tex| {
         let src = AABB::new(
           item.frame.source_aabb.x as f32,
           item.frame.source_aabb.y as f32,
@@ -140,7 +143,7 @@ pub fn draw_loot(
           text.font.size = 12;
           super::draw_text(&text, &pos, context);
         }
-      });
+      }).unwrap();
     }
 
     // Draw the inventory name
@@ -206,23 +209,16 @@ pub fn draw_loot(
 pub fn make_loot_rendering<'s>(
   loot: &Loot,
   inventories: &ReadStorage<'s, Inventory>,
-  items: &ReadStorage<'s, Item>,
-  renderings: &ReadStorage<'s, Rendering>,
   names: &ReadStorage<'s, Name>,
 ) -> LootRendering {
   let mk_items = |inventory: &Inventory| -> Vec<InventoryItem> {
     let mut inv_items = vec![];
-    for ent in &inventory.items {
-      let Name(name) =
-        names.get(*ent).expect("An item is missing a Name.").clone();
-      let item = items
-        .get(*ent)
-        .expect("An item does not have an Item component");
+    for item in &inventory.items {
+      let name = item.name.clone();
       let usable = item.usable;
       let count = item.stack.unwrap_or(1);
-      let frame = renderings
-        .get(*ent)
-        .expect("An item is missing its Rendering component.")
+      let frame = item
+        .rendering
         .as_frame()
         .expect("An item's Rendering is not a TextureFrame")
         .clone();
