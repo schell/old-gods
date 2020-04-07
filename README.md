@@ -34,7 +34,13 @@ performance the engine is running at about 330FPS, with a high of about 500FPS
 
 ## Building
 First you'll need new(ish) version of the rust toolchain. For that you can visit
-https://rustup.rs/ and follow the installation instructions.
+https://rustup.rs/ and follow the installation instructions. 
+
+This project uses the nightly release:
+
+```
+rustup default nightly
+```
 
 Then you'll need [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/).
 
@@ -55,6 +61,16 @@ Then visit http://localhost:8888/
 
 If you'd like to contribute check the [issues][issues]. Or look at what
 [projects][projects] are kicking around!
+
+### Code style
+
+Formatting is enforced by `rustfmt`. Before you commit do:
+
+```
+cargo fmt
+```
+
+and your changes will be reformatted to fit our standard.
 
 [issues]: https://github.com/schell/old-gods/issues
 [projects]: https://github.com/schell/old-gods/projects
