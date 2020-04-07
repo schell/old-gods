@@ -31,7 +31,9 @@ else
 fi
 
 if hash wasm-opt 2>/dev/null; then
-    echo "Have wasm-opt and other wasm tools, skipping installation..."
+    echo "Have wasm-opt and other wasm tools:"
+    which wasm-opt
+    echo "skipping installation..."
 else
     echo "Installing wasm cli tools..."
     git clone https://github.com/WebAssembly/binaryen.git
@@ -46,7 +48,7 @@ echo "Building w/ cargo..."
 cargo build || exit 1
 
 echo "Building w/ wasm-pack..."
-wasm-pack build --release --target web examples/loading-maps || exit 1
+wasm-pack build --debug --target web examples/loading-maps || exit 1
 
 #echo "Optimizing..."
 #wasm-opt -Os ad-to-bag/pkg/ad_to_bag_client_bg.wasm -o ad-to-bag/pkg/ad_to_bag_client_bg.wasm || exit 1
