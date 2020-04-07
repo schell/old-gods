@@ -2,8 +2,8 @@ use serde_json::Value;
 use specs::prelude::*;
 use std::collections::HashMap;
 
-use super::{Exile, Name, Object};
 use super::super::tiled::json::Tiledmap;
+use super::{Exile, Name, Object};
 
 
 /// Sprites are a collection of other entities.
@@ -17,113 +17,108 @@ use super::super::tiled::json::Tiledmap;
 /// Sprites are defined using an entire Tiled map file.
 #[derive(Debug, Clone, Default)]
 pub struct Sprite {
-  /// The keyframe tells the sprite what keyframe it should switch to.
-  /// In order to change the keyframe of a sprite simply set this to
-  /// `Some("desired keyframe")`.
-  pub keyframe: Option<String>,
+    /// The keyframe tells the sprite what keyframe it should switch to.
+    /// In order to change the keyframe of a sprite simply set this to
+    /// `Some("desired keyframe")`.
+    pub keyframe: Option<String>,
 
-  /// The actual keyframe of this sprite.
-  current_keyframe: String,
+    /// The actual keyframe of this sprite.
+    current_keyframe: String,
 
-  /// The list of children at the top level of this sprite variant.
-  pub top_level_children: Vec<Entity>,
+    /// The list of children at the top level of this sprite variant.
+    pub top_level_children: Vec<Entity>,
 
-  /// The keyframed children of this sprite, sorted by keyframe
-  pub keyframe_children: HashMap<String, Vec<Entity>>,
+    /// The keyframed children of this sprite, sorted by keyframe
+    pub keyframe_children: HashMap<String, Vec<Entity>>,
 }
 
 
 impl Sprite {
-  /// Creates a new sprite with only top level children
-  pub fn with_top_level_children(top_level_children: Vec<Entity>) -> Sprite {
-    Sprite {
-      top_level_children,
-      keyframe: None,
-      current_keyframe: "".to_string(),
-      keyframe_children: HashMap::new(),
-    }
-  }
-
-
-  /// Parses a hashmap for the params needed to load a sprite from a Tiled map
-  /// file.
-  pub fn loading_params(
-    hmap: HashMap<String, Value>,
-  ) -> Result<(String, String, Option<String>), String> {
-    let variant: &str = hmap
-      .get("variant")
-      .ok_or("Sprite is missing its 'variant' property")?
-      .as_str()
-      .ok_or("Sprite's variant property must be a string")?;
-    let file: &str = hmap
-      .get("file")
-      .ok_or("Sprite is missing its 'file' property")?
-      .as_str()
-      .ok_or("Sprite's file proprety must be a string")?;
-    let keyframe: Option<String> = hmap
-      .get("keyframe")
-      .map(|val: &Value| val.as_str().map(|s| s.to_string()))
-      .flatten();
-    Ok((variant.to_string(), file.to_string(), keyframe))
-  }
-
-
-  /// Construct the parameters to load a sprite.
-  pub fn get_params<'a>(
-    map: &'a Tiledmap,
-    object: &'a Object,
-  ) -> Result<(String, String, Option<String>), String> {
-    let properties = object
-      .get_all_properties(map)
-      .into_iter()
-      .map(|prop| (prop.name, prop.value))
-      .collect::<HashMap<_, _>>();
-    Sprite::loading_params(properties)
-  }
-
-
-  /// Switch the keyframe of this sprite. If a Sound storage is passed,
-  /// play any sounds that may be set to auto_play=true.
-  pub fn switch_keyframe(
-    &mut self,
-    keyframe: &String,
-    exiles: &mut WriteStorage<Exile>,
-  ) {
-    self.keyframe = None;
-    self.current_keyframe = keyframe.clone();
-
-    for (child_keyframe, children) in &self.keyframe_children {
-      for child in children {
-        let is_exiled = child_keyframe != keyframe;
-        if is_exiled {
-          Exile::exile(*child, "sprite", exiles);
-        } else {
-          // Domesticate all the children in this keyframe
-          Exile::domesticate(*child, "sprite", exiles);
+    /// Creates a new sprite with only top level children
+    pub fn with_top_level_children(top_level_children: Vec<Entity>) -> Sprite {
+        Sprite {
+            top_level_children,
+            keyframe: None,
+            current_keyframe: "".to_string(),
+            keyframe_children: HashMap::new(),
         }
-      }
     }
-  }
 
-  /// Return the children within the current keyframe
-  pub fn current_children(&self) -> Vec<&Entity> {
-    self
-      .keyframe_children
-      .get(&self.current_keyframe)
-      .expect("A sprite does not contain children of its own keyframe")
-      .into_iter()
-      .collect()
-  }
 
-  /// Return the current keyframe
-  pub fn current_keyframe(&self) -> &String {
-    &self.current_keyframe
-  }
+    /// Parses a hashmap for the params needed to load a sprite from a Tiled map
+    /// file.
+    pub fn loading_params(
+        hmap: HashMap<String, Value>,
+    ) -> Result<(String, String, Option<String>), String> {
+        let variant: &str = hmap
+            .get("variant")
+            .ok_or("Sprite is missing its 'variant' property")?
+            .as_str()
+            .ok_or("Sprite's variant property must be a string")?;
+        let file: &str = hmap
+            .get("file")
+            .ok_or("Sprite is missing its 'file' property")?
+            .as_str()
+            .ok_or("Sprite's file proprety must be a string")?;
+        let keyframe: Option<String> = hmap
+            .get("keyframe")
+            .map(|val: &Value| val.as_str().map(|s| s.to_string()))
+            .flatten();
+        Ok((variant.to_string(), file.to_string(), keyframe))
+    }
+
+
+    /// Construct the parameters to load a sprite.
+    pub fn get_params<'a>(
+        map: &'a Tiledmap,
+        object: &'a Object,
+    ) -> Result<(String, String, Option<String>), String> {
+        let properties = object
+            .get_all_properties(map)
+            .into_iter()
+            .map(|prop| (prop.name, prop.value))
+            .collect::<HashMap<_, _>>();
+        Sprite::loading_params(properties)
+    }
+
+
+    /// Switch the keyframe of this sprite. If a Sound storage is passed,
+    /// play any sounds that may be set to auto_play=true.
+    pub fn switch_keyframe(&mut self, keyframe: &String, exiles: &mut WriteStorage<Exile>) {
+        self.keyframe = None;
+        self.current_keyframe = keyframe.clone();
+
+        for (child_keyframe, children) in &self.keyframe_children {
+            for child in children {
+                let is_exiled = child_keyframe != keyframe;
+                if is_exiled {
+                    Exile::exile(*child, "sprite", exiles);
+                } else {
+                    // Domesticate all the children in this keyframe
+                    Exile::domesticate(*child, "sprite", exiles);
+                }
+            }
+        }
+    }
+
+    /// Return the children within the current keyframe
+    pub fn current_children(&self) -> Vec<&Entity> {
+        self.keyframe_children
+            .get(&self.current_keyframe)
+            .expect("A sprite does not contain children of its own keyframe")
+            .into_iter()
+            .collect()
+    }
+
+    /// Return the current keyframe
+    pub fn current_keyframe(&self) -> &String {
+        &self.current_keyframe
+    }
 }
 
 
 impl Component for Sprite {
-  type Storage = HashMapStorage<Sprite>;
+    type Storage = HashMapStorage<Sprite>;
 }
 
 

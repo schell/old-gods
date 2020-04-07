@@ -1,4 +1,4 @@
-use specs::prelude::{Component, Entity, WriteStorage, HashMapStorage};
+use specs::prelude::{Component, Entity, HashMapStorage, WriteStorage};
 use std::collections::HashSet;
 
 
@@ -19,40 +19,36 @@ pub struct Exile(pub HashSet<ExiledBy>);
 
 
 impl Component for Exile {
-  type Storage = HashMapStorage<Exile>;
+    type Storage = HashMapStorage<Exile>;
 }
 
 
 impl Exile {
-  pub fn exile(entity: Entity, by: &str, exiles: &mut WriteStorage<Exile>) {
-    let by = ExiledBy(by.to_owned());
-    if exiles.contains(entity) {
-      let set = exiles.get_mut(entity).expect("This should never happen.");
-      set.0.insert(by);
-    } else {
-      let mut set = HashSet::new();
-      set.insert(by);
-      exiles
-        .insert(entity, Exile(set))
-        .expect("Could not insert an Exile set.");
+    pub fn exile(entity: Entity, by: &str, exiles: &mut WriteStorage<Exile>) {
+        let by = ExiledBy(by.to_owned());
+        if exiles.contains(entity) {
+            let set = exiles.get_mut(entity).expect("This should never happen.");
+            set.0.insert(by);
+        } else {
+            let mut set = HashSet::new();
+            set.insert(by);
+            exiles
+                .insert(entity, Exile(set))
+                .expect("Could not insert an Exile set.");
+        }
     }
-  }
 
-  pub fn domesticate(
-    entity: Entity,
-    by: &str,
-    exiles: &mut WriteStorage<Exile>,
-  ) {
-    let by = ExiledBy(by.to_owned());
-    if exiles.contains(entity) {
-      let set = {
-        let set = exiles.get_mut(entity).expect("This should never happen.");
-        set.0.remove(&by);
-        set.clone()
-      };
-      if set.0.is_empty() {
-        exiles.remove(entity);
-      }
+    pub fn domesticate(entity: Entity, by: &str, exiles: &mut WriteStorage<Exile>) {
+        let by = ExiledBy(by.to_owned());
+        if exiles.contains(entity) {
+            let set = {
+                let set = exiles.get_mut(entity).expect("This should never happen.");
+                set.0.remove(&by);
+                set.clone()
+            };
+            if set.0.is_empty() {
+                exiles.remove(entity);
+            }
+        }
     }
-  }
 }

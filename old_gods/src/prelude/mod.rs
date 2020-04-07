@@ -1,7 +1,7 @@
+pub use either::Either;
 pub use serde_json::Value;
 pub use shrev::*;
 pub use specs::prelude::*;
-pub use either::Either;
 
 pub use super::color::*;
 pub use super::components::*;
@@ -11,8 +11,8 @@ pub use super::geom::*;
 pub use super::parser::*;
 //pub use super::resource_manager::*;
 //pub use super::systems::action::*;
-pub use super::systems::animation::*;
 pub use super::systems::animation::Frame;
+pub use super::systems::animation::*;
 //pub use super::systems::effect::*;
 pub use super::systems::fence::*;
 pub use super::systems::gamepad::*;

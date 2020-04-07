@@ -1,6 +1,4 @@
-use specs::prelude::{
-  Component, Entities, Entity, HashMapStorage, Join, ReadStorage,
-};
+use specs::prelude::{Component, Entities, Entity, HashMapStorage, Join, ReadStorage};
 
 
 /// A component for designating the maximum velocity of an entity.
@@ -9,22 +7,22 @@ pub struct MaxSpeed(pub f32);
 
 
 impl MaxSpeed {
-  pub fn tiled_key() -> String {
-    "max_speed".to_string()
-  }
+    pub fn tiled_key() -> String {
+        "max_speed".to_string()
+    }
 }
 
 
 impl Component for MaxSpeed {
-  type Storage = HashMapStorage<MaxSpeed>;
+    type Storage = HashMapStorage<MaxSpeed>;
 }
 
 
 #[derive(Debug, Clone, PartialEq, Hash, Eq, Serialize, Deserialize)]
 /// All the AIs in our game.
 pub enum AI {
-  /// An AI that just walks left.
-  WalksLeft,
+    /// An AI that just walks left.
+    WalksLeft,
 }
 
 
@@ -34,27 +32,27 @@ pub struct Player(pub u32);
 
 
 impl Player {
-  pub fn tiled_key() -> String {
-    "control".to_string()
-  }
-
-  pub fn get_entity<'a>(
-    &self,
-    entities: &Entities<'a>,
-    players: &ReadStorage<'a, Player>,
-  ) -> Option<Entity> {
-    for (entity, player) in (entities, players).join() {
-      if player == self {
-        return Some(entity);
-      }
+    pub fn tiled_key() -> String {
+        "control".to_string()
     }
-    None
-  }
+
+    pub fn get_entity<'a>(
+        &self,
+        entities: &Entities<'a>,
+        players: &ReadStorage<'a, Player>,
+    ) -> Option<Entity> {
+        for (entity, player) in (entities, players).join() {
+            if player == self {
+                return Some(entity);
+            }
+        }
+        None
+    }
 }
 
 
 impl Component for Player {
-  type Storage = HashMapStorage<Self>;
+    type Storage = HashMapStorage<Self>;
 }
 
 
@@ -63,5 +61,5 @@ pub struct SuspendPlayer;
 
 
 impl Component for SuspendPlayer {
-  type Storage = HashMapStorage<SuspendPlayer>;
+    type Storage = HashMapStorage<SuspendPlayer>;
 }
