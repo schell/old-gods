@@ -4,8 +4,10 @@
 ///   its job
 use specs::prelude::*;
 
-use super::super::prelude::{Exile, MaxSpeed, Player, SuspendPlayer, TakeAction, Velocity, V2};
-use super::gamepad::PlayerControllers;
+use super::{
+    super::prelude::{Exile, MaxSpeed, Player, SuspendPlayer, TakeAction, Velocity, V2},
+    gamepad::PlayerControllers,
+};
 
 
 /// Players the movement and actions taken by characters.

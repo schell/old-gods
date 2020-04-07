@@ -5,13 +5,15 @@ use log::trace;
 use serde::de::{Deserialize, Deserializer};
 use serde_json::{from_reader, from_str, Error, Value};
 use specs::prelude::{Component as SpecsComponent, HashMapStorage};
-use std::collections::HashMap;
-use std::fs::File;
-use std::future::Future;
-use std::io::BufReader;
-use std::path::{Component, Path, PathBuf};
-use std::result::Result;
-use std::vec::Vec;
+use std::{
+    collections::HashMap,
+    fs::File,
+    future::Future,
+    io::BufReader,
+    path::{Component, Path, PathBuf},
+    result::Result,
+    vec::Vec,
+};
 
 use super::super::geom::V2;
 

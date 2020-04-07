@@ -2,6 +2,7 @@
 //!
 //! TODO: Abstract engine details into a trait
 //! TODO: Rename this module WebEngine that implements Engine
+use log::warn;
 use old_gods::prelude::{
     AnimationSystem, BackgroundColor, Color, Dispatcher, DispatcherBuilder, FPSCounter,
     GamepadSystem, Physics, PlayerSystem, Screen, ScreenSystem, SystemData, TweenSystem, World,

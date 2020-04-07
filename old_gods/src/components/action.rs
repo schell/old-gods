@@ -1,7 +1,7 @@
 use specs::prelude::{Component, Entity, FlaggedStorage, HashMapStorage, ReadStorage};
+use std::convert::TryFrom;
 
-use super::super::parser::*;
-use super::Name;
+use super::{super::parser::*, Name};
 
 
 /// Encodes the strategies by which we evaluate an entity's elligibility to take
@@ -23,33 +23,22 @@ pub enum FitnessStrategy {
 
 
 impl FitnessStrategy {
-    pub fn tiled_key() -> String {
-        "fitness".to_string()
+    pub fn try_from_str(input: &str) -> Result<FitnessStrategy, String> {
+        let result = FitnessStrategy::parse(input);
+        result.map(|(_, f)| f).map_err(|e| format!("{}", e))
     }
 
-    pub fn from_str(input: &str) -> Result<FitnessStrategy, Err<(&str, ErrorKind)>> {
-        let result = FitnessStrategyParser::parse(input);
-        result.map(|(_, f)| f)
-    }
-}
-
-
-pub struct FitnessStrategyParser;
-
-
-impl FitnessStrategyParser {
     /// Parse a HasItem
     /// ```
-    /// extern crate engine;
-    /// use engine::systems::action::*;
+    /// use old_gods::components::FitnessStrategy;
     ///
     /// let my_str = "has_item \"white key\"";
     /// assert_eq!(
-    ///     FitnessStrategyParser::has_item(my_str),
-    ///     Ok(("", FitnessStrategy::HasItem("white key".to_string())))
+    ///     FitnessStrategy::try_from_str(my_str),
+    ///     Ok(FitnessStrategy::HasItem("white key".to_string()))
     /// );
     /// ```
-    pub fn has_item(i: &str) -> IResult<&str, FitnessStrategy> {
+    fn has_item(i: &str) -> IResult<&str, FitnessStrategy> {
         let (i, _) = tag("has_item")(i)?;
         let (i, _) = multispace1(i)?;
         let (i, n) = string(i)?;
@@ -58,45 +47,44 @@ impl FitnessStrategyParser {
 
     /// Parse a HasInventory
     /// ```
-    /// extern crate engine;
-    /// use engine::systems::action::*;
+    /// use old_gods::components::FitnessStrategy;
     ///
     /// let my_str = "has_inventory";
     /// assert_eq!(
-    ///     FitnessStrategyParser::has_inventory(my_str),
-    ///     Ok(("", FitnessStrategy::HasInventory))
+    ///     FitnessStrategy::try_from_str(my_str),
+    ///     Ok(FitnessStrategy::HasInventory)
     /// );
     /// ```
-    pub fn has_inventory(i: &str) -> IResult<&str, FitnessStrategy> {
+    fn has_inventory(i: &str) -> IResult<&str, FitnessStrategy> {
         let (i, _) = tag("has_inventory")(i)?;
         Ok((i, FitnessStrategy::HasInventory))
     }
 
     /// Parse an Any.
-    pub fn any(i: &str) -> IResult<&str, FitnessStrategy> {
+    fn any(i: &str) -> IResult<&str, FitnessStrategy> {
         let (i, _) = tag("any")(i)?;
         let (i, _) = multispace1(i)?;
-        let (i, v) = vec(&FitnessStrategyParser::parse)(i)?;
+        let (i, v) = vec(&FitnessStrategy::parse)(i)?;
 
         Ok((i, FitnessStrategy::Any(v)))
     }
 
     /// Parse an All.
-    pub fn all(i: &str) -> IResult<&str, FitnessStrategy> {
+    fn all(i: &str) -> IResult<&str, FitnessStrategy> {
         let (i, _) = tag("all")(i)?;
         let (i, _) = multispace1(i)?;
-        let (i, v) = vec(&FitnessStrategyParser::parse)(i)?;
+        let (i, v) = vec(&FitnessStrategy::parse)(i)?;
 
         Ok((i, FitnessStrategy::All(v)))
     }
 
     /// Parse a FitnessStrategy
-    pub fn parse(i: &str) -> IResult<&str, FitnessStrategy> {
+    fn parse(i: &str) -> IResult<&str, FitnessStrategy> {
         alt((
-            FitnessStrategyParser::has_item,
-            FitnessStrategyParser::has_inventory,
-            FitnessStrategyParser::any,
-            FitnessStrategyParser::all,
+            FitnessStrategy::has_item,
+            FitnessStrategy::has_inventory,
+            FitnessStrategy::any,
+            FitnessStrategy::all,
         ))(i)
     }
 }

@@ -1,3 +1,4 @@
+use log::{trace, warn};
 /// Controls opening, closing and navigation of inventories.
 use specs::prelude::*;
 use std::collections::{HashMap, HashSet};

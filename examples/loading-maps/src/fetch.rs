@@ -1,8 +1,7 @@
 use mogwai::prelude::*;
 use serde::de::DeserializeOwned;
 use serde_json;
-use std::future::Future;
-use std::pin::Pin;
+use std::{future::Future, pin::Pin};
 use web_sys::{Request, RequestInit, RequestMode, Response};
 
 async fn request_to_text(req: Request) -> Result<String, String> {

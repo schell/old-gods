@@ -1,8 +1,7 @@
 use spade::BoundingRect;
 //use sdl2::rect::Rect;
 
-use super::super::prelude::Shape;
-use super::v2::V2;
+use super::{super::prelude::Shape, v2::V2};
 
 
 #[derive(Debug, Clone, PartialEq, Copy)]
@@ -203,8 +202,7 @@ impl AABB {
     /// the given AABB so the two are touching.
     ///
     /// ```
-    /// extern crate engine;
-    /// use engine::geom::{AABB, V2};
+    /// use old_gods::geom::{AABB, V2};
     ///
     /// let a = AABB {
     ///     top_left: V2::new(0.0, 0.0),

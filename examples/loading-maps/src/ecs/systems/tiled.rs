@@ -10,13 +10,17 @@ use old_gods::prelude::{
     OriginOffset, Player, Position, Rendering, ResourceId, Shape, System, SystemData, TextureFrame,
     TileLayerData, Tiledmap, Velocity, World, WriteStorage, ZLevel, JSON, V2,
 };
-use std::collections::HashMap;
-use std::iter::FromIterator;
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::HashMap,
+    iter::FromIterator,
+    sync::{Arc, Mutex},
+};
 use wasm_bindgen_futures::spawn_local;
 
-use super::super::super::fetch;
-use super::super::resources::{LoadStatus, Resources};
+use super::super::{
+    super::fetch,
+    resources::{LoadStatus, Resources},
+};
 
 
 pub struct TiledmapResources {

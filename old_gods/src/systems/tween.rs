@@ -2,8 +2,10 @@
 /// overwrite your component values if that's the thing its tweening.
 use specs::prelude::*;
 
-use super::super::prelude::{Position, Velocity, V2};
-use super::super::time::FPSCounter;
+use super::super::{
+    prelude::{Position, Velocity, V2},
+    time::FPSCounter,
+};
 
 
 /// The thing that's being tweened.

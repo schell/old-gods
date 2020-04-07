@@ -1,14 +1,15 @@
 //! Parsing helpers for various Tiled parsing tasks.
-pub use nom::branch::alt;
-pub use nom::bytes::complete::{tag, take_till, take_while_m_n};
-pub use nom::character::complete::{char, digit1, multispace0, multispace1};
 use nom::combinator::map_res;
-pub use nom::error::ErrorKind;
-pub use nom::multi::separated_list;
-pub use nom::number::complete::{be_u32, float};
-pub use nom::sequence::tuple;
-pub use nom::Err;
-pub use nom::{AsChar, IResult, InputIter, InputTakeAtPosition, Slice};
+pub use nom::{
+    branch::alt,
+    bytes::complete::{tag, take_till, take_while_m_n},
+    character::complete::{char, digit1, multispace0, multispace1},
+    error::ErrorKind,
+    multi::separated_list,
+    number::complete::{be_u32, float},
+    sequence::tuple,
+    AsChar, Err, IResult, InputIter, InputTakeAtPosition, Slice,
+};
 
 use super::color::Color;
 

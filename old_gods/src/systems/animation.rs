@@ -1,8 +1,10 @@
 use specs::prelude::*;
 
 //use super::rendering::Rendering;
-use super::super::components::{Name, Rendering};
-use super::super::time::FPSCounter;
+use super::super::{
+    components::{Name, Rendering},
+    time::FPSCounter,
+};
 
 
 /// One frame's worth of an Animation

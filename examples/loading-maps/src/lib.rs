@@ -1,14 +1,4 @@
-#[macro_use]
-extern crate log;
-extern crate console_error_panic_hook;
-extern crate console_log;
-extern crate mogwai;
-extern crate old_gods;
-extern crate serde;
-extern crate serde_json;
-extern crate specs;
-
-use log::Level;
+use log::{trace, Level};
 use mogwai::prelude::*;
 use old_gods::prelude::*;
 use std::{

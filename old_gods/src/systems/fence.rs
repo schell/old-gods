@@ -4,8 +4,10 @@ use specs::prelude::*;
 
 use std::collections::HashMap;
 
-use super::super::components::{Position, Velocity, ZLevel};
-use super::super::geom::{AABBTree, EntityBounds, LineSegment, AABB, V2};
+use super::super::{
+    components::{Position, Velocity, ZLevel},
+    geom::{AABBTree, EntityBounds, LineSegment, AABB, V2},
+};
 
 
 /// A fence is used to track entities that cross it, and at what angle.

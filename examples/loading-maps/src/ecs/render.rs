@@ -1,18 +1,20 @@
+use log::trace;
 use old_gods::prelude::*;
 use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
     sync::{Arc, Mutex},
 };
-use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsCast;
+use wasm_bindgen::{prelude::*, JsCast};
 use web_sys::{window, CanvasRenderingContext2d, EventTarget, HtmlImageElement};
 
 mod action;
 mod inventory;
 
-use super::resources::{LoadStatus, Resources};
-use super::systems::inventory::{Inventory, Item, Loot};
+use super::{
+    resources::{LoadStatus, Resources},
+    systems::inventory::{Inventory, Item, Loot},
+};
 
 
 pub struct Callbacks(Arc<Closure<dyn Fn(JsValue)>>, Arc<Closure<dyn Fn(JsValue)>>);

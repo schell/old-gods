@@ -1,7 +1,6 @@
 use spade::PointN;
 //use sdl2::rect::Point;
-use std::fmt::Debug;
-use std::ops::*;
+use std::{fmt::Debug, ops::*};
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]

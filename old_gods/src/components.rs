@@ -11,13 +11,19 @@ pub use super::geom::*;
 //};
 pub use super::systems::animation::Animation;
 //pub use super::systems::effect::Effect;
-pub use super::systems::fence::{Fence, StepFence};
-pub use super::systems::physics::{Barrier, Position, Velocity};
+pub use super::systems::{
+    fence::{Fence, StepFence},
+    physics::{Barrier, Position, Velocity},
+};
 //pub use super::systems::script::Script;
 //pub use super::systems::sound::{Music, Sound};
-pub use super::systems::tween::{Easing, Tween, TweenParam};
-pub use super::systems::zone::Zone;
-pub use super::tiled::json::{Object, Property};
+pub use super::{
+    systems::{
+        tween::{Easing, Tween, TweenParam},
+        zone::Zone,
+    },
+    tiled::json::{Object, Property},
+};
 
 mod action;
 pub use action::*;

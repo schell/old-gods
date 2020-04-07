@@ -1,8 +1,10 @@
 use old_gods::prelude::*;
 use web_sys::CanvasRenderingContext2d;
 
-use super::super::systems::inventory::{Inventory, Item, Loot};
-use super::{HtmlResources, Resources};
+use super::{
+    super::systems::inventory::{Inventory, Item, Loot},
+    HtmlResources, Resources,
+};
 
 
 /// A renderable inventory item.

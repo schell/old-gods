@@ -8,10 +8,7 @@
 //! system. Alternatively the [PlayerControllers] resource can be accessed from
 //! the world:
 //!
-//! ```rust
 //! TODO: #examples of using the GamepadSystem's PlayerControllers resource
-//! ```
-//!
 //!
 //! The controllers maintain what buttons are
 //! pressed this frame and last frame, the values of various analog sticks, etc.
@@ -24,15 +21,16 @@
 use js_sys::Reflect;
 use log::trace;
 use specs::prelude::{System, SystemData, World, WorldExt, Write};
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    rc::Rc,
+    sync::{Arc, Mutex},
+};
 use wasm_bindgen::{closure::Closure, JsCast, JsValue};
 use web_sys::{window, Gamepad, GamepadButton};
 
-use super::super::geom::V2;
-use super::super::time::Millis;
+use super::super::{geom::V2, time::Millis};
 
 
 /// The analog stick ANALOG_DEADZONE

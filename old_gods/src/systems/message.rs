@@ -5,9 +5,11 @@
 /// shows until a certain time has elapsed and then it is removed from the ECS.
 use specs::prelude::*;
 
-use super::super::components::{Exile, Position};
-use super::super::systems::screen::Screen;
-use super::super::time::FPSCounter;
+use super::super::{
+    components::{Exile, Position},
+    systems::screen::Screen,
+    time::FPSCounter,
+};
 
 
 pub struct WordBubble {

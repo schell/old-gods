@@ -4,8 +4,7 @@ use spade::rtree::RTree;
 /// The component itself is an AABB in global 2d space.
 use spade::{BoundingRect, SpatialObject};
 use specs::prelude::*;
-use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::{cmp::Ordering, collections::HashMap};
 
 use super::super::prelude::{Barrier, GetStorage, Position, Shape, AABB, V2};
 
@@ -102,11 +101,7 @@ impl AABBTree {
     /// of the query aabb.
     ///
     /// ```
-    /// extern crate specs;
-    /// extern crate engine;
-    /// use engine::geom::AABB;
-    /// use engine::geom::V2;
-    /// use engine::systems::rtree::AABBTree;
+    /// use old_gods::geom::{AABBTree, AABB, V2};
     /// use specs::prelude::*;
     ///
     /// let mut world = World::new();
@@ -255,20 +250,19 @@ impl AABBTree {
     /// include the given entity.
     ///
     /// ```
-    /// extern crate specs;
-    /// extern crate engine;
-    /// use engine::geom::AABB;
-    /// use engine::geom::V2;
-    /// use engine::systems::rtree::AABBTree;
+    /// use old_gods::geom::{AABBTree, AABB, V2};
     /// use specs::prelude::*;
     ///
     /// let mut world = World::new();
+    ///
     /// let mut tree = AABBTree::new();
     /// let ent = world.create_entity().build();
     /// let point_ent = world.create_entity().build();
-    /// let point_aabb = AABB::identity().translate(V2::new(5.0, 5.0));
+    /// let point_aabb = AABB::identity().translate(&V2::new(5.0, 5.0));
     /// tree.insert(point_ent, point_aabb);
-    /// let nearest = tree.query_nearest_n(&entitities, &V2::origin(), 2, &ent);
+    ///
+    /// let entities: Entities = world.system_data();
+    /// let nearest = tree.query_nearest_n(&entities, &V2::origin(), 2, &ent);
     /// assert_eq!(nearest, vec![(point_ent, point_aabb)]);
     /// ```
     pub fn query_nearest_n(

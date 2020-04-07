@@ -3,8 +3,7 @@
 /// This module provides the components and records needed to parse inventories
 /// from a Tiled map and insert them into the ECS.
 use specs::prelude::*;
-use std::collections::HashMap;
-use std::f32::consts::PI;
+use std::{collections::HashMap, f32::consts::PI};
 
 use old_gods::prelude::{
     Easing, OriginOffset, Position, Rendering, Shape, Tween, TweenParam, Velocity, AABB, V2,
