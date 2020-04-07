@@ -15,7 +15,6 @@ pub mod render;
 pub use render::RenderingToggles;
 use render::{DebugRenderingData, HtmlResources};
 
-pub mod resources;
 pub mod systems;
 
 

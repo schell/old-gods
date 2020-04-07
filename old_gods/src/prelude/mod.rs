@@ -4,12 +4,11 @@ pub use shrev::*;
 pub use specs::prelude::*;
 
 pub use super::{color::*, components::*};
-//pub use super::engine::*;
 pub use super::{
     geom::{AABB, *},
     parser::*,
 };
-//pub use super::resource_manager::*;
+pub use super::resources::*;
 //pub use super::systems::action::*;
 pub use super::systems::animation::{Frame, *};
 //pub use super::systems::effect::*;

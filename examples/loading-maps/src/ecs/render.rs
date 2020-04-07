@@ -12,8 +12,7 @@ mod action;
 mod inventory;
 
 use super::{
-    resources::{LoadStatus, Resources},
-    systems::inventory::{Inventory, Item, Loot},
+    systems::inventory::{Inventory, Loot},
 };
 
 
@@ -1074,24 +1073,4 @@ pub fn render_ui_debug(
     //}
 
     Ok(())
-}
-
-
-/// TODO: Abstract rendering into Renderer trait and implementations.
-/// TODO: Get the CSS colors module from gelatin and port it here.
-pub trait Renderer {
-    type Context;
-    type Resources;
-
-    fn set_fill_color(color: &Color, context: &mut Self::Context);
-    fn set_stroke_color(color: &Color, context: &mut Self::Context);
-    fn stroke_lines(lines: &Vec<V2>, context: &mut Self::Context);
-    fn stroke_rect(aabb: &AABB, context: &mut Self::Context);
-    fn fill_rect(aabb: &AABB, context: &mut Self::Context);
-    fn draw_rendering(
-        r: &Rendering,
-        point: &V2,
-        context: &mut Self::Context,
-        resources: &mut Self::Resources,
-    );
 }

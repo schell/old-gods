@@ -11,25 +11,16 @@ extern crate spade;
 extern crate specs;
 
 pub mod color;
-//pub mod engine;
 pub mod systems;
 pub mod tiled;
-//pub mod resource_manager;
 pub mod components;
 pub mod geom;
 pub mod parser;
 pub mod prelude;
+pub mod rendering;
+pub mod resources;
 pub mod time;
 pub mod utils;
-
-//use sdl2::Sdl;
-//use sdl2::video::WindowContext;
-//use sdl2::render::WindowCanvas;
-//use sdl2::pixels::Color;
-//use sdl2::render::TextureCreator;
-//use sdl2::ttf::Sdl2TtfContext;
-//use specs::prelude::*;
-//use shrev::EventChannel;
 
 //use prelude::*;
 

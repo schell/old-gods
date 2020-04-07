@@ -6,9 +6,9 @@
 use log::{trace, warn};
 use old_gods::prelude::{
     Animation, Barrier, CanBeEmpty, Component, Either, Entities, Entity, Frame, GlobalTileIndex,
-    HashMapStorage, Join, Layer, LayerData, Name, Object, ObjectGroup, ObjectLayerData,
-    OriginOffset, Player, Position, Rendering, ResourceId, Shape, System, SystemData, TextureFrame,
-    TileLayerData, Tiledmap, Velocity, World, WriteStorage, ZLevel, JSON, V2,
+    HashMapStorage, Join, Layer, LayerData, LoadStatus, Name, Object, ObjectGroup, ObjectLayerData,
+    OriginOffset, Player, Position, Rendering, ResourceId, Resources, Shape, System, SystemData,
+    TextureFrame, TileLayerData, Tiledmap, Velocity, World, WriteStorage, ZLevel, JSON, V2,
 };
 use std::{
     collections::HashMap,
@@ -17,10 +17,7 @@ use std::{
 };
 use wasm_bindgen_futures::spawn_local;
 
-use super::super::{
-    super::fetch,
-    resources::{LoadStatus, Resources},
-};
+use super::super::super::fetch;
 
 
 pub struct TiledmapResources {
