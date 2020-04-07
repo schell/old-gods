@@ -22,6 +22,7 @@ fi
 
 rustup update
 rustup toolchain install nightly
+rustup default nightly
 
 if hash wasm-pack 2>/dev/null; then
     echo "Have wasm-pack, skipping installation..."
