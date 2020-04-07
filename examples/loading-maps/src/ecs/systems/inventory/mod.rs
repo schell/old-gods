@@ -16,8 +16,7 @@ pub use inventory::*;
 
 
 /// To facilitate "trade".
-// TODO: Change Looting to Loot.
-pub struct Looting {
+pub struct Loot {
   /// The inventory being looted.
   /// A value of 'None' means the looter is looting themselves.
   pub inventory: Option<Entity>,
@@ -34,7 +33,7 @@ pub struct Looting {
 }
 
 
-impl Looting {
+impl Loot {
   pub fn clamp_index(&mut self, items_len: usize) {
     self.index = if items_len > 0 {
       self.index.map(|ndx| clamp(0, ndx, items_len - 1))
@@ -67,8 +66,8 @@ impl Looting {
 }
 
 
-impl Component for Looting {
-  type Storage = HashMapStorage<Looting>;
+impl Component for Loot {
+  type Storage = HashMapStorage<Loot>;
 }
 
 
@@ -92,7 +91,7 @@ pub enum InventoryAction {
 
 
 #[derive(SystemData)]
-pub struct LootingData<'a> {
+pub struct LootData<'a> {
   players: ReadStorage<'a, Player>,
   positions: ReadStorage<'a, Position>,
   entities: Entities<'a>,
@@ -177,9 +176,9 @@ impl InventorySystem {
   /// entities involved with a looting.
   pub fn run_looting(
     &self,
-    looting: &mut Looting,
+    looting: &mut Loot,
     inventories: &mut WriteStorage<Inventory>,
-    data: &mut LootingData,
+    data: &mut LootData,
   ) -> (bool, Vec<Entity>) {
     let looter = looting.looter;
     let inventory = looting.inventory.unwrap_or(looter.clone());
@@ -314,7 +313,7 @@ impl InventorySystem {
           // hitting the inventory button (opens and closes the inventory)
           let done = ctrl.y().is_on_this_frame();
           if done {
-            println!("Looting is done!");
+            println!("Loot is done!");
           }
           (done, looting_ents)
         })
@@ -383,10 +382,10 @@ impl<'a> System<'a> for InventorySystem {
     Write<'a, AABBTree>,
     WriteStorage<'a, Inventory>,
     WriteStorage<'a, JSON>,
-    WriteStorage<'a, Looting>,
+    WriteStorage<'a, Loot>,
     WriteStorage<'a, Object>,
     ReadStorage<'a, Rendering>,
-    LootingData<'a>,
+    LootData<'a>,
   );
 
   fn run(
@@ -556,7 +555,7 @@ impl<'a> System<'a> for InventorySystem {
             // Create a looting for it
             let _looting = lazy
               .create_entity(&entities)
-              .with(Looting {
+              .with(Loot {
                 inventory: Some(ent),
                 looter: ent,
                 // it's all their own inventory here!

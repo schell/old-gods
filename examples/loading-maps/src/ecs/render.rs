@@ -14,7 +14,7 @@ mod action;
 mod inventory;
 
 use super::systems::inventory::{
-  Inventory, Looting, Item
+  Inventory, Loot, Item
 };
 use super::resources::{LoadStatus, Resources};
 
@@ -504,14 +504,11 @@ pub type DebugRenderingData<'s> = (
   ReadStorage<'s, Velocity>,
   ReadStorage<'s, Barrier>,
   ReadStorage<'s, Exile>,
-  //ReadStorage<'s, Item>,
   ReadStorage<'s, Player>,
   ReadStorage<'s, Position>,
   ReadStorage<'s, OriginOffset>,
   ReadStorage<'s, Action>,
   ReadStorage<'s, Name>,
-  //ReadStorage<'s, Looting>,
-  //ReadStorage<'s, Inventory>,
   ReadStorage<'s, Zone>,
   ReadStorage<'s, Fence>,
   ReadStorage<'s, Shape>,
@@ -921,7 +918,7 @@ type UIRenderingData<'s> = (
   ReadStorage<'s, Action>,
   ReadStorage<'s, Exile>,
   ReadStorage<'s, Inventory>,
-  ReadStorage<'s, Looting>,
+  ReadStorage<'s, Loot>,
   ReadStorage<'s, Name>,
   ReadStorage<'s, OriginOffset>,
   ReadStorage<'s, Player>,
@@ -943,7 +940,7 @@ pub fn render_ui(
     actions,
     exiles,
     inventories,
-    lootings,
+    loots,
     names,
     origin_offsets,
     players,
@@ -971,7 +968,7 @@ pub fn render_ui(
   }
 
   // Draw lootings involving a player that are on the screen
-  for (loot, _) in (&lootings, !&exiles).join() {
+  for (loot, _) in (&loots, !&exiles).join() {
     let has_position = positions.contains(loot.looter)
       || (loot.inventory.is_some()
         && positions.contains(loot.inventory.unwrap()));
@@ -995,7 +992,7 @@ pub fn render_ui(
         &inventories,
         &names,
       );
-      inventory::draw_looting(
+      inventory::draw_loot(
         context,
         resources,
         &V2::new(10.0, 10.0),

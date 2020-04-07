@@ -1,7 +1,7 @@
 use specs::prelude::*;
 
 use super::super::prelude::{
-  Barrier, Easing, Exile, Inventory, Looting, Name, Position, Shape, Sprite,
+  Barrier, Easing, Exile, Inventory, Loot, Name, Position, Shape, Sprite,
   TweenParam, Velocity, AABB, V2,
 };
 use super::super::systems::tween;
@@ -276,7 +276,7 @@ impl<'a> System<'a> for EffectSystem {
           };
           lazy
             .create_entity(&entities)
-            .with(Looting {
+            .with(Loot {
               inventory: inventory,
               looter: *looter,
               is_looking_in_own_inventory: inventory.is_none(),
