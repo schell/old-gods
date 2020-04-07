@@ -15,7 +15,7 @@ impl CanBeEmpty for String {
 /// Clamp a number between two numbers
 pub fn clamp<N: PartialOrd>(mn: N, n: N, mx: N) -> N {
   if n < mn {
-    mn 
+    mn
   } else if n > mx {
     mx
   } else {

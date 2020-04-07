@@ -170,17 +170,49 @@ impl AABBTree {
       .collect()
   }
 
-  /// Like `query` but also filters out shapes that are not intersecting.
   /// Returns a vector of entity, shape and the minimum translation vector
   /// needed to push the shape out of intersection.
-  pub fn query_intersecting_shapes<S, P, B>(
+  pub fn query_intersecting_shapes<S, P>(
     &self,
     entities: &Entities,
     entity: &Entity,
     shapes: &S,
     positions: &P,
-    may_barriers: Option<&B>, /* If the entities must be barriers (for collision detection)
-                               * pass Some(barriers). */
+  ) -> Vec<(Entity, Shape, V2)>
+  where
+    S: GetStorage<Shape>,
+    P: GetStorage<Position>,
+  {
+    let no_barriers: Option<&ReadStorage<Barrier>> = None;
+    self.query_intersecting(entities, entity, shapes, positions, no_barriers)
+  }
+
+  /// Like `query_intersecting_shapes` but the results only include entities with barriers.
+  /// Returns a vector of entity, shape and the minimum translation vector
+  /// needed to push the shape out of intersection.
+  pub fn query_intersecting_barriers<S, P, B>(
+    &self,
+    entities: &Entities,
+    entity: &Entity,
+    shapes: &S,
+    positions: &P,
+    barriers: &B,
+  ) -> Vec<(Entity, Shape, V2)>
+  where
+    S: GetStorage<Shape>,
+    P: GetStorage<Position>,
+    B: GetStorage<Barrier>,
+  {
+    self.query_intersecting(entities, entity, shapes, positions, Some(barriers))
+  }
+
+  fn query_intersecting<S, P, B>(
+    &self,
+    entities: &Entities,
+    entity: &Entity,
+    shapes: &S,
+    positions: &P,
+    may_barriers: Option<&B>,
   ) -> Vec<(Entity, Shape, V2)>
   where
     S: GetStorage<Shape>,

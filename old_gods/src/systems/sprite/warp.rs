@@ -4,7 +4,7 @@ use specs::prelude::*;
 
 
 use super::super::super::components::{
-  Animation, Exile, Name, OriginOffset, Position, Script, Sprite, ZLevel, Zone,
+  Animation, Exile, Name, OriginOffset, Position, Sprite, ZLevel, Zone,
 };
 use super::super::super::geom::V2;
 

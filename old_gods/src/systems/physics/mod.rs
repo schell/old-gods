@@ -3,7 +3,7 @@
 use specs::prelude::*;
 
 use super::super::prelude::{
-  AABBTree, Cardinal, Exile, FPSCounter, Shape, ZLevel, AABB, V2, 
+  AABBTree, Cardinal, Exile, FPSCounter, Shape, ZLevel, AABB, V2,
 };
 
 
@@ -144,12 +144,12 @@ impl<'a> System<'a> for Physics {
       // If the resulting position is different from the previous, update the
       // position.
       let new_position = aabb_tree
-        .query_intersecting_shapes(
+        .query_intersecting_barriers(
           &entities,
           &ent,
           &shapes,
           &positions,
-          Some(&barriers),
+          &barriers,
         )
         .into_iter()
         .fold(pos, |new_pos, (other_ent, _, mtv)| {

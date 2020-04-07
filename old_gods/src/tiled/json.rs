@@ -4,6 +4,7 @@
 use log::trace;
 use serde::de::{Deserialize, Deserializer};
 use serde_json::{from_reader, from_str, Error, Value};
+use specs::prelude::{Component as SpecsComponent, HashMapStorage};
 use std::collections::HashMap;
 use std::fs::File;
 use std::future::Future;
@@ -155,6 +156,11 @@ pub struct Object {
 }
 
 
+impl SpecsComponent for Object {
+  type Storage = HashMapStorage<Self>;
+}
+
+
 impl Object {
   pub fn get_all_properties(&self, map: &Tiledmap) -> Vec<Property> {
     let mut object_properties = self.properties.clone();
@@ -169,6 +175,15 @@ impl Object {
     };
     object_properties.append(&mut tile_properties);
     object_properties
+  }
+
+
+  pub fn json_properties(&self) -> HashMap<String, Value> {
+    self
+      .properties
+      .iter()
+      .map(|p| (p.name.clone(), p.value.clone()))
+      .collect()
   }
 
 
@@ -703,7 +718,7 @@ impl Tiledmap {
       match &mut item.payload {
         TilesetPayload::Embedded(_) => {
           if cfg!(arch = "wasm32") {
-            // This is because Tiled has no way of knowing what the prefix to 
+            // This is because Tiled has no way of knowing what the prefix to
             // assets could be and we need to intercept
             panic!("TODO: Embedded tilesets are not supported on wasm32/web");
           }
@@ -885,4 +900,9 @@ impl Tiledmap {
       )?;
     Some((width, height))
   }
+}
+
+
+impl SpecsComponent for Tiledmap {
+  type Storage = HashMapStorage<Self>;
 }

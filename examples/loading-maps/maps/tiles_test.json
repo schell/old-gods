@@ -1,4 +1,4 @@
-{ "compressionlevel":-1,
+{ "compressionlevel":0,
  "editorsettings":
     {
      "export":
@@ -25,6 +25,11 @@
  "nextobjectid":1,
  "orientation":"orthogonal",
  "properties":[
+        {
+         "name":"toggle_rendering_entity_count",
+         "type":"bool",
+         "value":true
+        }, 
         {
          "name":"toggle_rendering_fps",
          "type":"bool",

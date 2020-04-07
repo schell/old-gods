@@ -4,21 +4,10 @@
 ///   its job
 use specs::prelude::*;
 
+use super::super::prelude::{
+  Exile, MaxSpeed, Player, SuspendPlayer, TakeAction, Velocity, V2,
+};
 use super::gamepad::PlayerControllers;
-use super::super::components::{Exile, TakeAction, Velocity};
-use super::super::geom::V2;
-
-mod record;
-pub use self::record::*;
-
-
-/// A component for suspending control of an entity without exiling it.
-pub struct SuspendPlayer;
-
-
-impl Component for SuspendPlayer {
-  type Storage = HashMapStorage<SuspendPlayer>;
-}
 
 
 /// Players the movement and actions taken by characters.
@@ -72,27 +61,21 @@ impl<'a> System<'a> for PlayerSystem {
       }
 
       //// Get the player's controller
-      let _ = player_controllers.with_player_controller_at(
-        player.0,
-        |ctrl| {
-          // Update the velocity of the toon based on the
-          // player's controller
-          let ana = ctrl.analog_rate();
-          let rate =
-            ana
-            .unitize()
-            .unwrap_or(V2::new(0.0, 0.0));
-          let mult = rate.scalar_mul(max_speed.0);
-          v.0 = mult; 
+      let _ = player_controllers.with_player_controller_at(player.0, |ctrl| {
+        // Update the velocity of the toon based on the
+        // player's controller
+        let ana = ctrl.analog_rate();
+        let rate = ana.unitize().unwrap_or(V2::new(0.0, 0.0));
+        let mult = rate.scalar_mul(max_speed.0);
+        v.0 = mult;
 
-          // Add a TakeAction if the player has hit the A button
-          if ctrl.a().is_on_this_frame() {
-            take_actions
-              .insert(ent, TakeAction)
-              .expect("Could not insert TakeAction.");
-          }
+        // Add a TakeAction if the player has hit the A button
+        if ctrl.a().is_on_this_frame() {
+          take_actions
+            .insert(ent, TakeAction)
+            .expect("Could not insert TakeAction.");
         }
-      );
+      });
     }
   }
 }

@@ -1,3 +1,4 @@
+//! TODO: Retire map_loader::load.rs in favor of TiledSystem.
 use std::iter::FromIterator;
 use std::iter::Iterator;
 
@@ -34,12 +35,6 @@ pub fn get_tile_position(
     (xndx * aabb.w) as f32,
     (yndx * aabb.h) as f32,
   )))
-}
-
-
-pub fn get_tile_rendering_offset(t: &Tile) -> Option<V2> {
-  t.object_with_type(&"rendering_origin_offset".to_string())
-    .and_then(|o| Some(V2::new(o.x, o.y)))
 }
 
 

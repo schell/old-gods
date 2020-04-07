@@ -3,19 +3,19 @@
 //! TODO: Abstract engine details into a trait
 //! TODO: Rename this module WebEngine that implements Engine
 use old_gods::prelude::{
-  ActionSystem, AnimationSystem, Dispatcher, DispatcherBuilder, EffectSystem,
-  FPSCounter, FenceSystem, GamepadSystem, InventorySystem, ItemSystem,
-  MapLoadingSystem, Physics, PlayerSystem, Screen, ScreenSystem, ScriptSystem,
-  SpriteSystem, SystemData, TweenSystem, WarpSystem, World, WorldExt,
-  ZoneSystem, AABB, V2,
+  AnimationSystem, BackgroundColor, Color, Dispatcher, DispatcherBuilder,
+  FPSCounter, GamepadSystem, Physics, PlayerSystem, Screen,
+  ScreenSystem, SystemData, World, WorldExt, AABB, V2, TweenSystem
 };
 use wasm_bindgen::JsCast;
 use web_sys::{window, CanvasRenderingContext2d, HtmlCanvasElement};
 
-mod render;
+pub mod render;
+pub use render::RenderingToggles;
 use render::{DebugRenderingData, HtmlResources};
 
-pub use render::RenderingToggles;
+pub mod resources;
+pub mod systems;
 
 
 pub struct ECS<'a, 'b> {
@@ -35,24 +35,25 @@ impl<'a, 'b> ECS<'a, 'b> {
     dispatcher_builder: DispatcherBuilder<'a, 'b>,
   ) -> Self {
     let mut world = World::new();
+    world.insert(BackgroundColor(Color::rgb(0, 0, 0)));
+
     let mut dispatcher = dispatcher_builder
-      //.with_thread_local(SoundSystem::new())
-      .with_thread_local(MapLoadingSystem { opt_reader: None })
-      .with_thread_local(ScreenSystem)
-      .with_thread_local(ActionSystem)
-      .with_thread_local(ScriptSystem)
-      .with_thread_local(SpriteSystem)
-      .with_thread_local(PlayerSystem)
+      .with_thread_local(systems::tiled::TiledmapSystem::new(base_url))
       .with_thread_local(Physics::new())
+      .with_thread_local(ScreenSystem)
       .with_thread_local(AnimationSystem)
-      .with_thread_local(InventorySystem)
-      .with_thread_local(EffectSystem)
-      .with_thread_local(ItemSystem)
-      .with_thread_local(ZoneSystem)
-      .with_thread_local(WarpSystem)
-      .with_thread_local(FenceSystem)
-      .with_thread_local(TweenSystem)
       .with_thread_local(GamepadSystem::new())
+      .with_thread_local(PlayerSystem)
+      .with_thread_local(systems::inventory::InventorySystem)
+      .with_thread_local(TweenSystem)
+      //.with_thread_local(SoundSystem::new())
+      //.with_thread_local(MapLoadingSystem { opt_reader: None })
+      //.with_thread_local(ActionSystem)
+      //.with_thread_local(SpriteSystem)
+      //.with_thread_local(EffectSystem)
+      //.with_thread_local(ItemSystem)
+      //.with_thread_local(ZoneSystem)
+      //.with_thread_local(FenceSystem)
       .build();
 
     dispatcher.setup(&mut world);
@@ -199,14 +200,14 @@ impl<'a, 'b> ECS<'a, 'b> {
         &mut self.world,
         &mut self.resources,
         &mut ctx,
-        viewport_to_context
+        viewport_to_context,
       );
       if self.debug_mode {
         let _ = render::render_ui_debug(
           &mut self.world,
           &mut self.resources,
           &mut ctx,
-          viewport_to_context
+          viewport_to_context,
         );
       }
     } else {
