@@ -17,7 +17,6 @@ if hash rustup 2>/dev/null; then
 else
     echo "Installing rustup..."
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-    echo "  done installing the rust toolchain."
 fi
 
 rustup update
@@ -29,21 +28,19 @@ if hash wasm-pack 2>/dev/null; then
 else
     echo "Installing wasm-pack..."
     curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-    echo "  done installing wasm-pack."
 fi
 
-#if hash wasm-opt 2>/dev/null; then
-#    echo "Have wasm-opt and other wasm tools, skipping installation..."
-#else
-#    echo "Installing wasm cli tools..."
-#    git clone https://github.com/WebAssembly/binaryen.git
-#    cd binaryen
-#    cmake .
-#    make
-#    cp bin/* $HOME/.cargo/bin
-#    echo "  done installing wasm tools."
-#    cd ..
-#fi
+if hash wasm-opt 2>/dev/null; then
+    echo "Have wasm-opt and other wasm tools, skipping installation..."
+else
+    echo "Installing wasm cli tools..."
+    git clone https://github.com/WebAssembly/binaryen.git
+    cd binaryen
+    cmake .
+    make
+    cp bin/* $HOME/.cargo/bin
+    cd ..
+fi
 
 echo "Building w/ cargo..."
 cargo build || exit 1
