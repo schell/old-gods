@@ -561,7 +561,7 @@ pub type DebugRenderingData<'s> = (
   ReadStorage<'s, OriginOffset>,
   ReadStorage<'s, Action>,
   ReadStorage<'s, Name>,
-  ReadStorage<'s, Looting>,
+  ReadStorage<'s, Loot>,
   ReadStorage<'s, Inventory>,
   ReadStorage<'s, Zone>,
   ReadStorage<'s, Fence>,
@@ -997,7 +997,7 @@ type UIRenderingData<'s> = (
   ReadStorage<'s, Exile>,
   ReadStorage<'s, Inventory>,
   ReadStorage<'s, Item>,
-  ReadStorage<'s, Looting>,
+  ReadStorage<'s, Loot>,
   ReadStorage<'s, Name>,
   ReadStorage<'s, OriginOffset>,
   ReadStorage<'s, Player>,
@@ -1021,7 +1021,7 @@ pub fn render_ui(
     exiles,
     inventories,
     items,
-    lootings,
+    loots,
     names,
     origin_offsets,
     players,
@@ -1050,7 +1050,7 @@ pub fn render_ui(
   }
 
   // Draw lootings involving a player that are on the screen
-  for (loot, _) in (&lootings, !&exiles).join() {
+  for (loot, _) in (&loots, !&exiles).join() {
     let has_position = positions.contains(loot.looter)
       || (loot.inventory.is_some()
         && positions.contains(loot.inventory.unwrap()));
@@ -1076,7 +1076,7 @@ pub fn render_ui(
         &renderings,
         &names,
       );
-      inventory::draw_looting(
+      inventory::draw_loot(
         context,
         resources,
         &V2::new(10.0, 10.0),

@@ -20,7 +20,7 @@ pub struct InventoryRendering {
 }
 
 
-/// A renderable looting operation.
+/// A renderable loot operation.
 pub struct LootRendering {
   pub inventory_a: InventoryRendering,
   pub inventory_b: Option<InventoryRendering>,
@@ -48,7 +48,7 @@ impl LootRendering {
 
 
 /// Draw a player inventory
-pub fn draw_looting(
+pub fn draw_loot(
   context: &mut CanvasRenderingContext2d,
   resources: &mut HtmlResources,
   point: &V2,
@@ -204,7 +204,7 @@ pub fn draw_looting(
 
 
 pub fn make_loot_rendering<'s>(
-  looting: &Looting,
+  loot: &Loot,
   inventories: &ReadStorage<'s, Inventory>,
   items: &ReadStorage<'s, Item>,
   renderings: &ReadStorage<'s, Rendering>,
@@ -238,23 +238,23 @@ pub fn make_loot_rendering<'s>(
   let mk_inv = |ent: Entity| {
     let Name(name) = names
       .get(ent)
-      .expect("Cannot draw a looting without a Name")
+      .expect("Cannot draw a loot without a Name")
       .clone();
     InventoryRendering {
       items: mk_items(
         inventories
           .get(ent)
-          .expect("Cannot draw a looting without an Inventory"),
+          .expect("Cannot draw a loot without an Inventory"),
       ),
       name,
     }
   };
-  let inventory_a = mk_inv(looting.looter);
-  let inventory_b = looting.inventory.map(mk_inv);
+  let inventory_a = mk_inv(loot.looter);
+  let inventory_b = loot.inventory.map(mk_inv);
   LootRendering {
     inventory_a,
     inventory_b,
-    cursor_in_a: looting.is_looking_in_own_inventory,
-    index: looting.index.clone(),
+    cursor_in_a: loot.is_looking_in_own_inventory,
+    index: loot.index.clone(),
   }
 }

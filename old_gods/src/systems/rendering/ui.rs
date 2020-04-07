@@ -60,7 +60,7 @@ impl<'ctx, 'res, 'sys> RenderUI {
 
 
   pub fn make_loot_rendering (
-    looting: &Looting,
+    loot: &Loot,
     inventories: &ReadStorage<'sys, Inventory>,
     items: &ReadStorage<'sys, Item>,
     renderings: &ReadStorage<'sys, Rendering>,
@@ -109,41 +109,41 @@ impl<'ctx, 'res, 'sys> RenderUI {
         let Name(name) =
           names
           .get(ent)
-          .expect("Cannot draw a looting without a Name")
+          .expect("Cannot draw a loot without a Name")
           .clone();
         InventoryRendering {
           items:
           mk_items(
             inventories
               .get(ent)
-              .expect("Cannot draw a looting without an Inventory")
+              .expect("Cannot draw a loot without an Inventory")
           ),
           name
         }
       };
     let inventory_a =
-      mk_inv(looting.looter);
+      mk_inv(loot.looter);
     let inventory_b =
-      looting
+      loot
       .inventory
       .map(mk_inv);
     LootRendering {
       inventory_a,
       inventory_b,
-      cursor_in_a: looting.is_looking_in_own_inventory,
-      index: looting.index.clone()
+      cursor_in_a: loot.is_looking_in_own_inventory,
+      index: loot.index.clone()
     }
   }
 
 
-  /// Draw lootings involving a player that are on the screen
-  pub fn draw_lootings (
+  /// Draw loots involving a player that are on the screen
+  pub fn draw_loots (
     canvas: &mut WindowCanvas,
     resources: &'res mut Sdl2Resources,
     exiles: &ReadStorage<'sys, Exile>,
     inventories: &ReadStorage<'sys, Inventory>,
     items: &ReadStorage<'sys, Item>,
-    loots: &ReadStorage<'sys, Looting>,
+    loots: &ReadStorage<'sys, Loot>,
     names: &ReadStorage<'sys, Name>,
     positions: &ReadStorage<'sys, Position>,
     renderings: &ReadStorage<'sys, Rendering>,
@@ -193,7 +193,7 @@ impl<'ctx, 'res, 'sys> RenderUI {
             renderings,
             names
           );
-        RenderInventory::draw_looting(
+        RenderInventory::draw_loot(
           canvas,
           resources,
           &V2::new(10.0, 10.0),
@@ -306,7 +306,7 @@ impl<'ctx, 'res, 'sys> RenderUI {
     exiles: &ReadStorage<'sys, Exile>,
     inventories: &ReadStorage<'sys, Inventory>,
     items: &ReadStorage<'sys, Item>,
-    loots: &ReadStorage<'sys, Looting>,
+    loots: &ReadStorage<'sys, Loot>,
     names: &ReadStorage<'sys, Name>,
     offsets: &ReadStorage<'sys, OriginOffset>,
     positions: &ReadStorage<'sys, Position>,
@@ -331,7 +331,7 @@ impl<'ctx, 'res, 'sys> RenderUI {
       Self::draw_action(canvas, resources, &pos, &action);
     }
 
-    Self::draw_lootings(
+    Self::draw_loots(
       canvas,
       resources,
       exiles,

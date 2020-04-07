@@ -179,7 +179,7 @@ pub struct RenderInventory;
 impl<'ctx, 'res> RenderInventory {
 
   /// Draw a player inventory
-  pub fn draw_looting (
+  pub fn draw_loot (
     canvas: &mut WindowCanvas,
     resources: &'res mut Sdl2Resources<'ctx>,
     point: &V2,

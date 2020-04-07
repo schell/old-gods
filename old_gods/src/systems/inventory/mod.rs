@@ -13,8 +13,7 @@ pub use record::*;
 
 
 /// To facilitate "trade".
-// TODO: Change Looting to Loot.
-pub struct Looting {
+pub struct Loot {
   /// The inventory being looted.
   /// A value of 'None' means the looter is looting themselves.
   pub inventory: Option<Entity>,
@@ -31,7 +30,7 @@ pub struct Looting {
 }
 
 
-impl Looting {
+impl Loot {
   pub fn clamp_index(&mut self, items_len: usize) {
     self.index = if items_len > 0 {
       self.index.map(|ndx| clamp(0, ndx, items_len - 1))
@@ -64,8 +63,8 @@ impl Looting {
 }
 
 
-impl Component for Looting {
-  type Storage = HashMapStorage<Looting>;
+impl Component for Loot {
+  type Storage = HashMapStorage<Loot>;
 }
 
 
@@ -87,9 +86,9 @@ impl InventorySystem {
   /// by one Entity.
   /// Returns whether or not the "trade" is done, along with any inventory owning
   /// entities involved with a looting.
-  pub fn run_looting(
+  pub fn run_loot(
     &self,
-    looting: &mut Looting,
+    loot: &mut Loot,
     inventories: &mut WriteStorage<Inventory>,
     entities: &Entities,
     lazy: &LazyUpdate,
@@ -99,23 +98,23 @@ impl InventorySystem {
     suspend_controls: &mut WriteStorage<SuspendPlayer>,
     player_controllers: &PlayerControllers,
   ) -> (bool, Vec<Entity>) {
-    let looter = looting.looter;
-    let inventory = looting.inventory.unwrap_or(looter.clone());
+    let looter = loot.looter;
+    let inventory = loot.inventory.unwrap_or(looter.clone());
     if looter == inventory {
-      looting.is_looking_in_own_inventory = true;
-      looting.inventory = None;
+      loot.is_looking_in_own_inventory = true;
+      loot.inventory = None;
     }
     // Suspend character control for this entity, so that it can control
     // the looting process.
     let player = players
       .get(looter)
       .expect("TODO: Support looting for npcs.");
-    let (navigated_ent, other_ent) = if looting.is_looking_in_own_inventory {
+    let (navigated_ent, other_ent) = if loot.is_looking_in_own_inventory {
       (looter, inventory)
     } else {
       (inventory, looter)
     };
-    let looting_ents = vec![navigated_ent.clone(), other_ent.clone()];
+    let loot_ents = vec![navigated_ent.clone(), other_ent.clone()];
     // Determine if this is the first frame of the looting - if so it may not
     // have suspended controls and the buttons that are pressed this frame that
     // inserted the loot may still be down. We don't want to start the loot AND
@@ -129,7 +128,7 @@ impl InventorySystem {
       suspend_controls
         .insert(looter, SuspendPlayer)
         .expect("Could not insert SuspendPlayer in looting system.");
-      return (false, looting_ents);
+      return (false, loot_ents);
     }
 
     let navigated_inv = inventories
@@ -141,21 +140,21 @@ impl InventorySystem {
     let navigated_items_len = navigated_inv.items.len();
     let other_items_len = other_inv.items.len();
     // Make sure the index is up to date
-    looting.clamp_index(navigated_items_len);
+    loot.clamp_index(navigated_items_len);
     // Set the index if we think this is the first time it has been opened.
-    if looting.index.is_none() {
+    if loot.index.is_none() {
       // Maybe this is the first frame of the looting.
       if navigated_items_len > 0 {
-        looting.index = Some(0);
+        loot.index = Some(0);
       } else if other_items_len > 0 {
         // Toggle the navigation and try again
         println!(
           "Switching loot navigation to other inventory - the current one is out of items."
         );
-        looting.is_looking_in_own_inventory =
-          !looting.is_looking_in_own_inventory;
-        return self.run_looting(
-          looting,
+        loot.is_looking_in_own_inventory =
+          !loot.is_looking_in_own_inventory;
+        return self.run_loot(
+          loot,
           inventories,
           entities,
           lazy,
@@ -172,43 +171,43 @@ impl InventorySystem {
     }
 
     // Navigate the looting
-    let cloned_looting_ents = looting_ents.clone();
+    let cloned_loot_ents = loot_ents.clone();
     player_controllers
       .with_player_controller_at(player.0, move |ctrl| {
         // If the user hits left or right, switch inventories if possible
         let can_look_in_own_inventory =
-          !looting.is_looking_in_own_inventory && other_items_len > 0;
+          !loot.is_looking_in_own_inventory && other_items_len > 0;
         let can_look_in_other_inventory =
-          looting.is_looking_in_own_inventory && other_items_len > 0;
+          loot.is_looking_in_own_inventory && other_items_len > 0;
         if ctrl.left().is_on_this_frame() && can_look_in_own_inventory {
-          looting.clamp_index(other_items_len);
-          looting.is_looking_in_own_inventory = true;
+          loot.clamp_index(other_items_len);
+          loot.is_looking_in_own_inventory = true;
         } else if ctrl.right().is_on_this_frame() && can_look_in_other_inventory
         {
-          looting.clamp_index(other_items_len);
-          looting.is_looking_in_own_inventory = false;
+          loot.clamp_index(other_items_len);
+          loot.is_looking_in_own_inventory = false;
         }
         // Move the cursor up or down in the navigated inventory.
         let up = ctrl.up();
         let down = ctrl.down();
         if up.is_on_this_frame() || up.has_repeated_this_frame() {
-          looting.pred_index(navigated_items_len);
+          loot.pred_index(navigated_items_len);
         } else if down.is_on_this_frame() || down.has_repeated_this_frame() {
-          looting.succ_index(navigated_items_len);
+          loot.succ_index(navigated_items_len);
         }
         // Track whether the navigated inv even has an index. It won't if it has
         // no items
-        let looting_has_index = looting.index.is_some();
-        if looting_has_index {
+        let loot_has_index = loot.index.is_some();
+        if loot_has_index {
           // Determine the item the looter is looking at
-          let item_ndx = looting.index.unwrap() as usize;
+          let item_ndx = loot.index.unwrap() as usize;
           let item = navigated_inv.items.get(item_ndx).expect(&format!(
             "No item in inventory {:?} at index {:?}\ninventory:\n{:?}",
             names.get(navigated_ent),
             item_ndx,
             navigated_inv
           ));
-          // Looting will happen from the navigated inventory.
+          // Loot will happen from the navigated inventory.
           let from = Some(navigated_ent);
           // Determine where the looter is going to put the item - if the looter
           // * is hitting A it means they want to trade the item
@@ -235,18 +234,18 @@ impl InventorySystem {
               from,
             };
             let _effect_ent = lazy.create_entity(entities).with(effect).build();
-            // Adjust the looting index (the item list just went down by one)
-            looting.clamp_index(navigated_items_len - 1);
-            return (false, looting_ents);
+            // Adjust the loot index (the item list just went down by one)
+            loot.clamp_index(navigated_items_len - 1);
+            return (false, loot_ents);
           } else if inv_action == InventoryAction::Use {
-            let invoked_by = looting.looter;
+            let invoked_by = loot.looter;
             let effect = Effect::UseItem {
               invoked_by,
               item: *item,
               from: from.unwrap(),
             };
             let _effect_ent = lazy.create_entity(entities).with(effect).build();
-            return (true, looting_ents);
+            return (true, loot_ents);
           }
         }
 
@@ -256,11 +255,11 @@ impl InventorySystem {
         if done {
           println!("Looting is done!");
         }
-        (done, looting_ents)
+        (done, loot_ents)
       })
       .unwrap_or(
         // The controller must have been unplugged
-        (true, cloned_looting_ents),
+        (true, cloned_loot_ents),
       )
   }
 }
@@ -280,7 +279,7 @@ impl<'a> System<'a> for InventorySystem {
     WriteStorage<'a, Inventory>,
     WriteStorage<'a, Item>,
     Read<'a, LazyUpdate>,
-    WriteStorage<'a, Looting>,
+    WriteStorage<'a, Loot>,
     ReadStorage<'a, Position>,
     ReadStorage<'a, Name>,
     WriteStorage<'a, SuspendPlayer>,
@@ -298,20 +297,20 @@ impl<'a> System<'a> for InventorySystem {
       mut inventories,
       mut items,
       lazy,
-      mut lootings,
+      mut loots,
       positions,
       names,
       mut suspend_controls,
       player_controllers
     ): Self::SystemData,
   ) {
-    // run all looting
+    // run all loots
     let mut dead_loots = vec![];
     let mut looted_inventory_ents: HashSet<Entity> = HashSet::new();
-    for (ent, mut looting) in (&entities, &mut lootings).join() {
-      // run the looting
-      let (looting_is_done, looting_ents) = self.run_looting(
-        &mut looting,
+    for (ent, mut loot) in (&entities, &mut loots).join() {
+      // run the loot
+      let (loot_is_done, loot_ents) = self.run_loot(
+        &mut loot,
         &mut inventories,
         &entities,
         &lazy,
@@ -321,21 +320,21 @@ impl<'a> System<'a> for InventorySystem {
         &mut suspend_controls,
         &player_controllers
       );
-      // mark the looting as done if needed
-      if looting_is_done {
+      // mark the loot as done if needed
+      if loot_is_done {
         dead_loots.push(ent);
 
         // Remove suspend controls
-        looting_ents.iter().for_each(|ent| {
+        loot_ents.iter().for_each(|ent| {
           lazy.remove::<SuspendPlayer>(*ent);
         });
       }
       // add the involved looted inv entities to our set
-      looted_inventory_ents.extend(looting_ents);
+      looted_inventory_ents.extend(loot_ents);
     }
 
     // Run through any toon inventories that are not in the set of ones already
-    // involved in a looting
+    // involved in a loot
     for (ent, _inv, player, _) in
       (&entities, &mut inventories, &players, !&exiles).join()
     {
@@ -351,11 +350,11 @@ impl<'a> System<'a> for InventorySystem {
         let wants_to_close =
           inv_btn_on && entity_already_looting_or_being_looted;
         if wants_to_open {
-          // Create a looting for it
-          let _looting =
+          // Create a loot for it
+          let _loot =
             lazy
             .create_entity(&entities)
-            .with(Looting {
+            .with(Loot {
               inventory: Some(ent),
               looter: ent,
               // it's all their own inventory here!
@@ -364,9 +363,9 @@ impl<'a> System<'a> for InventorySystem {
             })
             .build();
         } else if wants_to_close {
-          // Search through all the lootings and find the one
+          // Search through all the loots and find the one
           let loot_ent:Entity =
-            *(&entities, &lootings)
+            *(&entities, &loots)
             .join()
             .filter_map(|(loot_ent, loot)| {
               if loot.inventory == Some(ent) || loot.looter == ent {
@@ -390,7 +389,7 @@ impl<'a> System<'a> for InventorySystem {
       });
     }
 
-    // destroy all the finished lootings
+    // destroy all the finished loots
     dead_loots.into_iter().for_each(|ent| {
       entities.delete(ent).unwrap();
     });

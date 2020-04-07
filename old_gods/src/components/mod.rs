@@ -9,7 +9,7 @@ pub use super::systems::action::{
 pub use super::systems::animation::Animation;
 pub use super::systems::effect::Effect;
 pub use super::systems::fence::{Fence, StepFence};
-pub use super::systems::inventory::{Inventory, Looting};
+pub use super::systems::inventory::{Inventory, Loot};
 pub use super::systems::item::Item;
 pub use super::systems::physics::{Barrier, Position, Velocity};
 pub use super::systems::player::{MaxSpeed, Player, SuspendPlayer, AI};

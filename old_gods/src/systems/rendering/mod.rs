@@ -70,7 +70,7 @@ pub use self::record::*;
 //     ReadStorage<'s, Shape>,
 //     ReadStorage<'s, Action>,
 //     ReadStorage<'s, Name>,
-//     ReadStorage<'s, Looting>,
+//     ReadStorage<'s, Loot>,
 //     ReadStorage<'s, Inventory>,
 //     ReadStorage<'s, Item>,
 //     ReadStorage<'s, Zone>,
