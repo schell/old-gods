@@ -509,7 +509,7 @@ pub fn render_map_debug(
             .map(|ts| ts.0.clone())
             .unwrap_or(HashSet::new());
         let toggles: HashSet<_> = global_toggles.union(&obj_toggles).collect::<HashSet<_>>();
-        render_map_entity_debug(resources, context, &data, toggles, player, map_ent);
+        render_map_entity_debug(resources, context, &data, toggles, player, map_ent)?;
     }
 
     Ok(())
@@ -545,7 +545,7 @@ pub fn draw_aabb_tree(
     context: &mut CanvasRenderingContext2d,
     data: &DebugRenderingData,
     player: &Option<(&Player, &ZLevel)>,
-) {
+) -> Result<(), String> {
     let mbrs = data
         .aabb_tree
         .rtree
@@ -593,9 +593,11 @@ pub fn draw_aabb_tree(
             let p = V2::new(aabb.top_left.x, aabb.bottom());
             let mut text = debug_text(name.0.as_str());
             text.color = color;
-            draw_text(&text, &p, context);
+            draw_text(&text, &p, context)?;
         }
     }
+
+    Ok(())
 }
 
 
@@ -603,36 +605,38 @@ pub fn draw_zone(
     context: &mut CanvasRenderingContext2d,
     data: &DebugRenderingData,
     map_ent: &MapEntity,
-) -> Option<()> {
-    let zone = data.zones.get(map_ent.entity)?;
-    let shape = data.shapes.get(map_ent.entity)?;
-    let mut color = Color::rgb(139, 175, 214);
-    let alpha = if data.exiles.contains(map_ent.entity) {
-        128
-    } else {
-        255
-    };
-    color.a = alpha;
-    let extents = shape.extents();
-    let aabb = AABB::from_points(
-        data.screen.from_map(&map_ent.position),
-        data.screen.from_map(&(map_ent.position + extents)),
-    );
-    set_fill_color(&color, context);
-    context.fill_rect(
-        aabb.top_left.x as f64,
-        aabb.top_left.y as f64,
-        aabb.extents.x as f64,
-        aabb.extents.y as f64,
-    );
+) -> Result<(), String> {
+    if let Some(_zone) = data.zones.get(map_ent.entity) {
+        if let Some(shape) = data.shapes.get(map_ent.entity) {
+            let mut color = Color::rgb(139, 175, 214);
+            let alpha = if data.exiles.contains(map_ent.entity) {
+                128
+            } else {
+                255
+            };
+            color.a = alpha;
+            let extents = shape.extents();
+            let aabb = AABB::from_points(
+                data.screen.from_map(&map_ent.position),
+                data.screen.from_map(&(map_ent.position + extents)),
+            );
+            set_fill_color(&color, context);
+            context.fill_rect(
+                aabb.top_left.x as f64,
+                aabb.top_left.y as f64,
+                aabb.extents.x as f64,
+                aabb.extents.y as f64,
+            );
 
-    let name = data.names.get(map_ent.entity)?;
-    let p = V2::new(aabb.top_left.x, aabb.bottom());
-    let mut text = debug_text(name.0.as_str());
-    text.color = color;
-    draw_text(&text, &p, context);
-
-    Some(())
+            if let Some(name) = data.names.get(map_ent.entity) {
+                let p = V2::new(aabb.top_left.x, aabb.bottom());
+                let mut text = debug_text(name.0.as_str());
+                text.color = color;
+                draw_text(&text, &p, context)?;
+            }
+        }
+    }
+    Ok(())
 }
 
 
@@ -640,8 +644,7 @@ pub fn draw_fence(
     context: &mut CanvasRenderingContext2d,
     data: &DebugRenderingData,
     map_ent: &MapEntity,
-) {
-    let aabb = data.screen.aabb();
+) -> Result<(), String> {
     let mut fences = vec![];
     if let Some(fence) = data.fences.get(map_ent.entity) {
         fences.push((fence, Color::rgb(153, 102, 255)));
@@ -657,9 +660,11 @@ pub fn draw_fence(
         draw_lines(&lines, context);
         if let Some(name) = data.names.get(map_ent.entity) {
             let text = debug_text(name.0.as_str());
-            draw_text(&text, &pos, context);
+            draw_text(&text, &pos, context)?;
         }
     }
+
+    Ok(())
 }
 
 pub fn draw_player(
@@ -771,7 +776,7 @@ pub fn draw_barrier(
     let lines: Vec<V2> = shape
         .vertices_closed()
         .into_iter()
-        .map(|v| data.screen.from_map(&(map_ent.position + v)))
+        .map(|v| map_ent.position + v)
         .collect();
     draw_lines(&lines, context);
 
@@ -783,7 +788,6 @@ pub fn draw_barrier(
         let color = Color::rgb(255, 128, 128);
         set_stroke_color(&color, context);
         for (axis, midpoint) in axes.into_iter().zip(midpoints) {
-            let midpoint = data.screen.from_map(&midpoint);
             let lines = arrow_lines(midpoint, midpoint + (axis.scalar_mul(20.0)));
             draw_lines(&lines, context);
         }
@@ -849,7 +853,11 @@ pub fn draw_position(
     draw(position_label, map_ent.position)?;
 
     if map_ent.offset != V2::origin() {
-        context.set_stroke_style(&"blue".into());
+        context.set_stroke_style(&"cyan".into());
+        draw_lines(
+            &arrow_lines(map_ent.position, map_ent.position + map_ent.offset),
+            context,
+        );
         draw("orgo", map_ent.position + map_ent.offset)?;
     }
 
@@ -874,17 +882,16 @@ pub fn render_map_entity_debug(
     }
 
     if toggles.contains(&RenderingToggles::Zones) {
-        draw_zone(context, data, map_ent);
+        draw_zone(context, data, map_ent)?;
     }
 
     if toggles.contains(&RenderingToggles::Fences) {
-        draw_fence(context, data, map_ent);
+        draw_fence(context, data, map_ent)?;
     }
 
     if toggles.contains(&RenderingToggles::Players)
         && !toggles.contains(&RenderingToggles::Barriers)
     {
-        trace!("drawing position for {:#?}", map_ent.entity);
         draw_player(context, data, map_ent);
     }
 
