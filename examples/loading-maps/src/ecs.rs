@@ -161,7 +161,7 @@ impl<'a, 'b> ECS<'a, 'b> {
                     &mut self.resources,
                     &mut self.pre_rendering_context,
                     &map_ents,
-                );
+                )?;
             }
 
             // Aspect fit our pre_rendering_context inside the final rendering_context

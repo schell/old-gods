@@ -533,7 +533,7 @@ pub fn draw_velocity(
         velo.0
     };
     let offset: V2 = entity_local_origin(map_ent.entity, &data.shapes, &data.offsets);
-    let p1 = data.screen.from_map(&(map_ent.position + offset));
+    let p1 = map_ent.position + offset;
     let p2 = p1 + v;
     let lines = arrow_lines(p1, p2);
     set_stroke_color(&Color::rgb(255, 255, 0), context);
