@@ -416,7 +416,7 @@ pub struct DebugRenderingData<'s> {
 
 fn debug_font_details() -> FontDetails {
     FontDetails {
-        path: "sans-serif".to_string(),
+        path: "monospace".to_string(),
         size: 16,
     }
 }
@@ -427,6 +427,15 @@ fn debug_text(text: &str) -> Text {
         font: debug_font_details(),
         color: Color::rgb(255, 255, 255),
         size: (16, 16),
+    }
+}
+
+fn debug_map_text(text: &str) -> Text {
+    Text {
+        text: text.to_string(),
+        font: debug_font_details(),
+        color: Color::rgb(255, 255, 255),
+        size: (12, 12),
     }
 }
 
@@ -819,6 +828,35 @@ pub fn draw_barrier(
 }
 
 
+pub fn draw_position(
+    context: &mut CanvasRenderingContext2d,
+    data: &DebugRenderingData,
+    map_ent: &MapEntity,
+) -> Result<(), String> {
+    context.set_stroke_style(&"blue".into());
+
+    let draw = |label: &str, v: V2| -> Result<(), String> {
+        context.stroke_rect(v.x as f64 - 2.0, v.y as f64 - 2.0, 4.0, 4.0);
+
+        let pos_str = format!("{}: ({:.1}, {:.1})", label, v.x, v.y,);
+        let text = debug_map_text(&pos_str);
+        draw_text(&text, &v, context)
+    };
+
+    let name = data.names.get(map_ent.entity).map(|Name(n)| n.as_str());
+    let pos = "pos";
+    let position_label = &name.unwrap_or(pos);
+    draw(position_label, map_ent.position)?;
+
+    if map_ent.offset != V2::origin() {
+        context.set_stroke_style(&"blue".into());
+        draw("orgo", map_ent.position + map_ent.offset)?;
+    }
+
+    Ok(())
+}
+
+
 pub fn render_map_entity_debug(
     _resources: &mut HtmlResources,
     context: &mut CanvasRenderingContext2d,
@@ -826,7 +864,11 @@ pub fn render_map_entity_debug(
     toggles: HashSet<&RenderingToggles>,
     player: Option<(&Player, &ZLevel)>,
     map_ent: &MapEntity,
-) {
+) -> Result<(), String> {
+    if toggles.contains(&RenderingToggles::Positions) {
+        draw_position(context, data, map_ent)?;
+    }
+
     if toggles.contains(&RenderingToggles::Velocities) {
         draw_velocity(context, data, map_ent);
     }
@@ -842,6 +884,7 @@ pub fn render_map_entity_debug(
     if toggles.contains(&RenderingToggles::Players)
         && !toggles.contains(&RenderingToggles::Barriers)
     {
+        trace!("drawing position for {:#?}", map_ent.entity);
         draw_player(context, data, map_ent);
     }
 
@@ -858,6 +901,8 @@ pub fn render_map_entity_debug(
         let player_z = player.map(|(_, z)| z.0).unwrap_or(0.0);
         draw_barrier(context, data, show_collision_info, player_z, map_ent);
     }
+
+    Ok(())
 }
 
 
@@ -997,28 +1042,6 @@ pub fn render_ui_debug(
         let text = debug_text(format!("Entities: {}", count).as_str());
         let pos = V2::new(0.0, next_rect.bottom() as f32 + 10.0);
         draw_text(&text, &pos, context);
-    }
-
-    if toggles.contains(&RenderingToggles::Positions) {
-        context.set_stroke_style(&"blue".into());
-        for (entity, &Position(position)) in (&data.entities, &data.positions).join() {
-            let offset = data
-                .offsets
-                .get(entity)
-                .map(|o| o.0)
-                .unwrap_or(V2::origin());
-            let p = viewport_to_context(position - offset);
-            context.stroke_rect(p.x as f64 - 2.0, p.y as f64 - 2.0, 4.0, 4.0);
-
-            let pos_str = format!(
-                "pos: ({:.1}, {:.1})",
-                position.x + offset.x,
-                position.y + offset.y,
-            );
-            let offset_str = format!("offset: ({:.1}, {:.1})", offset.x, offset.y);
-            let text = debug_text(&vec![pos_str, offset_str].join(" "));
-            draw_text(&text, &p, context);
-        }
     }
 
     if toggles.contains(&RenderingToggles::AABBTree) {

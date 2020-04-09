@@ -88,6 +88,15 @@ impl mogwai::prelude::Component for App {
                 let mut ecs = self.ecs.try_lock().expect("no lock on ecs");
                 ecs.rendering_context = Some(context);
                 ecs.set_resolution(canvas.width(), canvas.height());
+
+                let hash = window().location().hash().expect("no hash object");
+                let ndx = hash.find('#').unwrap_or(0);
+                let (_, hash) = hash.split_at(ndx);
+                for map in maps().into_iter() {
+                    if hash.ends_with(&map) {
+                        sub.send_async(async move { InMsg::Load(map.clone()) })
+                    }
+                }
             }
             InMsg::Load(path) => {
                 let ecs = self.ecs.try_lock().expect("no lock on ecs");
@@ -147,10 +156,16 @@ impl mogwai::prelude::Component for App {
                 .fold(
                     fieldset().with(legend().text("Old Gods Map Loader")),
                     |fieldset, map| {
-                        fieldset.with(div().with(a().attribute("href", "#").text(&map).tx_on(
-                            "click",
-                            tx.contra_map(move |_| InMsg::Load(map.to_string())),
-                        )))
+                        fieldset.with(
+                            div().with(
+                                a().attribute("href", &format!("#{}", &map))
+                                    .text(&map)
+                                    .tx_on(
+                                        "click",
+                                        tx.contra_map(move |_| InMsg::Load(map.to_string())),
+                                    ),
+                            ),
+                        )
                     },
                 )
                 .with(pre().rx_text("", rx.branch_filter_map(|msg| msg.status_msg())))
@@ -194,7 +209,7 @@ pub fn main() -> Result<(), JsValue> {
             .try_lock()
             .expect("no lock on ecs - request animation loop");
         ecs.maintain();
-        ecs.render();
+        ecs.render().unwrap();
         // We always want to reschedule this animation frame
         true
     });
