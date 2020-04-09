@@ -2,7 +2,7 @@ use old_gods::prelude::*;
 use web_sys::CanvasRenderingContext2d;
 
 use super::{
-    super::systems::inventory::{Inventory, Item, Loot},
+    super::systems::inventory::{Inventory, Loot},
     HtmlResources, Resources,
 };
 
@@ -55,7 +55,7 @@ pub fn draw_loot(
     resources: &mut HtmlResources,
     point: &V2,
     loot: LootRendering,
-) {
+) -> Result<(), String> {
     let item_height = 50;
     let name_height = 20;
 
@@ -74,7 +74,7 @@ pub fn draw_loot(
             }
         }
 
-        let longest_name_size = super::measure_text(&super::fancy_text(longest_name), context);
+        let longest_name_size = super::measure_text(&super::fancy_text(longest_name), context)?;
         let width = 48.0 + longest_name_size.0 as f32 + 8.0;
 
         // Draw the background
@@ -103,7 +103,7 @@ pub fn draw_loot(
         for (item, n) in inv.items.iter().zip(0..inv.items.len()) {
             let pos = origin + V2::new(0.0, name_height as f32 + item_height as f32 * n as f32);
             resources
-                .when_loaded(&item.frame.sprite_sheet, |tex| {
+                .when_loaded(&item.frame.sprite_sheet, |tex| -> Result<(), String> {
                     let src = AABB::new(
                         item.frame.source_aabb.x as f32,
                         item.frame.source_aabb.y as f32,
@@ -128,8 +128,8 @@ pub fn draw_loot(
                     let text_pos = pos + V2::new(48.0, 10.0);
                     let name = item.name.clone();
                     let text = super::fancy_text(name.as_str());
-                    super::draw_text(&text, &text_pos, context);
-                    let item_aabb_size = super::measure_text(&text, context);
+                    super::draw_text(&text, &text_pos, context)?;
+                    let item_aabb_size = super::measure_text(&text, context)?;
                     let item_aabb = AABB {
                         top_left: text_pos,
                         extents: V2::new(item_aabb_size.0, item_aabb_size.1),
@@ -138,15 +138,16 @@ pub fn draw_loot(
                         let pos = V2::new(item_aabb.left() as f32, item_aabb.bottom() as f32 + 2.0);
                         let mut text = super::normal_text(&format!("x{}", item.count));
                         text.font.size = 12;
-                        super::draw_text(&text, &pos, context);
+                        super::draw_text(&text, &pos, context)?;
                     }
-                })
-                .unwrap();
+                    Ok(())
+                })?
+                .unwrap_or(Ok(()))?;
         }
 
         // Draw the inventory name
         let inv_name_text = super::fancy_text(inv.name.as_str());
-        super::draw_text(&inv_name_text, &(origin + V2::new(2.0, 2.0)), context);
+        super::draw_text(&inv_name_text, &(origin + V2::new(2.0, 2.0)), context)?;
 
         // Draw the cursor
         let looking_at_this_inv = loot.cursor_in_a == is_a;
@@ -159,7 +160,7 @@ pub fn draw_loot(
             // Draw the empty inventory
             let mut text = super::fancy_text("(empty)");
             text.color = Color::rgb(128, 128, 128);
-            super::draw_text(&text, &(origin + V2::new(45.0, 32.0)), context);
+            super::draw_text(&text, &(origin + V2::new(45.0, 32.0)), context)?;
         }
 
         origin += V2::new(width, 0.0);
@@ -177,7 +178,7 @@ pub fn draw_loot(
         let items_len = usize::max(1, items_len);
         let msg_y = item_height as f32 * items_len as f32 + name_height as f32;
         let msg_point = *point + V2::new(4.0, msg_y);
-        super::action::draw_button(context, resources, ActionButton::Y, &msg_point, &msg)
+        super::action::draw_button(context, resources, ActionButton::Y, &msg_point, &msg)?
     };
 
     // Draw the "use" item inventory msg
@@ -186,8 +187,10 @@ pub fn draw_loot(
     if current_item_is_usable {
         let msg = Some("use".to_string());
         let pos = V2::new(a_btn_rect.right() as f32, a_btn_rect.top() as f32);
-        super::action::draw_button(context, resources, ActionButton::X, &pos, &msg);
+        super::action::draw_button(context, resources, ActionButton::X, &pos, &msg)?;
     }
+
+    Ok(())
 }
 
 

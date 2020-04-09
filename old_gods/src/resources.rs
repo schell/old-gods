@@ -18,23 +18,23 @@ pub trait Resources<R> {
     fn put(&mut self, key: &str, rsrc: R);
 
     /// Poll the load status of a resource:
-    /// * if it has not yet started a load, start a new loading process
-    /// * if it is loading, do nothing
-    /// * if it is complete call the closure with the resource
+    /// * if it has not yet started a load, start a new loading process, return nothing
+    /// * if it is loading, do nothing, return nothing
+    /// * if it is complete call the closure with the resource and return some answer
     /// * if it has erred, return the error message
-    fn when_loaded<F>(&mut self, key: &str, f: F) -> Result<(), String>
+    fn when_loaded<F, T>(&mut self, key: &str, f: F) -> Result<Option<T>, String>
     where
-        F: FnOnce(&R),
+        F: FnOnce(&R) -> T,
     {
         match self.status_of(&key) {
             LoadStatus::None => {
                 // Load it and come back later
                 self.load(&key);
-                return Ok(());
+                return Ok(None);
             }
             LoadStatus::Started => {
                 // Come back later because it's loading etc.
-                return Ok(());
+                return Ok(None);
             }
             LoadStatus::Complete => {}
             LoadStatus::Error(msg) => {
@@ -44,8 +44,8 @@ pub trait Resources<R> {
         }
 
         let rsrc = self.take(&key).expect("Could not take sprite sheet");
-        f(&rsrc);
+        let t = f(&rsrc);
         self.put(&key, rsrc);
-        Ok(())
+        Ok(Some(t))
     }
 }

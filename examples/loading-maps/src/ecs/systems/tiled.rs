@@ -7,9 +7,11 @@ use log::{trace, warn};
 use old_gods::prelude::{
     Animation, Barrier, CanBeEmpty, Component, Either, Entities, Entity, Frame, GlobalTileIndex,
     HashMapStorage, Join, Layer, LayerData, LoadStatus, Name, Object, ObjectGroup, ObjectLayerData,
-    OriginOffset, Player, Position, Rendering, ResourceId, Resources, Shape, System, SystemData,
-    TextureFrame, TileLayerData, Tiledmap, Velocity, World, WriteStorage, ZLevel, JSON, V2,
+    ObjectRenderingToggles, OriginOffset, Player, Position, Rendering, RenderingToggles,
+    ResourceId, Resources, Shape, System, SystemData, TextureFrame, TileLayerData, Tiledmap,
+    Velocity, World, WriteStorage, ZLevel, JSON, V2,
 };
+use serde_json::Value;
 use std::{
     collections::HashMap,
     iter::FromIterator,
@@ -240,6 +242,7 @@ pub struct InsertMapData<'s> {
     jsons: WriteStorage<'s, JSON>,
     names: WriteStorage<'s, Name>,
     objects: WriteStorage<'s, Object>,
+    object_toggles: WriteStorage<'s, ObjectRenderingToggles>,
     offsets: WriteStorage<'s, OriginOffset>,
     players: WriteStorage<'s, Player>,
     positions: WriteStorage<'s, Position>,
@@ -319,23 +322,36 @@ pub fn insert_map(map: &Tiledmap, data: &mut InsertMapData) {
                         let _ = data.animations.insert(tile_ent, anime);
                     }
 
-                    for obj in map
-                        .get_tile(&global_ndx.id)
-                        .map(|tile| tile.object_group.as_ref())
-                        .flatten()
-                        .map(|group: &ObjectGroup| &group.objects)
-                        .unwrap_or(&empty_vec)
-                        .iter()
-                    {
-                        match obj.type_is.as_str() {
-                            "origin_offset" => {
-                                add_origin(tile_ent, obj.x, obj.y, &mut data.offsets)
-                            }
-                            "barrier" => {
-                                add_barrier(tile_ent, obj, &mut data.barriers, &mut data.shapes)
-                            }
-                            t => {
-                                panic!("unsupported object type within a tile: '{}'", t);
+                    if let Some(tile) = map.get_tile(&global_ndx.id) {
+                        let mut properties = tile
+                            .properties
+                            .iter()
+                            .map(|prop| (prop.name.clone(), prop.clone()))
+                            .collect::<HashMap<_, _>>();
+
+                        if let Some(debug_toggles) =
+                            RenderingToggles::remove_from_properties(&mut properties)
+                        {
+                            let _ = data.object_toggles.insert(tile_ent, debug_toggles);
+                        }
+
+                        for obj in tile
+                            .object_group
+                            .as_ref()
+                            .map(|group: &ObjectGroup| &group.objects)
+                            .unwrap_or(&empty_vec)
+                            .iter()
+                        {
+                            match obj.type_is.as_str() {
+                                "origin_offset" => {
+                                    add_origin(tile_ent, obj.x, obj.y, &mut data.offsets)
+                                }
+                                "barrier" => {
+                                    add_barrier(tile_ent, obj, &mut data.barriers, &mut data.shapes)
+                                }
+                                t => {
+                                    panic!("unsupported object type within a tile: '{}'", t);
+                                }
                             }
                         }
                     }
@@ -389,7 +405,22 @@ pub fn insert_map(map: &Tiledmap, data: &mut InsertMapData) {
                         }
                     }
 
-                    let mut properties = obj.json_properties();
+                    let mut properties = obj
+                        .properties
+                        .iter()
+                        .map(|p| (p.name.clone(), p.clone()))
+                        .collect();
+
+                    if let Some(debug_toggles) =
+                        RenderingToggles::remove_from_properties(&mut properties)
+                    {
+                        let _ = data.object_toggles.insert(obj_ent, debug_toggles);
+                    }
+
+                    let mut properties:HashMap<String, Value> = properties
+                        .into_iter()
+                        .map(|(k, p)| (k, p.value))
+                        .collect();
 
                     match obj.get_deep_type(map).as_str() {
                         "character" => {

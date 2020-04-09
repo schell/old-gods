@@ -30,12 +30,12 @@ pub fn draw_button(
     btn: ActionButton,
     point: &V2,
     msg: &Option<String>,
-) -> AABB {
+) -> Result<AABB, String> {
     let mut btn_text = super::fancy_text(&button_text(&btn).as_str());
     btn_text.color = button_color(&btn);
-    super::draw_text(&btn_text, point, context);
+    super::draw_text(&btn_text, point, context)?;
 
-    let dest_size = super::measure_text(&btn_text, context);
+    let dest_size = super::measure_text(&btn_text, context)?;
     let btn_rect = AABB {
         top_left: *point,
         extents: V2::new(dest_size.0, dest_size.1),
@@ -43,8 +43,8 @@ pub fn draw_button(
     let text_rect = if let Some(text) = msg {
         let point = V2::new(point.x + dest_size.0, point.y);
         let text = super::normal_text(&text.as_str());
-        super::draw_text(&text, &point, context);
-        let text_size = super::measure_text(&text, context);
+        super::draw_text(&text, &point, context)?;
+        let text_size = super::measure_text(&text, context)?;
         AABB {
             top_left: point,
             extents: V2::new(text_size.0, text_size.1),
@@ -52,7 +52,7 @@ pub fn draw_button(
     } else {
         btn_rect
     };
-    AABB::union(&btn_rect, &text_rect)
+    Ok(AABB::union(&btn_rect, &text_rect))
 }
 
 
@@ -62,7 +62,7 @@ pub fn draw(
     resources: &mut HtmlResources,
     point: &V2,
     action: &Action,
-) {
+) -> Result<(), String> {
     let msg: Option<String> = action.text.non_empty().map(|s| s.clone());
     draw_button(
         canvas,
@@ -70,5 +70,6 @@ pub fn draw(
         ActionButton::A,
         &(*point - V2::new(7.0, 7.0)),
         &msg,
-    );
+    )?;
+    Ok(())
 }

@@ -12,7 +12,7 @@ use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, HtmlElement};
 mod ecs;
 mod fetch;
 
-use ecs::{RenderingToggles, ECS};
+use ecs::ECS;
 
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global

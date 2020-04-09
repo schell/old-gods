@@ -58,6 +58,11 @@
                          "name":"player_index",
                          "type":"int",
                          "value":0
+                        }, 
+                        {
+                         "name":"toggle_rendering_positions",
+                         "type":"bool",
+                         "value":true
                         }],
                  "rotation":0,
                  "type":"character",
@@ -171,6 +176,12 @@
                  "height":48,
                  "id":13,
                  "name":"red glass",
+                 "properties":[
+                        {
+                         "name":"toggle_rendering_positions",
+                         "type":"bool",
+                         "value":true
+                        }],
                  "rotation":0,
                  "type":"item",
                  "visible":true,
@@ -271,7 +282,7 @@
         {
          "name":"toggle_rendering_positions",
          "type":"bool",
-         "value":true
+         "value":false
         }, 
         {
          "name":"toggle_rendering_velocities",

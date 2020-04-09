@@ -18,6 +18,15 @@
  "tileheight":48,
  "tiles":[
         {
+         "id":113,
+         "properties":[
+                {
+                 "name":"toggle_rendering_positions",
+                 "type":"bool",
+                 "value":true
+                }]
+        }, 
+        {
          "animation":[
                 {
                  "duration":300,

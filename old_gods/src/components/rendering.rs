@@ -1,9 +1,12 @@
 //! Rendering data.
 use specs::prelude::*;
+use std::collections::{HashMap, HashSet};
 
 use super::super::{
-    color::Color, components::FontDetails, geom::*, tiled::json::AABB as TiledAABB,
+    prelude::{Color, FontDetails, V2},
+    tiled::json::{Property, AABB as TiledAABB},
 };
+
 
 /// ## ZLevel
 /// Determines rendering order.
@@ -153,4 +156,150 @@ impl Rendering {
 
 impl Component for Rendering {
     type Storage = DenseVecStorage<Self>;
+}
+
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+/// Various toggles to display or hide things during rendering.
+/// Toggling the rendering of various debug infos can be done by adding a custom
+/// property to your map file or individual objects.
+pub enum RenderingToggles {
+    /// Toggle marking actions.
+    Actions,
+
+    /// Toggle rendering positions.
+    Positions,
+
+    /// Toggle rendering barriers.
+    Barriers,
+
+    /// Toggle rendering the AABBTree.
+    AABBTree,
+
+    /// Toggle rendering velocities.
+    Velocities,
+
+    /// Toggle rendering zlevels.
+    ZLevels,
+
+    /// Toggle marking players.
+    Players,
+
+    /// Toggle marking the screen
+    Screen,
+
+    /// Toggle displaying the FPS.
+    FPS,
+
+    /// Render zones
+    Zones,
+
+    /// Fences
+    Fences,
+
+    /// Display the apparent entity count
+    EntityCount,
+
+    /// Display collision system information
+    CollisionInfo,
+
+    /// Display shapes
+    Shapes,
+
+    /// Display something else.
+    /// Used for extension.
+    Other(String),
+}
+
+
+/// Used for on-screen debugging of specific objects.
+#[derive(Clone, Debug)]
+pub struct ObjectRenderingToggles(pub HashSet<RenderingToggles>);
+
+
+impl Component for ObjectRenderingToggles {
+    type Storage = HashMapStorage<Self>;
+}
+
+
+impl RenderingToggles {
+    pub fn property_map() -> HashMap<String, RenderingToggles> {
+        use RenderingToggles::*;
+        let props = vec![
+            Actions,
+            Positions,
+            Barriers,
+            AABBTree,
+            Velocities,
+            ZLevels,
+            Players,
+            Screen,
+            FPS,
+            Zones,
+            Fences,
+            EntityCount,
+            CollisionInfo,
+            Shapes,
+        ];
+        props
+            .into_iter()
+            .map(|t| (t.property_str().to_string(), t))
+            .collect()
+    }
+
+
+    pub fn property_str(&self) -> &str {
+        use RenderingToggles::*;
+        match self {
+            Actions => "toggle_rendering_actions",
+            Positions => "toggle_rendering_positions",
+            Barriers => "toggle_rendering_barriers",
+            AABBTree => "toggle_rendering_aabb_tree",
+            Velocities => "toggle_rendering_velocities",
+            ZLevels => "toggle_rendering_z_levels",
+            Players => "toggle_rendering_players",
+            Screen => "toggle_rendering_screen",
+            FPS => "toggle_rendering_fps",
+            Zones => "toggle_rendering_zones",
+            Fences => "toggle_rendering_fences",
+            EntityCount => "toggle_rendering_entity_count",
+            CollisionInfo => "toggle_rendering_collision_info",
+            Shapes => "toggle_rendering_shapes",
+            Other(s) => s,
+        }
+    }
+
+    pub fn from_properties(props: &Vec<Property>) -> HashSet<RenderingToggles> {
+        let toggles = Self::property_map();
+        let mut set = HashSet::new();
+        for prop in props {
+            if !prop.name.starts_with("toggle_rendering_") {
+                continue;
+            }
+            let toggle = toggles
+                .get(&prop.name)
+                .cloned()
+                .unwrap_or(RenderingToggles::Other(prop.name.clone()));
+            let should_set = prop.value.as_bool().unwrap_or(false);
+            if should_set {
+                set.insert(toggle.clone());
+            }
+        }
+        set
+    }
+
+    pub fn remove_from_properties(
+        props: &mut HashMap<String, Property>,
+    ) -> Option<ObjectRenderingToggles> {
+        let props_vec: Vec<Property> = props.iter().map(|(_, p)| p.clone()).collect();
+        let toggles = Self::from_properties(&props_vec);
+        if toggles.len() > 0 {
+            for toggle in toggles.iter() {
+                let _ = props.remove(toggle.property_str());
+            }
+            Some(ObjectRenderingToggles(toggles))
+        } else {
+            None
+        }
+    }
 }
