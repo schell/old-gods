@@ -54,12 +54,3 @@ impl Player {
 impl Component for Player {
     type Storage = HashMapStorage<Self>;
 }
-
-
-/// A component for suspending control of an entity without exiling it.
-pub struct SuspendPlayer;
-
-
-impl Component for SuspendPlayer {
-    type Storage = HashMapStorage<SuspendPlayer>;
-}

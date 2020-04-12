@@ -228,9 +228,7 @@ impl AABBTree {
             .into_iter()
             .filter_map(|(other_ent, _)| {
                 let other_shape = shapes.get(other_ent);
-
                 let other_position = positions.get(other_ent);
-
                 let should_include = other_shape.is_some()
                     && other_position.is_some()
                     && include_by_barrier(other_ent);

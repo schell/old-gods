@@ -2,11 +2,11 @@
 /// * moving players based on their controllers' axes
 /// * adding and removing take-action components, allowing the ActionSystem to do
 ///   its job
+use log::{trace, warn};
 use specs::prelude::*;
 
-use super::{
-    super::prelude::{Exile, MaxSpeed, Player, SuspendPlayer, TakeAction, Velocity, V2},
-    gamepad::PlayerControllers,
+use super::super::prelude::{
+    Exile, MaxSpeed, Object, Player, PlayerControllers, TakeAction, Velocity, V2,
 };
 
 
@@ -14,68 +14,118 @@ use super::{
 pub struct PlayerSystem;
 
 
+#[derive(SystemData)]
+pub struct PlayerSystemData<'a> {
+    entities: Entities<'a>,
+    player_controllers: Read<'a, PlayerControllers>,
+    players: WriteStorage<'a, Player>,
+    exiles: ReadStorage<'a, Exile>,
+    max_speeds: ReadStorage<'a, MaxSpeed>,
+    objects: WriteStorage<'a, Object>,
+    take_actions: WriteStorage<'a, TakeAction>,
+    velocities: WriteStorage<'a, Velocity>,
+}
+
+
 /// The PlayerSystem carries out motivations on behalf of toons.
 impl<'a> System<'a> for PlayerSystem {
-    type SystemData = (
-        Entities<'a>,
-        Read<'a, PlayerControllers>,
-        ReadStorage<'a, Player>,
-        ReadStorage<'a, Exile>,
-        ReadStorage<'a, MaxSpeed>,
-        ReadStorage<'a, SuspendPlayer>,
-        WriteStorage<'a, TakeAction>,
-        WriteStorage<'a, Velocity>,
-    );
+    type SystemData = PlayerSystemData<'a>;
 
-    fn run(
-        &mut self,
-        (
-            entities,
-            player_controllers,
-            players,
-            exiles,
-            max_speeds,
-            suspensions,
-            mut take_actions,
-            mut velocities,
-        ): Self::SystemData,
-    ) {
+    fn run(&mut self, mut data: Self::SystemData) {
+        // Find any objects with character types so we can create player components.
+        let mut deletes = vec![];
+        for (ent, obj) in (&data.entities, &data.objects).join() {
+            match obj.type_is.as_ref() {
+                "character" => {
+                    let properties = obj.json_properties();
+                    trace!("character {:#?}", obj);
+                    let scheme = properties
+                        .get("control")
+                        .map(|v| v.as_str().map(|s| s.to_string()))
+                        .flatten();
+                    match scheme.as_ref().map(|s| s.as_str()) {
+                        Some("player") => {
+                            let ndx = properties
+                                .get("player_index")
+                                .expect(
+                                    "Object must have a 'player_index' custom property for \
+                                     control.",
+                                )
+                                .as_u64()
+                                .map(|u| u as usize)
+                                .expect("'player_index value must be an integer");
+                            let _ = data.players.insert(ent, Player(ndx as u32));
+                        }
+
+                        Some("npc") => {
+                            panic!("TODO: NPC support");
+                        }
+
+                        None => {
+                            panic!("character object must have a 'control' property");
+                        }
+
+                        Some(scheme) => {
+                            warn!("unsupported character control scheme '{}'", scheme);
+                        }
+                    }
+
+                    let _ = data.velocities.insert(ent, Velocity(V2::origin()));
+                    deletes.push(ent);
+                }
+                _ => {}
+            }
+        }
+        deletes.into_iter().for_each(|ent| {
+            let _ = data.objects.remove(ent);
+        });
+
         // Run over all players and enforce their motivations.
-        for (ent, player, _) in (&entities, &players, !&exiles).join() {
+        let joints:Vec<_> = (&data.entities, &data.players, !&data.exiles).join().map(|(ep,p,())| {
+            (ep.clone(), p.clone())
+        }).collect();
+        for (ent, player) in joints.into_iter() {
             // Remove any previous TakeAction from this toon to begin with
-            take_actions.remove(ent);
+            data.take_actions.remove(ent);
 
-            let v = velocities
+            let v = data
+                .velocities
                 .get_mut(ent)
                 .expect(&format!("Player {:?} does not have velocity.", player));
 
-            let max_speed: MaxSpeed = max_speeds
+            let max_speed: MaxSpeed = data
+                .max_speeds
                 .get(ent)
                 .map(|mv| mv.clone())
                 .unwrap_or(MaxSpeed(100.0));
 
-            // If this toon's control is suspended (taken by the UI, etc)
-            // then abort
-            if let Some(_) = suspensions.get(ent) {
-                continue;
-            }
+            // Get the player's controller on the map
+            let res = data
+                .player_controllers
+                .with_map_ctrl_at(player.0, |ctrl| {
+                    // Update the velocity of the toon based on the
+                    // player's controller
+                    let ana = ctrl.analog_rate();
+                    let rate = ana.unitize().unwrap_or(V2::new(0.0, 0.0));
+                    let mult = rate.scalar_mul(max_speed.0);
+                    v.0 = mult;
 
-            //// Get the player's controller
-            let _ = player_controllers.with_player_controller_at(player.0, |ctrl| {
-                // Update the velocity of the toon based on the
-                // player's controller
-                let ana = ctrl.analog_rate();
-                let rate = ana.unitize().unwrap_or(V2::new(0.0, 0.0));
-                let mult = rate.scalar_mul(max_speed.0);
-                v.0 = mult;
+                    // TODO: Inspect how TakeAction is used -
+                    // I suspect we don't need to do this - why not just
+                    // query the controller from the ActionSystem?
+                    // Add a TakeAction if the player has hit the A button
+                    let has_hit_a = ctrl.a().is_on_this_frame();
+                    has_hit_a
+                });
 
-                // Add a TakeAction if the player has hit the A button
-                if ctrl.a().is_on_this_frame() {
-                    take_actions
+            match res {
+                Some(true) => {
+                    data.take_actions
                         .insert(ent, TakeAction)
                         .expect("Could not insert TakeAction.");
                 }
-            });
+                _ => {}
+            }
         }
     }
 }

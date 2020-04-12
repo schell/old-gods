@@ -10,6 +10,7 @@ use std::{
 use wasm_bindgen::prelude::*;
 use web_sys::HtmlElement;
 
+mod components;
 mod systems;
 
 mod render;
@@ -169,7 +170,8 @@ pub fn main() -> Result<(), JsValue> {
         let mut ecs = Engine::new_with(
             "http://localhost:8888",
             DispatcherBuilder::new()
-            .with_thread_local(systems::inventory::InventorySystem),
+                .with_thread_local(systems::inventory::InventorySystem::new())
+                .with_thread_local(systems::looting::LootingSystem),
             WebRenderingContext::new
         );
         ecs.set_window_size(1600, 900);

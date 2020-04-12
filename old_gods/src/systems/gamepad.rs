@@ -22,7 +22,7 @@ use js_sys::Reflect;
 use log::trace;
 use specs::prelude::{System, SystemData, World, WorldExt, Write};
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     collections::HashMap,
     rc::Rc,
     sync::{Arc, Mutex},
@@ -81,6 +81,11 @@ impl ControllerEventMotion {
 
     pub fn is_on_this_frame(&self) -> bool {
         *self == ControllerEventMotion::On(OnMotion::OnThisFrame)
+    }
+
+    pub fn is_on_or_repeated_this_frame(&self) -> bool {
+        *self == ControllerEventMotion::On(OnMotion::OnThisFrame)
+            || *self == ControllerEventMotion::On(OnMotion::RepeatedThisFrame)
     }
 
     pub fn is_off_this_frame(&self) -> bool {
@@ -178,6 +183,10 @@ impl ControllerState {
 /// You can't mess with a player's controller, you can only query it.
 #[derive(Debug)]
 pub struct PlayerController {
+    // If true, the PlayerController just performed some operation taht should disable
+    // control for the remainder of the frame.
+    debouncing: Cell<bool>,
+    controlling_ui: Cell<bool>,
     this_frame: ControllerState,
     last_frame: ControllerState,
     left_above_threshold: Option<(Millis, u32)>,
@@ -190,12 +199,36 @@ pub struct PlayerController {
 impl PlayerController {
     pub fn new() -> PlayerController {
         PlayerController {
+            debouncing: Cell::new(false),
+            controlling_ui: Cell::new(false),
             this_frame: ControllerState::new(),
             last_frame: ControllerState::new(),
             left_above_threshold: None,
             right_above_threshold: None,
             up_above_threshold: None,
             down_above_threshold: None,
+        }
+    }
+
+    /// Debounce the controller, marking it unavailable to systems for the remainder of the
+    /// frame.
+    pub fn debounce(&self) {
+        self.debouncing.set(true);
+    }
+
+    /// After calling this the controller will be used to control the UI.
+    pub fn use_for_map(&self) {
+        if self.controlling_ui.get() {
+            self.debounce();
+            self.controlling_ui.set(false);
+        }
+    }
+
+    /// After calling this the controller will be used to control the map.
+    pub fn use_for_ui(&self) {
+        if !self.controlling_ui.get() {
+            self.debounce();
+            self.controlling_ui.set(true);
         }
     }
 
@@ -437,6 +470,8 @@ impl PlayerController {
                 Err(_) => panic!("TODO: Support GamepadButton on other browsers"),
             }
         }
+
+        self.debouncing.set(false);
         //if msgs.len() > 0 {
         //  trace!("{}", msgs.join("\n"));
         //}
@@ -469,16 +504,50 @@ impl PlayerControllers {
         self.reload_requested
     }
 
-    pub fn with_player_controller_at<F, X>(&self, ndx: u32, f: F) -> Option<X>
+    /// Run a function with a player controller only if it is currently
+    /// controlling the map.
+    pub fn with_map_ctrl_at<F, X>(&self, ndx: u32, f: F) -> Option<X>
     where
         F: FnOnce(&PlayerController) -> X,
     {
         if let Ok(controllers) = self.controllers.try_lock() {
-            controllers.get(&ndx).map(f)
+            controllers
+                .get(&ndx)
+                .map(|ctrl| {
+                    if !ctrl.debouncing.get() && !ctrl.controlling_ui.get(){
+                        Some(f(ctrl))
+                    } else {
+                        None
+                    }
+                })
+                .flatten()
         } else {
             None
         }
     }
+
+    /// Run a function with a player controller only if it is currently
+    /// controlling the user interface.
+    pub fn with_ui_ctrl_at<F, X>(&self, ndx: u32, f: F) -> Option<X>
+    where
+        F: FnOnce(&PlayerController) -> X,
+    {
+        if let Ok(controllers) = self.controllers.try_lock() {
+            controllers
+                .get(&ndx)
+                .map(|ctrl| {
+                    if !ctrl.debouncing.get() && ctrl.controlling_ui.get(){
+                        Some(f(ctrl))
+                    } else {
+                        None
+                    }
+                })
+                .flatten()
+        } else {
+            None
+        }
+    }
+
 }
 
 

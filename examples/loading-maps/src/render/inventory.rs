@@ -1,6 +1,7 @@
 use old_gods::{prelude::*, rendering::action};
 
-use super::super::systems::inventory::{Inventory, Loot};
+use super::super::components::inventory::Inventory;
+use super::super::systems::looting::Loot;
 
 
 /// A renderable inventory item.
@@ -24,23 +25,19 @@ pub struct LootRendering {
     pub inventory_a: InventoryRendering,
     pub inventory_b: Option<InventoryRendering>,
     pub cursor_in_a: bool,
-    pub index: Option<usize>,
+    pub index: usize,
 }
 
 
 impl LootRendering {
     /// Return the item currently under the cursor
     pub fn current_item(&self) -> Option<&InventoryItem> {
-        self.index
-            .map(|ndx| {
-                let inv = if self.inventory_b.is_none() || self.cursor_in_a {
-                    &self.inventory_a
-                } else {
-                    &self.inventory_b.as_ref().unwrap()
-                };
-                inv.items.get(ndx)
-            })
-            .unwrap_or(None)
+        let inv = if self.inventory_b.is_none() || self.cursor_in_a {
+            &self.inventory_a
+        } else {
+            &self.inventory_b.as_ref().unwrap()
+        };
+        inv.items.get(self.index)
     }
 }
 
@@ -109,7 +106,7 @@ pub fn draw_loot<Ctx: HasRenderingContext, Rsrc: Resources<<Ctx::Ctx as Renderin
                         item.frame.is_flipped_vertically,
                         item.frame.is_flipped_diagonally,
                         tex,
-                    );
+                    )?;
                     let text_pos = pos + V2::new(48.0, 10.0);
                     let name = item.name.clone();
                     let text = Ctx::fancy_text(name.as_str());
@@ -136,8 +133,8 @@ pub fn draw_loot<Ctx: HasRenderingContext, Rsrc: Resources<<Ctx::Ctx as Renderin
 
         // Draw the cursor
         let looking_at_this_inv = loot.cursor_in_a == is_a;
-        if looking_at_this_inv && inv.items.len() > 0 && loot.index.is_some() {
-            let ndx = loot.index.expect("Impossible");
+        if looking_at_this_inv && inv.items.len() > 0 {
+            let ndx = loot.index;
             context.set_stroke_color(&Color::rgb(0, 255, 0));
             let cursor_y = name_height as f32 + origin.y + ndx as f32 * 50.0;
             context.stroke_rect(&AABB {
@@ -221,12 +218,12 @@ pub fn make_loot_rendering<'s>(
             name,
         }
     };
-    let inventory_a = mk_inv(loot.looter);
-    let inventory_b = loot.inventory.map(mk_inv);
+    let inventory_a = mk_inv(loot.ent_of_inventory_here);
+    let inventory_b = loot.ent_of_inventory_there.map(mk_inv);
     LootRendering {
         inventory_a,
         inventory_b,
-        cursor_in_a: loot.is_looking_in_own_inventory,
-        index: loot.index.clone(),
+        cursor_in_a: loot.looking_here,
+        index: loot.item_index,
     }
 }

@@ -1,13 +1,11 @@
-/// # Inventory
-/// An inventory is a container of items.
-/// This module provides the components and records needed to parse inventories
-/// from a Tiled map and insert them into the ECS.
-use specs::prelude::*;
-use std::{f32::consts::PI};
-
-use old_gods::prelude::{
-    Easing, OriginOffset, Position, Rendering, Shape, Tween, TweenParam, Velocity, AABB, V2,
+use old_gods::{
+    prelude::{
+        Component, Easing, HashMapStorage, OriginOffset, Position, Rendering, Shape, Tween,
+        TweenParam, Velocity, AABB, V2,
+    },
 };
+use specs::prelude::*;
+use std::f32::consts::PI;
 
 
 /// An entity with an item component can be kept in an inventory.
@@ -29,7 +27,7 @@ pub struct Item {
     /// The shape of the item.
     pub shape: Shape,
 
-    ///// An origin, if it exists.
+    /// An origin, if it exists.
     pub offset: Option<OriginOffset>,
 }
 
@@ -58,7 +56,8 @@ const ITEM_PLACEMENTS: [f32; 16] = [
     11.0 * PI / 6.0,
 ];
 
-/// An entity with an inventory can store items.
+/// # Inventory
+/// An inventory is a container of items.
 #[derive(Debug, Clone)]
 pub struct Inventory {
     /// The items that are inside this inventory.

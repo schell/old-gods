@@ -419,45 +419,10 @@ pub fn insert_map(map: &Tiledmap, data: &mut InsertMapData) {
                         let _ = data.object_toggles.insert(obj_ent, debug_toggles);
                     }
 
-                    let mut properties: HashMap<String, Value> =
+                    let properties: HashMap<String, Value> =
                         properties.into_iter().map(|(k, p)| (k, p.value)).collect();
 
                     match obj.get_deep_type(map).as_str() {
-                        "character" => {
-                            trace!("character {:#?}", obj);
-                            let scheme = properties
-                                .remove("control")
-                                .map(|v| v.as_str().map(|s| s.to_string()))
-                                .flatten();
-                            match scheme.as_ref().map(|s| s.as_str()) {
-                                Some("player") => {
-                                    let ndx = properties
-                                        .remove("player_index")
-                                        .expect(
-                                            "Object must have a 'player_index' custom property \
-                                             for control.",
-                                        )
-                                        .as_u64()
-                                        .map(|u| u as usize)
-                                        .expect("'player_index value must be an integer");
-                                    let _ = data.players.insert(obj_ent, Player(ndx as u32));
-                                }
-
-                                Some("npc") => {
-                                    panic!("TODO: NPC support");
-                                }
-
-                                None => {
-                                    panic!("character object must have a 'control' property");
-                                }
-
-                                Some(scheme) => {
-                                    warn!("unsupported character control scheme '{}'", scheme);
-                                }
-                            }
-
-                            let _ = data.velocities.insert(obj_ent, Velocity(V2::origin()));
-                        }
                         //"item" => {
                         //  let item = Item {
                         //    stack: properties
@@ -554,7 +519,7 @@ pub fn insert_map(map: &Tiledmap, data: &mut InsertMapData) {
 
                     // Insert the leftover json properties only if there are leftovers and
                     // we didn't already insert an unhandled object into the ECS
-                    if properties.len() > 0 && !data.objects.contains(obj_ent) {
+                    if properties.len() > 0 {
                         let _ = data.jsons.insert(obj_ent, JSON(properties));
                     }
                 }

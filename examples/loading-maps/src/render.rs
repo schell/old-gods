@@ -1,13 +1,18 @@
 use old_gods::{
-    prelude::{Exile, Resources, Join, Player, Position, ReadStorage, World, V2, Name, DefaultRenderingContext},
+    prelude::{
+        DefaultRenderingContext, Exile, Join, Name, Player, Position, Read, ReadStorage, Resources,
+        World, V2,
+    },
     rendering::*,
 };
 use std::ops::{Deref, DerefMut};
 use wasm_bindgen::JsCast;
 use web_sys::{window, CanvasRenderingContext2d, HtmlCanvasElement};
 
+use super::components::inventory::Inventory;
+use super::systems::looting::Loot;
+
 mod inventory;
-use super::systems::inventory::{Inventory, Loot};
 
 pub struct WebRenderingContext(pub DefaultRenderingContext<CanvasRenderingContext2d>);
 
@@ -27,7 +32,7 @@ impl WebRenderingContext {
             .expect("can't get canvas rendering context")
             .dyn_into::<CanvasRenderingContext2d>()
             .expect("can't coerce canvas rendering context");
-        WebRenderingContext(DefaultRenderingContext{context})
+        WebRenderingContext(DefaultRenderingContext { context })
     }
 
     pub fn canvas(&self) -> Option<HtmlCanvasElement> {
@@ -67,36 +72,30 @@ impl HasRenderingContext for WebRenderingContext {
     ) -> Result<(), String>
     where
         F: Fn(V2) -> V2,
-        R: Resources<<Self::Ctx as RenderingContext>::Image>
+        R: Resources<<Self::Ctx as RenderingContext>::Image>,
     {
-        self.deref_mut().render_ui(world, resources, viewport_to_context)?;
+        self.deref_mut()
+            .render_ui(world, resources, viewport_to_context)?;
 
         let (exiles, inventories, loots, names, positions, players): (
             ReadStorage<Exile>,
             ReadStorage<Inventory>,
-            ReadStorage<Loot>,
+            Read<Vec<Loot>>,
             ReadStorage<Name>,
             ReadStorage<Position>,
             ReadStorage<Player>,
         ) = world.system_data();
 
         // Draw lootings involving a player that are on the screen
-        for (loot, _) in (&loots, !&exiles).join() {
-            let has_position = positions.contains(loot.looter)
-                || (loot.inventory.is_some() && positions.contains(loot.inventory.unwrap()));
-            let has_player = players.contains(loot.looter)
-                || (loot.inventory.is_some() && players.contains(loot.inventory.unwrap()));
-            if !has_position || !has_player {
+        for loot in loots.iter() {
+            let has_position = positions.contains(loot.ent_of_inventory_here);
+            let player:Option<&Player> = players
+                .get(loot.ent_of_inventory_here)
+                .or_else(|| loot.ent_of_inventory_there.map(|ent| players.get(ent)).flatten());
+            if !has_position || player.is_none() {
                 continue;
             }
-            let mut players_vec = vec![players.get(loot.looter).cloned()];
-            loot.inventory.map(|i| {
-                let player = players.get(i).cloned();
-                players_vec.push(player);
-            });
-            let players_vec: Vec<Player> = players_vec.into_iter().filter_map(|t| t).collect();
-            let may_player: Option<&Player> = players_vec.first();
-            if may_player.is_some() {
+            if let Some(player) = player {
                 let loot_rendering = inventory::make_loot_rendering(&loot, &inventories, &names);
                 inventory::draw_loot(self, resources, &V2::new(10.0, 10.0), loot_rendering)?;
             }
