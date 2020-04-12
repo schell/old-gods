@@ -4,6 +4,9 @@ use super::prelude::{
 use wasm_bindgen::prelude::*;
 use web_sys::{CanvasRenderingContext2d, HtmlImageElement};
 
+pub mod standard;
+
+
 /// TODO: Get the CSS colors module from gelatin and port it here.
 pub trait RenderingContext {
     type Image;

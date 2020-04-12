@@ -3,14 +3,15 @@
 //! TODO: Abstract engine details into a trait
 //! TODO: Rename this module WebEngine that implements Engine
 use log::warn;
-use old_gods::prelude::{
-    AnimationSystem, BackgroundColor, Color, Dispatcher, DispatcherBuilder, FPSCounter,
-    GamepadSystem, Physics, PlayerSystem, RenderingContext, Resources, Screen, ScreenSystem,
-    SystemData, TweenSystem, World, WorldExt, AABB, V2,
+use old_gods::{
+    prelude::{
+        AnimationSystem, BackgroundColor, Color, Dispatcher, DispatcherBuilder, FPSCounter,
+        GamepadSystem, Physics, PlayerSystem, RenderingContext, Resources, Screen, ScreenSystem,
+        SystemData, TweenSystem, World, WorldExt, AABB, V2,
+    },
+    rendering::standard::*,
 };
 
-pub mod render;
-use render::DebugRenderingData;
 
 pub mod systems;
 
@@ -126,14 +127,14 @@ where
 
     pub fn render(&mut self) -> Result<(), String> {
         let mut may_ctx = self.rendering_context.take();
-        if let Some(mut ctx) = may_ctx.as_mut() {
+        if let Some(ctx) = may_ctx.as_mut() {
             let (w, h) = self.map_rendering_context.context_size()?;
             let map_size = V2::new(w as f32, h as f32);
-            self.map_rendering_context.clear();
+            self.map_rendering_context.clear()?;
 
-            let map_ents = render::get_map_entities(&mut self.world)?;
+            let map_ents = get_map_entities(&mut self.world)?;
 
-            render::render_map(
+            render_map(
                 &mut self.world,
                 &mut self.resources,
                 &mut self.map_rendering_context,
@@ -141,7 +142,7 @@ where
             )?;
 
             if self.debug_mode {
-                render::render_map_debug(
+                render_map_debug(
                     &mut self.world,
                     &mut self.map_rendering_context,
                     &map_ents,
@@ -165,14 +166,14 @@ where
                 |point: V2| -> V2 { AABB::point_inside_aspect(point, map_size, win_size) };
 
             // Draw the UI
-            render::render_ui(
+            render_ui(
                 &mut self.world,
                 &mut self.resources,
                 ctx,
                 viewport_to_context,
             )?;
             if self.debug_mode {
-                render::render_ui_debug(&mut self.world, ctx, viewport_to_context)?;
+                render_ui_debug(&mut self.world, ctx, viewport_to_context)?;
             }
         } else {
             warn!("no rendering context");

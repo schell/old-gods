@@ -1,13 +1,8 @@
-use old_gods::prelude::*;
-use std::{
-    cmp::Ordering,
-    collections::HashSet,
-};
+//! Standard rendering functions.
+use super::super::prelude::*;
+use std::{cmp::Ordering, collections::HashSet};
 
-mod action;
-mod inventory;
-
-use super::systems::inventory::{Inventory, Loot};
+pub mod action;
 
 
 fn fancy_font() -> FontDetails {
@@ -644,8 +639,8 @@ type UIRenderingData<'s> = (
     Read<'s, Screen>,
     ReadStorage<'s, Action>,
     ReadStorage<'s, Exile>,
-    ReadStorage<'s, Inventory>,
-    ReadStorage<'s, Loot>,
+    //ReadStorage<'s, Inventory>,
+    //ReadStorage<'s, Loot>,
     ReadStorage<'s, Name>,
     ReadStorage<'s, OriginOffset>,
     ReadStorage<'s, Player>,
@@ -654,7 +649,7 @@ type UIRenderingData<'s> = (
 );
 
 
-pub fn render_ui<Ctx:RenderingContext, Rsrc:Resources<Ctx::Image>>(
+pub fn render_ui<Ctx: RenderingContext, Rsrc: Resources<Ctx::Image>>(
     world: &mut World,
     resources: &mut Rsrc,
     context: &mut Ctx,
@@ -666,8 +661,8 @@ pub fn render_ui<Ctx:RenderingContext, Rsrc:Resources<Ctx::Image>>(
         screen,
         actions,
         exiles,
-        inventories,
-        loots,
+        //inventories,
+        //loots,
         names,
         origin_offsets,
         players,
@@ -693,33 +688,33 @@ pub fn render_ui<Ctx:RenderingContext, Rsrc:Resources<Ctx::Image>>(
         }
     }
 
-    // Draw lootings involving a player that are on the screen
-    for (loot, _) in (&loots, !&exiles).join() {
-        let has_position = positions.contains(loot.looter)
-            || (loot.inventory.is_some() && positions.contains(loot.inventory.unwrap()));
-        let has_player = players.contains(loot.looter)
-            || (loot.inventory.is_some() && players.contains(loot.inventory.unwrap()));
-        if !has_position || !has_player {
-            continue;
-        }
-        let mut players_vec = vec![players.get(loot.looter).cloned()];
-        loot.inventory.map(|i| {
-            let player = players.get(i).cloned();
-            players_vec.push(player);
-        });
-        let players_vec: Vec<Player> = players_vec.into_iter().filter_map(|t| t).collect();
-        let may_player: Option<&Player> = players_vec.first();
-        if may_player.is_some() {
-            let loot_rendering = inventory::make_loot_rendering(&loot, &inventories, &names);
-            inventory::draw_loot(context, resources, &V2::new(10.0, 10.0), loot_rendering)?;
-        }
-    }
+    //// Draw lootings involving a player that are on the screen
+    //for (loot, _) in (&loots, !&exiles).join() {
+    //    let has_position = positions.contains(loot.looter)
+    //        || (loot.inventory.is_some() && positions.contains(loot.inventory.unwrap()));
+    //    let has_player = players.contains(loot.looter)
+    //        || (loot.inventory.is_some() && players.contains(loot.inventory.unwrap()));
+    //    if !has_position || !has_player {
+    //        continue;
+    //    }
+    //    let mut players_vec = vec![players.get(loot.looter).cloned()];
+    //    loot.inventory.map(|i| {
+    //        let player = players.get(i).cloned();
+    //        players_vec.push(player);
+    //    });
+    //    let players_vec: Vec<Player> = players_vec.into_iter().filter_map(|t| t).collect();
+    //    let may_player: Option<&Player> = players_vec.first();
+    //    if may_player.is_some() {
+    //        let loot_rendering = inventory::make_loot_rendering(&loot, &inventories, &names);
+    //        inventory::draw_loot(context, resources, &V2::new(10.0, 10.0), loot_rendering)?;
+    //    }
+    //}
 
     Ok(())
 }
 
 /// Renders debug user interface.
-pub fn render_ui_debug<Ctx:RenderingContext>(
+pub fn render_ui_debug<Ctx: RenderingContext>(
     world: &mut World,
     context: &mut Ctx,
     // The function needed to convert a point in the map viewport to the context.
@@ -748,7 +743,7 @@ pub fn render_ui_debug<Ctx:RenderingContext>(
                 points.push(V2::new(x, y - (percent * height)));
                 x += 1.0
             }
-            context.set_stroke_color(&old_gods::color::css::gold());
+            context.set_stroke_color(&super::super::color::css::gold());
             context.stroke_lines(&points);
         }
 
