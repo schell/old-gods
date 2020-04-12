@@ -1,4 +1,3 @@
-use log::trace;
 use old_gods::prelude::*;
 use std::{
     cmp::Ordering,
@@ -51,7 +50,6 @@ pub fn normal_text(msg: &str) -> Text {
 
 #[derive(SystemData)]
 struct MapRenderingData<'s> {
-    background_color: Read<'s, BackgroundColor>,
     screen: Read<'s, Screen>,
     entities: Entities<'s>,
     positions: ReadStorage<'s, Position>,
@@ -140,11 +138,11 @@ pub fn render_map<Ctx: RenderingContext, Rsrc: Resources<Ctx::Image>>(
         extents: V2::new(size.0 as f32, size.1 as f32),
     });
     // Draw the map renderings
-    map_entities.iter().for_each(|map_ent| {
+    for map_ent in map_entities.iter() {
         if let Some(rendering) = &map_ent.rendering {
-            context.draw_rendering(resources, &map_ent.position, &rendering);
+            context.draw_rendering(resources, &map_ent.position, &rendering)?;
         }
-    });
+    }
 
     Ok(())
 }
@@ -164,7 +162,6 @@ pub struct DebugRenderingData<'s> {
     positions: ReadStorage<'s, Position>,
     object_debug_toggles: ReadStorage<'s, ObjectRenderingToggles>,
     offsets: ReadStorage<'s, OriginOffset>,
-    actions: ReadStorage<'s, Action>,
     names: ReadStorage<'s, Name>,
     zones: ReadStorage<'s, Zone>,
     fences: ReadStorage<'s, Fence>,
@@ -690,7 +687,7 @@ pub fn render_ui<Ctx:RenderingContext, Rsrc:Resources<Ctx::Image>>(
                         .unwrap_or(V2::origin());
                     let point = position.0 + offset + extra_y_offset;
                     let point = viewport_to_context(screen.from_map(&point));
-                    action::draw(context, &point, action);
+                    action::draw(context, &point, action)?;
                 }
             }
         }
@@ -714,7 +711,7 @@ pub fn render_ui<Ctx:RenderingContext, Rsrc:Resources<Ctx::Image>>(
         let may_player: Option<&Player> = players_vec.first();
         if may_player.is_some() {
             let loot_rendering = inventory::make_loot_rendering(&loot, &inventories, &names);
-            inventory::draw_loot(context, resources, &V2::new(10.0, 10.0), loot_rendering);
+            inventory::draw_loot(context, resources, &V2::new(10.0, 10.0), loot_rendering)?;
         }
     }
 
@@ -726,13 +723,13 @@ pub fn render_ui_debug<Ctx:RenderingContext>(
     world: &mut World,
     context: &mut Ctx,
     // The function needed to convert a point in the map viewport to the context.
-    viewport_to_context: impl Fn(V2) -> V2,
+    _viewport_to_context: impl Fn(V2) -> V2,
 ) -> Result<(), String> {
     let data: DebugRenderingData = world.system_data();
     let next_rect = if data.global_debug_toggles.contains(&RenderingToggles::FPS) {
         let fps_text = debug_text(&data.fps.current_fps_string());
         let pos = V2::new(0.0, 10.0);
-        context.draw_text(&fps_text, &pos);
+        context.draw_text(&fps_text, &pos)?;
         let size = context.measure_text(&fps_text)?;
 
         // Draw a graph of the FPS
@@ -772,7 +769,7 @@ pub fn render_ui_debug<Ctx:RenderingContext>(
         let count: u32 = (&data.entities).join().fold(0, |n, _| n + 1);
         let text = debug_text(format!("Entities: {}", count).as_str());
         let pos = V2::new(0.0, next_rect.bottom() as f32 + 10.0);
-        context.draw_text(&text, &pos);
+        context.draw_text(&text, &pos)?;
     }
 
     if toggles.contains(&RenderingToggles::AABBTree) {
@@ -782,7 +779,7 @@ pub fn render_ui_debug<Ctx:RenderingContext>(
             .collect::<Vec<_>>()
             .first()
             .cloned();
-        draw_aabb_tree(context, &data, &player);
+        draw_aabb_tree(context, &data, &player)?;
     }
 
     if toggles.contains(&RenderingToggles::Screen) {

@@ -139,7 +139,6 @@ pub trait RenderingContext {
 
 
 impl RenderingContext for CanvasRenderingContext2d {
-    // TODO: Find the right Image and Type for canvas RenderingContext instance
     type Image = HtmlImageElement;
     type Font = FontDetails;
 
