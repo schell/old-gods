@@ -1,10 +1,6 @@
 use old_gods::prelude::*;
-use web_sys::CanvasRenderingContext2d;
 
-use super::{
-    super::systems::inventory::{Inventory, Loot},
-    HtmlResources, Resources,
-};
+use super::super::systems::inventory::{Inventory, Loot};
 
 
 /// A renderable inventory item.
@@ -50,9 +46,9 @@ impl LootRendering {
 
 
 /// Draw a player inventory
-pub fn draw_loot(
-    context: &mut CanvasRenderingContext2d,
-    resources: &mut HtmlResources,
+pub fn draw_loot<Ctx:RenderingContext, Rsrc:Resources<Ctx::Image>>(
+    context: &mut Ctx,
+    resources: &mut Rsrc,
     point: &V2,
     loot: LootRendering,
 ) -> Result<(), String> {
@@ -74,30 +70,20 @@ pub fn draw_loot(
             }
         }
 
-        let longest_name_size = super::measure_text(&super::fancy_text(longest_name), context)?;
+        let longest_name_size = context.measure_text(&super::fancy_text(longest_name))?;
         let width = 48.0 + longest_name_size.0 as f32 + 8.0;
 
         // Draw the background
-        super::set_fill_color(&Color::rgba(0, 0, 0, 128), context);
+        context.set_fill_color(&Color::rgba(0, 0, 0, 128));
         let bg_height = if inv.items.len() > 0 {
             inv.items.len() * item_height
         } else {
             item_height
         } + name_height;
         let bg_rect = AABB::new(origin.x, origin.y, width, bg_height as f32);
-        context.fill_rect(
-            bg_rect.x() as f64,
-            bg_rect.y() as f64,
-            bg_rect.width() as f64,
-            bg_rect.height() as f64,
-        );
-        super::set_stroke_color(&Color::rgba(255, 255, 225, 255), &context);
-        context.stroke_rect(
-            bg_rect.x() as f64,
-            bg_rect.y() as f64,
-            bg_rect.width() as f64,
-            bg_rect.height() as f64,
-        );
+        context.fill_rect(&bg_rect);
+        context.set_stroke_color(&Color::rgba(255, 255, 225, 255));
+        context.stroke_rect(&bg_rect);
 
         // Draw each item
         for (item, n) in inv.items.iter().zip(0..inv.items.len()) {
@@ -116,8 +102,7 @@ pub fn draw_loot(
                         item.frame.size.0 as f32,
                         item.frame.size.1 as f32,
                     );
-                    super::draw_sprite(
-                        context,
+                    context.draw_sprite(
                         src,
                         dest,
                         item.frame.is_flipped_horizontally,
@@ -128,8 +113,8 @@ pub fn draw_loot(
                     let text_pos = pos + V2::new(48.0, 10.0);
                     let name = item.name.clone();
                     let text = super::fancy_text(name.as_str());
-                    super::draw_text(&text, &text_pos, context)?;
-                    let item_aabb_size = super::measure_text(&text, context)?;
+                    context.draw_text(&text, &text_pos)?;
+                    let item_aabb_size = context.measure_text(&text)?;
                     let item_aabb = AABB {
                         top_left: text_pos,
                         extents: V2::new(item_aabb_size.0, item_aabb_size.1),
@@ -138,7 +123,7 @@ pub fn draw_loot(
                         let pos = V2::new(item_aabb.left() as f32, item_aabb.bottom() as f32 + 2.0);
                         let mut text = super::normal_text(&format!("x{}", item.count));
                         text.font.size = 12;
-                        super::draw_text(&text, &pos, context)?;
+                        context.draw_text(&text, &pos)?;
                     }
                     Ok(())
                 })?
@@ -147,20 +132,23 @@ pub fn draw_loot(
 
         // Draw the inventory name
         let inv_name_text = super::fancy_text(inv.name.as_str());
-        super::draw_text(&inv_name_text, &(origin + V2::new(2.0, 2.0)), context)?;
+        context.draw_text(&inv_name_text, &(origin + V2::new(2.0, 2.0)))?;
 
         // Draw the cursor
         let looking_at_this_inv = loot.cursor_in_a == is_a;
         if looking_at_this_inv && inv.items.len() > 0 && loot.index.is_some() {
             let ndx = loot.index.expect("Impossible");
-            super::set_stroke_color(&Color::rgb(0, 255, 0), context);
-            let cursor_y = name_height as f64 + origin.y as f64 + ndx as f64 * 50.0;
-            context.stroke_rect(origin.x as f64 + 1.0, cursor_y, width as f64 - 1.0, 50.0);
+            context.set_stroke_color(&Color::rgb(0, 255, 0));
+            let cursor_y = name_height as f32 + origin.y + ndx as f32 * 50.0;
+            context.stroke_rect(&AABB {
+                top_left: V2::new(origin.x + 1.0, cursor_y),
+                extents: V2::new(width - 1.0, 50.0)
+            });
         } else if inv.items.len() == 0 {
             // Draw the empty inventory
             let mut text = super::fancy_text("(empty)");
             text.color = Color::rgb(128, 128, 128);
-            super::draw_text(&text, &(origin + V2::new(45.0, 32.0)), context)?;
+            context.draw_text(&text, &(origin + V2::new(45.0, 32.0)))?;
         }
 
         origin += V2::new(width, 0.0);
@@ -178,7 +166,7 @@ pub fn draw_loot(
         let items_len = usize::max(1, items_len);
         let msg_y = item_height as f32 * items_len as f32 + name_height as f32;
         let msg_point = *point + V2::new(4.0, msg_y);
-        super::action::draw_button(context, resources, ActionButton::Y, &msg_point, &msg)?
+        super::action::draw_button(context, ActionButton::Y, &msg_point, &msg)?
     };
 
     // Draw the "use" item inventory msg
@@ -187,7 +175,7 @@ pub fn draw_loot(
     if current_item_is_usable {
         let msg = Some("use".to_string());
         let pos = V2::new(a_btn_rect.right() as f32, a_btn_rect.top() as f32);
-        super::action::draw_button(context, resources, ActionButton::X, &pos, &msg)?;
+        super::action::draw_button(context, ActionButton::X, &pos, &msg)?;
     }
 
     Ok(())

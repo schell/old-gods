@@ -1,8 +1,15 @@
 //! Traits ad types for loading shared resources.
-use log::warn;
+use log::{trace, warn};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
+use wasm_bindgen::{prelude::*, JsCast};
+use web_sys::{window, EventTarget, HtmlImageElement};
 
 
 #[derive(Clone)]
+/// The loading status of a resource.
 pub enum LoadStatus {
     None,
     Started,
@@ -47,5 +54,104 @@ pub trait Resources<R> {
         let t = f(&rsrc);
         self.put(&key, rsrc);
         Ok(Some(t))
+    }
+}
+
+
+pub struct Callbacks(Arc<Closure<dyn Fn(JsValue)>>, Arc<Closure<dyn Fn(JsValue)>>);
+
+
+pub struct HtmlResources {
+    sprite_sheets: HashMap<String, Arc<Mutex<(LoadStatus, Option<HtmlImageElement>)>>>,
+    callbacks: HashMap<String, Callbacks>,
+}
+
+
+impl Default for HtmlResources {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+
+impl HtmlResources {
+    pub fn new() -> Self {
+        HtmlResources {
+            sprite_sheets: HashMap::new(),
+            callbacks: HashMap::new(),
+        }
+    }
+}
+
+
+impl Resources<HtmlImageElement> for HtmlResources {
+    fn status_of(&self, s: &str) -> LoadStatus {
+        self.sprite_sheets
+            .get(s)
+            .map(|payload| {
+                let status_and_may_img = payload.try_lock().unwrap();
+                status_and_may_img.0.clone()
+            })
+            .unwrap_or(LoadStatus::None)
+    }
+
+    fn load(&mut self, path: &str) {
+        trace!("loading sprite sheet: {}", path);
+        let img = window()
+            .expect("no window")
+            .document()
+            .expect("no document")
+            .create_element("img")
+            .expect("can't create img")
+            .dyn_into::<HtmlImageElement>()
+            .expect("can't coerce img");
+        img.set_src(path);
+        let status = Arc::new(Mutex::new((LoadStatus::Started, Some(img.clone()))));
+        let target: &EventTarget = img.dyn_ref().expect("can't coerce img as EventTarget");
+        let load_status = status.clone();
+        let load_path = path.to_string();
+        let load = Closure::wrap(Box::new(move |_: JsValue| {
+            let mut status_and_img = load_status
+                .try_lock()
+                .expect("Could not acquire lock - load_sprite_sheet::load");
+            trace!("  loading {} complete", &load_path);
+            status_and_img.0 = LoadStatus::Complete;
+        }) as Box<dyn Fn(JsValue)>);
+        let err_status = status.clone();
+        let err_path = path.to_string();
+        let err = Closure::wrap(Box::new(move |event: JsValue| {
+            let mut status_and_img = err_status
+                .try_lock()
+                .expect("Could not acquire lock - load_sprite_sheet::err");
+            trace!("error event: {:#?}", event);
+            let event = event
+                .dyn_into::<web_sys::Event>()
+                .expect("Error is not an Event");
+            let msg = format!("failed loading {}: {}", &err_path, event.type_());
+            trace!("  loading {} erred: {}", &err_path, &msg);
+            status_and_img.0 = LoadStatus::Error(msg);
+            status_and_img.1 = None;
+        }) as Box<dyn Fn(JsValue)>);
+        target
+            .add_event_listener_with_callback("load", load.as_ref().unchecked_ref())
+            .unwrap();
+        target
+            .add_event_listener_with_callback("error", err.as_ref().unchecked_ref())
+            .unwrap();
+        self.callbacks
+            .insert(path.to_string(), Callbacks(Arc::new(load), Arc::new(err)));
+        self.sprite_sheets.insert(path.to_string(), status);
+    }
+
+    fn take(&mut self, s: &str) -> Option<HtmlImageElement> {
+        let _ = self.callbacks.remove(s);
+        let status_and_img = self.sprite_sheets.remove(s)?;
+        let status_and_img = status_and_img.try_lock().ok()?;
+        status_and_img.1.clone()
+    }
+
+    fn put(&mut self, path: &str, tex: HtmlImageElement) {
+        let status_and_img = Arc::new(Mutex::new((LoadStatus::Complete, Some(tex))));
+        self.sprite_sheets.insert(path.to_string(), status_and_img);
     }
 }

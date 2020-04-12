@@ -54,14 +54,17 @@ impl OutMsg {
 }
 
 
+pub type WebEngine = ECS<'static, 'static, CanvasRenderingContext2d, HtmlResources>;
+
+
 struct App {
-    ecs: Arc<Mutex<ECS<'static, 'static>>>,
+    ecs: Arc<Mutex<WebEngine>>,
     current_map_path: Option<String>,
 }
 
 
 impl App {
-    fn new(ecs: Arc<Mutex<ECS<'static, 'static>>>) -> App {
+    fn new(ecs: Arc<Mutex<WebEngine>>) -> App {
         App {
             ecs,
             current_map_path: None,
@@ -195,7 +198,21 @@ pub fn main() -> Result<(), JsValue> {
     console_log::init_with_level(Level::Trace).unwrap();
 
     let app_ecs = {
-        let mut ecs = ECS::new("http://localhost:8888");
+        let map_rendering_context = window()
+            .document()
+            .expect("no document")
+            .create_element("canvas")
+            .expect("can't create canvas")
+            .dyn_into::<HtmlCanvasElement>()
+            .expect("can't coerce canvas")
+            .get_context("2d")
+            .expect("can't call get_context('2d')")
+            .expect("can't get canvas rendering context")
+            .dyn_into::<CanvasRenderingContext2d>()
+            .expect("can't coerce canvas rendering context");
+        map_rendering_context.set_image_smoothing_enabled(false);
+
+        let mut ecs = ECS::new("http://localhost:8888", map_rendering_context);
         if cfg!(debug_assertions) {
             ecs.set_debug_mode(true);
         }

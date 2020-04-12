@@ -8,6 +8,7 @@ pub use super::{
     geom::{AABB, *},
     parser::*,
 };
+pub use super::rendering::*;
 pub use super::resources::*;
 //pub use super::systems::action::*;
 pub use super::systems::animation::{Frame, *};

@@ -5,31 +5,38 @@
 use log::warn;
 use old_gods::prelude::{
     AnimationSystem, BackgroundColor, Color, Dispatcher, DispatcherBuilder, FPSCounter,
-    GamepadSystem, Physics, PlayerSystem, Screen, ScreenSystem, SystemData, TweenSystem, World,
-    WorldExt, AABB, V2,
+    GamepadSystem, Physics, PlayerSystem, RenderingContext, Resources, Screen, ScreenSystem,
+    SystemData, TweenSystem, World, WorldExt, AABB, V2,
 };
-use wasm_bindgen::JsCast;
-use web_sys::{window, CanvasRenderingContext2d, HtmlCanvasElement};
 
 pub mod render;
-use render::{DebugRenderingData, HtmlResources};
+use render::DebugRenderingData;
 
 pub mod systems;
 
 
-pub struct ECS<'a, 'b> {
-    dispatcher: Dispatcher<'a, 'b>,
+pub struct ECS<'a, 'b, Ctx, Rsrc> {
     pub base_url: String,
-    debug_mode: bool,
     pub world: World,
-    pub pre_rendering_context: CanvasRenderingContext2d,
-    pub rendering_context: Option<CanvasRenderingContext2d>,
-    pub resources: HtmlResources,
+    pub map_rendering_context: Ctx,
+    pub rendering_context: Option<Ctx>,
+    pub resources: Rsrc,
+
+    dispatcher: Dispatcher<'a, 'b>,
+    debug_mode: bool,
 }
 
 
-impl<'a, 'b> ECS<'a, 'b> {
-    pub fn new_with(base_url: &str, dispatcher_builder: DispatcherBuilder<'a, 'b>) -> Self {
+impl<'a, 'b, Ctx, Rsrc> ECS<'a, 'b, Ctx, Rsrc>
+where
+    Ctx: RenderingContext,
+    Rsrc: Resources<Ctx::Image> + Default,
+{
+    pub fn new_with(
+        base_url: &str,
+        map_rendering_context: Ctx,
+        dispatcher_builder: DispatcherBuilder<'a, 'b>,
+    ) -> Self {
         let mut world = World::new();
         world.insert(BackgroundColor(Color::rgb(0, 0, 0)));
 
@@ -55,31 +62,14 @@ impl<'a, 'b> ECS<'a, 'b> {
         // Maintain once so all our resources are created.
         world.maintain();
 
-        let pre_rendering_context = window()
-            .expect("no window")
-            .document()
-            .expect("no document")
-            .create_element("canvas")
-            .expect("can't create canvas")
-            .dyn_into::<HtmlCanvasElement>()
-            .expect("can't coerce canvas")
-            .get_context("2d")
-            .expect("can't call get_context('2d')")
-            .expect("can't get canvas rendering context")
-            .dyn_into::<CanvasRenderingContext2d>()
-            .expect("can't coerce canvas rendering context");
-
-
-        pre_rendering_context.set_image_smoothing_enabled(false);
-
         ECS {
             dispatcher,
             world,
             base_url: base_url.into(),
             debug_mode: false,
             rendering_context: None,
-            pre_rendering_context,
-            resources: HtmlResources::new(),
+            map_rendering_context,
+            resources: Rsrc::default(),
         }
     }
 
@@ -97,12 +87,11 @@ impl<'a, 'b> ECS<'a, 'b> {
     /// fit inside the outer canvas while maintaining the aspect ratio set by this
     /// function.
     pub fn set_resolution(&mut self, w: u32, h: u32) {
-        if let Some(canvas) = &mut self.pre_rendering_context.canvas() {
-            let mut screen = self.world.write_resource::<Screen>();
-            screen.set_size((w, h));
-            canvas.set_width(w);
-            canvas.set_height(h);
-        }
+        let mut screen = self.world.write_resource::<Screen>();
+        screen.set_size((w, h));
+        self.map_rendering_context
+            .set_context_size((w, h))
+            .expect("could not set map rendering size");
     }
 
     /// Get the current resolution.
@@ -116,8 +105,8 @@ impl<'a, 'b> ECS<'a, 'b> {
         self.debug_mode
     }
 
-    pub fn new(base_url: &str) -> Self {
-        Self::new_with(base_url, DispatcherBuilder::new())
+    pub fn new(base_url: &str, map_rendering_context: Ctx) -> Self {
+        Self::new_with(base_url, map_rendering_context, DispatcherBuilder::new())
     }
 
     pub fn maintain(&mut self) {
@@ -138,49 +127,39 @@ impl<'a, 'b> ECS<'a, 'b> {
     pub fn render(&mut self) -> Result<(), String> {
         let mut may_ctx = self.rendering_context.take();
         if let Some(mut ctx) = may_ctx.as_mut() {
-            let canvas = self
-                .pre_rendering_context
-                .canvas()
-                .ok_or("pre_rendering_context has no canvas".to_string())?;
-            let map_size = V2::new(canvas.width() as f32, canvas.height() as f32);
-            self.pre_rendering_context
-                .clear_rect(0.0, 0.0, map_size.x as f64, map_size.y as f64);
+            let (w, h) = self.map_rendering_context.context_size()?;
+            let map_size = V2::new(w as f32, h as f32);
+            self.map_rendering_context.clear();
 
             let map_ents = render::get_map_entities(&mut self.world)?;
 
             render::render_map(
                 &mut self.world,
                 &mut self.resources,
-                &mut self.pre_rendering_context,
+                &mut self.map_rendering_context,
                 &map_ents,
             )?;
 
             if self.debug_mode {
                 render::render_map_debug(
                     &mut self.world,
-                    &mut self.resources,
-                    &mut self.pre_rendering_context,
+                    &mut self.map_rendering_context,
                     &map_ents,
                 )?;
             }
 
-            // Aspect fit our pre_rendering_context inside the final rendering_context
-            let window = ctx
-                .canvas()
-                .ok_or("main rendering context has no canvas".to_string())?;
-            let win_size = V2::new(window.width() as f32, window.height() as f32);
-            let dest = AABB::aabb_to_aspect_fit_inside(map_size, win_size).round();
+            // Aspect fit our map_rendering_context inside the final rendering_context
+            let win_size = ctx
+                .context_size()
+                .map(|(w, h)| V2::new(w as f32, h as f32))?;
+            let dest = AABB::aabb_to_aspect_fit_inside(map_size, win_size);
 
-            ctx.set_fill_style(&"black".into());
-            ctx.fill_rect(0.0, 0.0, win_size.x as f64, win_size.y as f64);
-            ctx.draw_image_with_html_canvas_element_and_dw_and_dh(
-                &canvas,
-                dest.top_left.x as f64,
-                dest.top_left.y as f64,
-                dest.width() as f64,
-                dest.height() as f64,
-            )
-            .map_err(|_| "can't draw map to window".to_string())?;
+            ctx.set_fill_color(&Color::rgb(0, 0, 0));
+            ctx.fill_rect(&AABB {
+                top_left: V2::origin(),
+                extents: win_size,
+            });
+            ctx.draw_context(&self.map_rendering_context, &dest)?;
 
             let viewport_to_context =
                 |point: V2| -> V2 { AABB::point_inside_aspect(point, map_size, win_size) };
@@ -189,16 +168,11 @@ impl<'a, 'b> ECS<'a, 'b> {
             render::render_ui(
                 &mut self.world,
                 &mut self.resources,
-                &mut ctx,
+                ctx,
                 viewport_to_context,
             )?;
             if self.debug_mode {
-                render::render_ui_debug(
-                    &mut self.world,
-                    &mut self.resources,
-                    &mut ctx,
-                    viewport_to_context,
-                )?;
+                render::render_ui_debug(&mut self.world, ctx, viewport_to_context)?;
             }
         } else {
             warn!("no rendering context");

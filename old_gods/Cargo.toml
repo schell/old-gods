@@ -26,17 +26,22 @@ wasm-bindgen = "0.2"
 [dependencies.web-sys]
 version = "0.3"
 features = [
-  "console",
-  "ErrorEvent",
-  "Gamepad",
-  "GamepadButton",
-  "KeyboardEvent",
-  "Location",
-  "Performance",
   "Blob",
+  "CanvasRenderingContext2d",
+  "console",
+  "Document",
+  "ErrorEvent",
   "FileList",
   "FileReader",
+  "Gamepad",
+  "GamepadButton",
+  "HtmlCanvasElement",
+  "HtmlImageElement",
+  "KeyboardEvent",
+  "Location",
   "Navigator",
+  "Performance",
+  "TextMetrics",
   "Window"
 ]
 #[dependencies.sdl2]
