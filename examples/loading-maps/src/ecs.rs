@@ -3,15 +3,13 @@
 //! TODO: Abstract engine details into a trait
 //! TODO: Rename this module WebEngine that implements Engine
 use log::warn;
-use old_gods::{
-    prelude::{
-        AnimationSystem, BackgroundColor, Color, Dispatcher, DispatcherBuilder, FPSCounter,
-        GamepadSystem, Physics, PlayerSystem, RenderingContext, Resources, Screen, ScreenSystem,
-        SystemData, TweenSystem, World, WorldExt, AABB, V2,
-    },
-    rendering::standard::*,
+use old_gods::prelude::{
+    entity_local_origin, Action, AnimationSystem, BackgroundColor, Color, DebugRenderingData,
+    Dispatcher, DispatcherBuilder, FPSCounter, GamepadSystem, Join, MapEntity, MapRenderingData,
+    Physics, PlayerSystem, RenderingContext, Resources, Screen, ScreenSystem, SystemData,
+    TweenSystem, World, WorldExt, ZLevel, AABB, V2, ReadStorage
 };
-
+use std::cmp::Ordering;
 
 pub mod systems;
 
@@ -59,6 +57,8 @@ where
             .build();
 
         dispatcher.setup(&mut world);
+        // Just until the action system is back
+        <ReadStorage<Action> as SystemData>::setup(&mut world);
 
         // Maintain once so all our resources are created.
         world.maintain();
@@ -125,6 +125,56 @@ where
         fps_counter.restart();
     }
 
+    /// Find all the entities intersecting the visible map.
+    fn get_map_entities(&self) -> Result<Vec<MapEntity>, String> {
+        let data: MapRenderingData = self.world.system_data();
+        let screen_aabb = data.screen.aabb();
+
+        // Get all the on screen things to render.
+        // Order the things by bottom to top, back to front.
+        let mut ents: Vec<_> = (&data.entities, &data.positions, !&data.exiles)
+            .join()
+            .filter_map(|(ent, p, ())| {
+                // Make sure we can see this thing (that its destination aabb intersects
+                // the screen)
+                let rendering = data.renderings.get(ent);
+                let (w, h) = rendering.map(|r| r.size()).unwrap_or((0, 0));
+                let aabb = AABB {
+                    top_left: p.0,
+                    extents: V2::new(w as f32, h as f32),
+                };
+                if !(screen_aabb.collides_with(&aabb) || aabb.collides_with(&screen_aabb)) {
+                    return None;
+                }
+
+                let offset: V2 = entity_local_origin(ent, &data.shapes, &data.offsets);
+                let pos = data.screen.from_map(&p.0);
+                Some(MapEntity {
+                    entity: ent,
+                    position: pos,
+                    offset,
+                    rendering: rendering.cloned(),
+                    z_level: data.z_levels.get(ent).cloned().unwrap_or(ZLevel(0.0)),
+                })
+            })
+            .collect();
+        ents.sort_by(|a, b| {
+            if a.z_level.0 < b.z_level.0 {
+                Ordering::Less
+            } else if a.z_level.0 > b.z_level.0 {
+                Ordering::Greater
+            } else if a.position.y + a.offset.y < b.position.y + b.offset.y {
+                Ordering::Less
+            } else if a.position.y + a.offset.y > b.position.y + b.offset.y {
+                Ordering::Greater
+            } else {
+                Ordering::Equal
+            }
+        });
+
+        Ok(ents)
+    }
+
     pub fn render(&mut self) -> Result<(), String> {
         let mut may_ctx = self.rendering_context.take();
         if let Some(ctx) = may_ctx.as_mut() {
@@ -132,21 +182,17 @@ where
             let map_size = V2::new(w as f32, h as f32);
             self.map_rendering_context.clear()?;
 
-            let map_ents = get_map_entities(&mut self.world)?;
+            let map_ents = self.get_map_entities()?;
 
-            render_map(
+            self.map_rendering_context.render_map(
                 &mut self.world,
                 &mut self.resources,
-                &mut self.map_rendering_context,
                 &map_ents,
             )?;
 
             if self.debug_mode {
-                render_map_debug(
-                    &mut self.world,
-                    &mut self.map_rendering_context,
-                    &map_ents,
-                )?;
+                self.map_rendering_context
+                    .render_map_debug(&mut self.world, &map_ents)?;
             }
 
             // Aspect fit our map_rendering_context inside the final rendering_context
@@ -166,14 +212,9 @@ where
                 |point: V2| -> V2 { AABB::point_inside_aspect(point, map_size, win_size) };
 
             // Draw the UI
-            render_ui(
-                &mut self.world,
-                &mut self.resources,
-                ctx,
-                viewport_to_context,
-            )?;
+            ctx.render_ui(&mut self.world, &mut self.resources, viewport_to_context)?;
             if self.debug_mode {
-                render_ui_debug(&mut self.world, ctx, viewport_to_context)?;
+                ctx.render_ui_debug(&mut self.world, viewport_to_context)?;
             }
         } else {
             warn!("no rendering context");

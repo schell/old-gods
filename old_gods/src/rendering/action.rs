@@ -1,4 +1,4 @@
-use super::super::super::prelude::*;
+use super::super::prelude::*;
 
 fn button_color(btn: &ActionButton) -> Color {
     match btn {
@@ -21,13 +21,13 @@ fn button_text(btn: &ActionButton) -> String {
 }
 
 /// Draw an action button at a point with an optional message to the right.
-pub fn draw_button<R:RenderingContext>(
-    context: &mut R,
+pub fn draw_button<Ctx: RenderingContext> (
+    context: &mut Ctx,
     btn: ActionButton,
     point: &V2,
     msg: &Option<String>,
 ) -> Result<AABB, String> {
-    let mut btn_text = super::fancy_text(&button_text(&btn).as_str());
+    let mut btn_text = Ctx::fancy_text(&button_text(&btn).as_str());
     btn_text.color = button_color(&btn);
     context.draw_text(&btn_text, point);
 
@@ -38,7 +38,7 @@ pub fn draw_button<R:RenderingContext>(
     };
     let text_rect = if let Some(text) = msg {
         let point = V2::new(point.x + dest_size.0, point.y);
-        let text = super::normal_text(&text.as_str());
+        let text = Ctx::normal_text(&text.as_str());
         context.draw_text(&text, &point)?;
         let text_size = context.measure_text(&text)?;
         AABB {
@@ -53,13 +53,13 @@ pub fn draw_button<R:RenderingContext>(
 
 
 /// Draw an Action.
-pub fn draw<R:RenderingContext>(
-    context: &mut R,
+pub fn draw<Ctx: RenderingContext>(
+    context: &mut Ctx,
     point: &V2,
     action: &Action,
 ) -> Result<(), String> {
     let msg: Option<String> = action.text.non_empty().map(|s| s.clone());
-    draw_button(
+    draw_button::<Ctx>(
         context,
         ActionButton::A,
         &(*point - V2::new(7.0, 7.0)),

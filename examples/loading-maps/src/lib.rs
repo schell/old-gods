@@ -88,7 +88,7 @@ impl mogwai::prelude::Component for App {
                     .dyn_into::<CanvasRenderingContext2d>()
                     .expect("can't coerce rendering context");
                 context.set_image_smoothing_enabled(false);
-                let mut ecs = self.ecs.try_lock().expect("no lock on ecs");
+                let mut ecs = self.ecs.try_lock().expect("no lock on ecs at App post build");
                 ecs.rendering_context = Some(context);
                 ecs.set_resolution(canvas.width(), canvas.height());
 
