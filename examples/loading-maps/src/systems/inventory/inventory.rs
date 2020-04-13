@@ -3,7 +3,7 @@
 /// This module provides the components and records needed to parse inventories
 /// from a Tiled map and insert them into the ECS.
 use specs::prelude::*;
-use std::{collections::HashMap, f32::consts::PI};
+use std::{f32::consts::PI};
 
 use old_gods::prelude::{
     Easing, OriginOffset, Position, Rendering, Shape, Tween, TweenParam, Velocity, AABB, V2,
@@ -76,10 +76,6 @@ impl Inventory {
             items,
             next_ejection_angle: 0,
         }
-    }
-
-    pub fn tiled_key_name() -> String {
-        "inventory_name".to_string()
     }
 
     pub fn remove_item(&mut self, item: &Item) -> Result<(), String> {

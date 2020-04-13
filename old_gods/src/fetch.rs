@@ -1,11 +1,14 @@
-use mogwai::prelude::*;
 use serde::de::DeserializeOwned;
 use serde_json;
 use std::{future::Future, pin::Pin};
-use web_sys::{Request, RequestInit, RequestMode, Response};
+use wasm_bindgen::JsCast;
+use wasm_bindgen_futures::JsFuture;
+use web_sys::{Request, RequestInit, RequestMode, Response, window};
 
 async fn request_to_text(req: Request) -> Result<String, String> {
-    let resp: Response = JsFuture::from(window().fetch_with_request(&req))
+    let window = window()
+        .ok_or("could not get window")?;
+    let resp: Response = JsFuture::from(window.fetch_with_request(&req))
         .await
         .map_err(|_| "request failed".to_string())?
         .dyn_into()

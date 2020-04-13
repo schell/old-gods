@@ -10,5 +10,6 @@ pub mod player;
 pub mod screen;
 //pub mod sound;
 //pub mod sprite;
+pub mod tiled;
 pub mod tween;
 pub mod zone;

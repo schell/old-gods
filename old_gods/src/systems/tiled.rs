@@ -3,14 +3,17 @@
 //!
 //! Once the objects are injected in the ECS it's up to other systems to modify
 //! and replace them.
-use log::{trace, warn};
-use old_gods::prelude::{
-    Animation, Barrier, CanBeEmpty, Component, Either, Entities, Entity, Frame, GlobalTileIndex,
-    HashMapStorage, Join, Layer, LayerData, LoadStatus, Name, Object, ObjectGroup, ObjectLayerData,
-    ObjectRenderingToggles, OriginOffset, Player, Position, Rendering, RenderingToggles,
-    ResourceId, Resources, Shape, System, SystemData, TextureFrame, TileLayerData, Tiledmap,
-    Velocity, World, WriteStorage, ZLevel, JSON, V2,
+use super::super::{
+    fetch,
+    prelude::{
+        Animation, Barrier, CanBeEmpty, Component, Either, Entities, Entity, Frame,
+        GlobalTileIndex, HashMapStorage, Join, Layer, LayerData, LoadStatus, Name, Object,
+        ObjectGroup, ObjectLayerData, ObjectRenderingToggles, OriginOffset, Player, Position,
+        Rendering, RenderingToggles, ResourceId, Resources, Shape, System, SystemData,
+        TextureFrame, TileLayerData, Tiledmap, Velocity, World, WriteStorage, ZLevel, JSON, V2,
+    },
 };
+use log::{trace, warn};
 use serde_json::Value;
 use std::{
     collections::HashMap,
@@ -19,12 +22,29 @@ use std::{
 };
 use wasm_bindgen_futures::spawn_local;
 
-use super::super::super::fetch;
-
 
 pub struct TiledmapResources {
     base_url: String,
     loads: HashMap<String, Arc<Mutex<(LoadStatus, Option<Tiledmap>)>>>,
+}
+
+
+async fn load_map_wasm(
+    base_url: &str,
+    path: &str,
+    var: Arc<Mutex<(LoadStatus, Option<Tiledmap>)>>,
+) {
+    match Tiledmap::from_url(base_url, path, fetch::from_url).await {
+        Ok(map) => {
+            let mut status = var.try_lock().expect("no Tiledmap lock on load success");
+            status.0 = LoadStatus::Complete;
+            status.1 = Some(map);
+        }
+        Err(err) => {
+            let mut status = var.try_lock().expect("no Tiledmap lock on load error");
+            status.0 = LoadStatus::Error(err);
+        }
+    }
 }
 
 
@@ -34,30 +54,6 @@ impl TiledmapResources {
             base_url: base_url.to_string(),
             loads: HashMap::new(),
         }
-    }
-
-    fn load_map(&mut self, path: &str) {
-        trace!("loading map '{}'", path);
-        let path = path.to_string();
-
-        let var = Arc::new(Mutex::new((LoadStatus::Started, None)));
-
-        self.loads.insert(path.clone(), var.clone());
-
-        let base_url = self.base_url.clone();
-        spawn_local(async move {
-            match Tiledmap::from_url(&base_url, &path, fetch::from_url).await {
-                Ok(map) => {
-                    let mut status = var.try_lock().expect("no Tiledmap lock on load success");
-                    status.0 = LoadStatus::Complete;
-                    status.1 = Some(map);
-                }
-                Err(err) => {
-                    let mut status = var.try_lock().expect("no Tiledmap lock on load error");
-                    status.0 = LoadStatus::Error(err);
-                }
-            }
-        });
     }
 }
 
@@ -74,7 +70,13 @@ impl Resources<Tiledmap> for TiledmapResources {
     }
 
     fn load(&mut self, path: &str) {
-        self.load_map(path);
+        trace!("loading map '{}'", path);
+        let path = path.to_string();
+        let var = Arc::new(Mutex::new((LoadStatus::Started, None)));
+        self.loads.insert(path.clone(), var.clone());
+        let base_url = self.base_url.clone();
+
+        spawn_local(async move { load_map_wasm(&base_url, &path, var).await });
     }
 
     fn take(&mut self, path: &str) -> Option<Tiledmap> {
@@ -417,10 +419,8 @@ pub fn insert_map(map: &Tiledmap, data: &mut InsertMapData) {
                         let _ = data.object_toggles.insert(obj_ent, debug_toggles);
                     }
 
-                    let mut properties:HashMap<String, Value> = properties
-                        .into_iter()
-                        .map(|(k, p)| (k, p.value))
-                        .collect();
+                    let mut properties: HashMap<String, Value> =
+                        properties.into_iter().map(|(k, p)| (k, p.value)).collect();
 
                     match obj.get_deep_type(map).as_str() {
                         "character" => {

@@ -1,19 +1,19 @@
 use log::{trace, Level};
 use mogwai::prelude::*;
 use old_gods::prelude::*;
+use old_gods::fetch;
 use std::{
     collections::HashSet,
     panic,
     sync::{Arc, Mutex},
 };
 use wasm_bindgen::prelude::*;
-use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, HtmlElement};
+use web_sys::HtmlElement;
 
-mod ecs;
-mod fetch;
+mod systems;
 
-use ecs::ECS;
-
+mod render;
+use render::WebRenderingContext;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -32,7 +32,6 @@ fn maps() -> Vec<String> {
 
 #[derive(Clone)]
 enum InMsg {
-    PostBuild(HtmlCanvasElement),
     Load(String),
     LoadError(String),
     Loaded(Tiledmap),
@@ -54,7 +53,7 @@ impl OutMsg {
 }
 
 
-pub type WebEngine = ECS<'static, 'static, CanvasRenderingContext2d, HtmlResources>;
+pub type WebEngine = Engine<'static, 'static, WebRenderingContext, HtmlResources>;
 
 
 struct App {
@@ -80,27 +79,6 @@ impl mogwai::prelude::Component for App {
 
     fn update(&mut self, msg: &InMsg, tx_view: &Transmitter<OutMsg>, sub: &Subscriber<InMsg>) {
         match msg {
-            InMsg::PostBuild(canvas) => {
-                let context = canvas
-                    .get_context("2d")
-                    .expect("can't call get_context('2d')")
-                    .expect("can't get rendering context")
-                    .dyn_into::<CanvasRenderingContext2d>()
-                    .expect("can't coerce rendering context");
-                context.set_image_smoothing_enabled(false);
-                let mut ecs = self.ecs.try_lock().expect("no lock on ecs at App post build");
-                ecs.rendering_context = Some(context);
-                ecs.set_resolution(canvas.width(), canvas.height());
-
-                let hash = window().location().hash().expect("no hash object");
-                let ndx = hash.find('#').unwrap_or(0);
-                let (_, hash) = hash.split_at(ndx);
-                for map in maps().into_iter() {
-                    if hash.ends_with(&map) {
-                        sub.send_async(async move { InMsg::Load(map.clone()) })
-                    }
-                }
-            }
             InMsg::Load(path) => {
                 let ecs = self.ecs.try_lock().expect("no lock on ecs");
 
@@ -126,7 +104,7 @@ impl mogwai::prelude::Component for App {
 
                 if let Some((width, height)) = map.get_suggested_viewport_size() {
                     trace!("got map viewport size: {} {}", width, height);
-                    ecs.set_resolution(width, height);
+                    ecs.set_map_viewport_size(width, height);
                 }
                 let num_entities = {
                     let entities = ecs.world.system_data::<Entities>();
@@ -143,8 +121,8 @@ impl mogwai::prelude::Component for App {
                     *ecs_toggles = map_toggles;
                 }
                 {
-                    let mut data: ecs::systems::tiled::InsertMapData = ecs.world.system_data();
-                    ecs::systems::tiled::insert_map(map, &mut data);
+                    let mut data: old_gods::systems::tiled::InsertMapData = ecs.world.system_data();
+                    old_gods::systems::tiled::insert_map(map, &mut data);
                 }
 
                 ecs.restart_time();
@@ -172,21 +150,11 @@ impl mogwai::prelude::Component for App {
                     },
                 )
                 .with(pre().rx_text("", rx.branch_filter_map(|msg| msg.status_msg())))
-                .with(
-                    div().class("embed-responsive embed-responsive-16by9").with(
-                        canvas()
-                            .downcast::<HtmlCanvasElement>()
-                            .ok()
-                            .expect("not a canvas")
-                            .class("embed-responsive-item")
-                            .attribute("id", "screen")
-                            .attribute("width", "1600")
-                            .attribute("height", "900")
-                            .tx_post_build(tx.contra_map(|canvas: &HtmlCanvasElement| {
-                                InMsg::PostBuild(canvas.clone())
-                            })),
-                    ),
-                ),
+                .with({
+                    let ecs = self.ecs.try_lock().expect("no lock on ecs in view");
+                    let canvas = ecs.rendering_context.canvas().expect("no canvas in view");
+                    Gizmo::wrapping(canvas).class("embed-responsive embed-responsive-16by9")
+                }),
         )
     }
 }
@@ -198,21 +166,15 @@ pub fn main() -> Result<(), JsValue> {
     console_log::init_with_level(Level::Trace).unwrap();
 
     let app_ecs = {
-        let map_rendering_context = window()
-            .document()
-            .expect("no document")
-            .create_element("canvas")
-            .expect("can't create canvas")
-            .dyn_into::<HtmlCanvasElement>()
-            .expect("can't coerce canvas")
-            .get_context("2d")
-            .expect("can't call get_context('2d')")
-            .expect("can't get canvas rendering context")
-            .dyn_into::<CanvasRenderingContext2d>()
-            .expect("can't coerce canvas rendering context");
-        map_rendering_context.set_image_smoothing_enabled(false);
-
-        let mut ecs = ECS::new("http://localhost:8888", map_rendering_context);
+        let mut ecs = Engine::new_with(
+            "http://localhost:8888",
+            DispatcherBuilder::new()
+            .with_thread_local(systems::inventory::InventorySystem),
+            WebRenderingContext::new
+        );
+        ecs.set_window_size(1600, 900);
+        ecs.rendering_context.0.context.set_image_smoothing_enabled(false);
+        ecs.map_rendering_context.0.context.set_image_smoothing_enabled(false);
         if cfg!(debug_assertions) {
             ecs.set_debug_mode(true);
         }
@@ -231,5 +193,16 @@ pub fn main() -> Result<(), JsValue> {
         true
     });
 
-    App::new(app_ecs).into_component().run()
+    App::new(app_ecs).into_component().run_init({
+        let hash = window().location().hash().expect("no hash object");
+        let ndx = hash.find('#').unwrap_or(0);
+        let (_, hash) = hash.split_at(ndx);
+        let mut msgs = vec![];
+        for map in maps().into_iter() {
+            if hash.ends_with(&map) {
+                msgs.push(InMsg::Load(map.clone()));
+            }
+        }
+        msgs
+    })
 }

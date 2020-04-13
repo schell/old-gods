@@ -21,7 +21,7 @@ fn button_text(btn: &ActionButton) -> String {
 }
 
 /// Draw an action button at a point with an optional message to the right.
-pub fn draw_button<Ctx: RenderingContext> (
+pub fn draw_button<Ctx: HasRenderingContext> (
     context: &mut Ctx,
     btn: ActionButton,
     point: &V2,
@@ -29,7 +29,7 @@ pub fn draw_button<Ctx: RenderingContext> (
 ) -> Result<AABB, String> {
     let mut btn_text = Ctx::fancy_text(&button_text(&btn).as_str());
     btn_text.color = button_color(&btn);
-    context.draw_text(&btn_text, point);
+    context.draw_text(&btn_text, point)?;
 
     let dest_size = context.measure_text(&btn_text)?;
     let btn_rect = AABB {
@@ -53,7 +53,7 @@ pub fn draw_button<Ctx: RenderingContext> (
 
 
 /// Draw an Action.
-pub fn draw<Ctx: RenderingContext>(
+pub fn draw<Ctx: HasRenderingContext>(
     context: &mut Ctx,
     point: &V2,
     action: &Action,

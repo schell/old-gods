@@ -1,233 +1,230 @@
-//! The engine context.
-use shrev::EventChannel;
-use specs::{DispatcherBuilder, World};
-use std::any::Any;
-
-use super::color::Color;
-use super::geom::V2;
-use super::systems::{
-  //sound::SoundSystem,
-  map_loader::{
-    //MapLoadingSystem,
-    MapLoadingEvent,
-  },
-  /*screen::ScreenSystem,
-   *action::ActionSystem,
-   *script::ScriptSystem,
-   *sprite::SpriteSystem,
-   *player::PlayerSystem,
-   *physics::Physics,
-   *animation::AnimationSystem,
-   *inventory::InventorySystem,
-   *effect::EffectSystem,
-   *item::ItemSystem,
-   *zone::ZoneSystem,
-   *sprite::WarpSystem,
-   *fence::FenceSystem,
-   *tween::TweenSystem */
+//! The Engine definition.
+//!
+//! The engine itself is a struct with some type variables that determine what
+//! kind of rendering context and resources the engine will manage.
+use super::prelude::{
+    entity_local_origin, Action, AnimationSystem, BackgroundColor, Color, DebugRenderingData,
+    Dispatcher, DispatcherBuilder, FPSCounter, GamepadSystem, HasRenderingContext, Join, MapEntity,
+    MapRenderingData, Physics, PlayerSystem, ReadStorage, RenderingContext, Resources, Screen,
+    ScreenSystem, SystemData, TiledmapSystem, TweenSystem, World, WorldExt, ZLevel, AABB, V2,
 };
+use std::cmp::Ordering;
 
-pub trait Canvas {
-  fn set_draw_color(c: Color);
-  fn clear();
-  fn present();
+
+pub struct Engine<'a, 'b, Ctx, Rsrc> {
+    pub base_url: String,
+    pub world: World,
+    pub map_rendering_context: Ctx,
+    pub rendering_context: Ctx,
+    pub resources: Rsrc,
+
+    dispatcher: Dispatcher<'a, 'b>,
+    debug_mode: bool,
 }
 
 
-pub trait ResourceLoader {}
-
-
-pub struct EngineLoopBuilder<'a, 'b, X: Any> {
-  file: Option<String>,
-  dispatcher_builder: Option<DispatcherBuilder<'a, 'b>>,
-  setup: Option<Box<dyn Fn(&mut World)>>,
-  exit: Option<Box<dyn Fn(&mut World) -> Option<X>>>,
-}
-
-
-impl<'a, 'b, X: Any> EngineLoopBuilder<'a, 'b, X> {
-  pub fn new() -> Self {
-    EngineLoopBuilder {
-      file: None,
-      dispatcher_builder: None,
-      setup: None,
-      exit: None,
-    }
-  }
-
-  pub fn with_file<I: Into<String>>(self, file: I) -> Self {
-    let mut b = self;
-    b.file = Some(file.into());
-    b
-  }
-
-  pub fn with_dispatcher_builder(
-    self,
-    builder: DispatcherBuilder<'a, 'b>,
-  ) -> Self {
-    let mut b = self;
-    b.dispatcher_builder = Some(builder);
-    b
-  }
-
-  pub fn with_setup<F: Fn(&mut World) + 'static>(self, f: F) -> Self {
-    let mut b = self;
-    b.setup = Some(Box::new(f));
-    b
-  }
-
-  pub fn with_exit<F>(self, f: F) -> Self
-  where
-    F: Fn(&mut World) -> Option<X> + 'static,
-  {
-    let mut b = self;
-    b.exit = Some(Box::new(f));
-    b
-  }
-
-  //pub fn run<E:Engine>(self, engine: &E) -> X {
-  //  let mut builder = self;
-  //  let file = builder.file.take();
-  //  let setup = builder.setup.take();
-  //  let exit = builder.exit.take();
-  //  let dispatcher_builder = builder.dispatcher_builder.take();
-  //  // Create the world
-  //  let mut world = World::new();
-
-  //  let mut dispatcher =
-  //    dispatcher_builder
-  //      .unwrap_or(DispatcherBuilder::new())
-  //    //.with_thread_local(SoundSystem::new())
-  //      .with(MapLoadingSystem{ opt_reader: None }, "map", &[])
-  //      .with(ScreenSystem, "screen", &[])
-  //      .with(ActionSystem, "action", &[])
-  //      .with(ScriptSystem, "script", &["action"])
-  //      .with(SpriteSystem, "sprite", &["script"])
-  //      .with(PlayerSystem, "control", &[])
-  //      .with(Physics::new(), "physics", &[])
-  //      .with(AnimationSystem, "animation", &[])
-  //      .with(InventorySystem, "inventory", &[])
-  //      .with(EffectSystem, "effect", &[])
-  //      .with(ItemSystem, "item", &["action", "effect"])
-  //      .with(ZoneSystem, "zone", &[])
-  //      .with(WarpSystem, "warp", &["physics"])
-  //      .with(FenceSystem, "fence", &["physics"])
-  //      .with(TweenSystem, "tween", &[])
-  //      .build();
-
-  //  dispatcher
-  //    .setup(&mut world.res);
-
-  //  // Maintain once so all our resources are created.
-  //  world
-  //    .maintain();
-
-  //  // Give the library user a chance to set up their world
-  //  setup
-  //    .into_iter()
-  //    .for_each(|bx:Box<dyn Fn(&mut World)>| {
-  //      bx(&mut world);
-  //    });
-
-  //  // Load our map file
-  //  file
-  //    .into_iter()
-  //    .for_each(|file| {
-  //      world
-  //        .write_resource::<EventChannel<MapLoadingEvent>>()
-  //        .single_write(MapLoadingEvent::LoadMap(file.to_string(), V2::new(0.0, 0.0)));
-  //    });
-
-  //  let mut exit_value = None;
-
-  //  'running: loop {
-  //    {
-  //      // Update the delta (and FPS)
-  //      //world
-  //      //  .write_resource::<FPSCounter>()
-  //      //  .next_frame();
-  //    }
-
-  //    dispatcher
-  //      .dispatch(&mut world.res);
-  //    world
-  //      .maintain();
-
-  //    //if world.read_resource::<UI>().should_reload() {
-  //    //  let mut map_chan =
-  //    //    world
-  //    //    .write_resource::<EventChannel<MapLoadingEvent>>();
-  //    //  map_chan
-  //    //    .single_write(MapLoadingEvent::UnloadEverything);
-  //    //  file
-  //    //    .map(|file| {
-  //    //      map_chan
-  //    //        .single_write(MapLoadingEvent::LoadMap(
-  //    //          file.to_string(),
-  //    //          V2::new(0.0, 0.0)
-  //    //        ));
-  //    //    });
-  //    //}
-
-  //    // Check if the loop should end
-  //    exit
-  //      .iter()
-  //      .for_each(|bx| {
-  //        exit_value = bx(&mut world);
-  //      });
-
-  //    if exit_value.is_some() {
-  //      return exit_value.unwrap();
-  //    } else {
-  //      engine.render(&mut world);
-  //    }
-  //    // Render everything
-  //    //let data:<RenderingSystem as System>::SystemData =
-  //    //  SystemData::fetch(&world.res);
-  //    //rendering_system
-  //    //  .run(data);
-  //  }
-  //}
-}
-
-pub trait Engine<'a, 'b>
+impl<'a, 'b, Ctx, Rsrc> Engine<'a, 'b, Ctx, Rsrc>
 where
-  Self: Sized,
+    Ctx: HasRenderingContext,
+    Rsrc: Resources<<Ctx::Ctx as RenderingContext>::Image> + Default,
 {
-  type Canvas;
-  type ResourceLoader;
+    pub fn new_with<F>(
+        base_url: &str,
+        dispatcher_builder: DispatcherBuilder<'a, 'b>,
+        new_ctx: F,
+    ) -> Self
+    where
+        F: Fn() -> Ctx,
+    {
+        let mut world = World::new();
+        world.insert(BackgroundColor(Color::rgb(0, 0, 0)));
 
-  fn new_with(dispatcher_builder: DispatcherBuilder<'a, 'b>) -> Self;
+        let mut dispatcher = dispatcher_builder
+            .with_thread_local(TiledmapSystem::new(base_url))
+            .with_thread_local(Physics::new())
+            .with_thread_local(ScreenSystem)
+            .with_thread_local(AnimationSystem)
+            .with_thread_local(GamepadSystem::new())
+            .with_thread_local(PlayerSystem)
+            .with_thread_local(TweenSystem)
+            //.with_thread_local(SoundSystem::new())
+            //.with_thread_local(MapLoadingSystem { opt_reader: None })
+            //.with_thread_local(ActionSystem)
+            //.with_thread_local(SpriteSystem)
+            //.with_thread_local(ZoneSystem)
+            //.with_thread_local(FenceSystem)
+            .build();
 
-  fn new() -> Self {
-    Self::new_with(DispatcherBuilder::new())
-  }
+        dispatcher.setup(&mut world);
+        // Just until the action system is back
+        <ReadStorage<Action> as SystemData>::setup(&mut world);
 
-  fn world(&self) -> &World;
-  fn world_mut(&mut self) -> &mut World;
+        // Maintain once so all our resources are created.
+        world.maintain();
 
-  fn unload_map(&mut self) {
-    let world = self.world();
-    let mut map_chan = world.fetch_mut::<EventChannel<MapLoadingEvent>>();
-    map_chan.single_write(MapLoadingEvent::UnloadEverything);
-  }
+        Engine {
+            dispatcher,
+            world,
+            base_url: base_url.into(),
+            debug_mode: false,
+            rendering_context: new_ctx(),
+            map_rendering_context: new_ctx(),
+            resources: Rsrc::default(),
+        }
+    }
 
-  fn load_map<X: Into<String>>(&mut self, file: X) {
-    let file = file.into();
-    let world = self.world();
-    let mut map_chan = world.fetch_mut::<EventChannel<MapLoadingEvent>>();
-    map_chan.single_write(MapLoadingEvent::UnloadEverything);
-    map_chan.single_write(MapLoadingEvent::LoadMap(
-      file.to_string(),
-      V2::new(0.0, 0.0),
-    ));
-  }
+    pub fn set_debug_mode(&mut self, debug: bool) {
+        self.debug_mode = debug;
+        if debug {
+            <DebugRenderingData as SystemData>::setup(&mut self.world);
+        }
+    }
 
-  //fn put_canvas(&mut self, c: Self::Canvas);
-  //fn take_canvas(&mut self) -> Self::Canvas;
+    /// Set the width and height of the map viewport in pixels.
+    /// This does not set the width and height of the window, instead it sets the
+    /// width and height of the inner map viewport. The inner viewport is the
+    /// one that map entities are rendered to.
+    pub fn set_map_viewport_size(&mut self, w: u32, h: u32) {
+        let mut screen = self.world.write_resource::<Screen>();
+        screen.set_size((w, h));
+        self.map_rendering_context
+            .get_rendering_context()
+            .set_context_size((w, h))
+            .expect("could not set map rendering size");
+    }
 
-  //fn put_loader(&mut self, r: Self::ResourceLoader);
-  //fn take_loader(&mut self) ->  Self::ResourceLoader;
 
-  fn render(&self, world: &mut World);
+    pub fn set_window_size(&mut self, w: u32, h: u32) {
+        self.rendering_context
+            .get_rendering_context()
+            .set_context_size((w, h))
+            .expect("could not set window size");
+    }
+
+    pub fn is_debug(&self) -> bool {
+        self.debug_mode
+    }
+
+    pub fn new<F: Fn() -> Ctx>(base_url: &str, new_ctx: F) -> Self {
+        Self::new_with(base_url, DispatcherBuilder::new(), new_ctx)
+    }
+
+    pub fn maintain(&mut self) {
+        self.world.write_resource::<FPSCounter>().next_frame();
+        self.dispatcher.dispatch(&mut self.world);
+        self.world.maintain();
+    }
+
+    /// Restart the simulation's time. This allows animations and other time-based
+    /// components to operate correctly.
+    pub fn restart_time(&mut self) {
+        let mut fps_counter = self.world.write_resource::<FPSCounter>();
+        fps_counter.restart();
+    }
+
+    /// Find all the entities intersecting the visible map.
+    fn get_map_entities(&self) -> Result<Vec<MapEntity>, String> {
+        let data: MapRenderingData = self.world.system_data();
+        let screen_aabb = data.screen.aabb();
+
+        // Get all the on screen things to render.
+        // Order the things by bottom to top, back to front.
+        let mut ents: Vec<_> = (&data.entities, &data.positions, !&data.exiles)
+            .join()
+            .filter_map(|(ent, p, ())| {
+                // Make sure we can see this thing (that its destination aabb intersects
+                // the screen)
+                let rendering = data.renderings.get(ent);
+                let (w, h) = rendering.map(|r| r.size()).unwrap_or((0, 0));
+                let aabb = AABB {
+                    top_left: p.0,
+                    extents: V2::new(w as f32, h as f32),
+                };
+                if !(screen_aabb.collides_with(&aabb) || aabb.collides_with(&screen_aabb)) {
+                    return None;
+                }
+
+                let offset: V2 = entity_local_origin(ent, &data.shapes, &data.offsets);
+                let pos = data.screen.from_map(&p.0);
+                Some(MapEntity {
+                    entity: ent,
+                    position: pos,
+                    offset,
+                    rendering: rendering.cloned(),
+                    z_level: data.z_levels.get(ent).cloned().unwrap_or(ZLevel(0.0)),
+                })
+            })
+            .collect();
+        ents.sort_by(|a, b| {
+            if a.z_level.0 < b.z_level.0 {
+                Ordering::Less
+            } else if a.z_level.0 > b.z_level.0 {
+                Ordering::Greater
+            } else if a.position.y + a.offset.y < b.position.y + b.offset.y {
+                Ordering::Less
+            } else if a.position.y + a.offset.y > b.position.y + b.offset.y {
+                Ordering::Greater
+            } else {
+                Ordering::Equal
+            }
+        });
+
+        Ok(ents)
+    }
+
+    pub fn render(&mut self) -> Result<(), String> {
+        let (w, h) = self
+            .map_rendering_context
+            .get_rendering_context()
+            .context_size()?;
+        let map_size = V2::new(w as f32, h as f32);
+        self.map_rendering_context.get_rendering_context().clear()?;
+
+        let map_ents = self.get_map_entities()?;
+
+        self.map_rendering_context
+            .render_map(&mut self.world, &mut self.resources, &map_ents)?;
+
+        if self.debug_mode {
+            self.map_rendering_context
+                .render_map_debug(&mut self.world, &map_ents)?;
+        }
+
+        // Aspect fit our map_rendering_context inside the final rendering_context
+        let win_size = self
+            .rendering_context
+            .get_rendering_context()
+            .context_size()
+            .map(|(w, h)| V2::new(w as f32, h as f32))?;
+        let dest = AABB::aabb_to_aspect_fit_inside(map_size, win_size);
+
+        self.rendering_context
+            .get_rendering_context()
+            .set_fill_color(&Color::rgb(0, 0, 0));
+        self.rendering_context
+            .get_rendering_context()
+            .fill_rect(&AABB {
+                top_left: V2::origin(),
+                extents: win_size,
+            });
+        self.rendering_context
+            .get_rendering_context()
+            .draw_context(&self.map_rendering_context.get_rendering_context(), &dest)?;
+
+        let viewport_to_context =
+            |point: V2| -> V2 { AABB::point_inside_aspect(point, map_size, win_size) };
+
+        // Draw the UI
+        self.rendering_context.render_ui(
+            &mut self.world,
+            &mut self.resources,
+            viewport_to_context,
+        )?;
+        if self.debug_mode {
+            self.rendering_context
+                .render_ui_debug(&mut self.world, viewport_to_context)?;
+        }
+
+        Ok(())
+    }
 }

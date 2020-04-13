@@ -1,4 +1,4 @@
-use old_gods::prelude::*;
+use old_gods::{prelude::*, rendering::action};
 
 use super::super::systems::inventory::{Inventory, Loot};
 
@@ -46,7 +46,7 @@ impl LootRendering {
 
 
 /// Draw a player inventory
-pub fn draw_loot<Ctx:RenderingContext, Rsrc:Resources<Ctx::Image>>(
+pub fn draw_loot<Ctx: HasRenderingContext, Rsrc: Resources<<Ctx::Ctx as RenderingContext>::Image>>(
     context: &mut Ctx,
     resources: &mut Rsrc,
     point: &V2,
@@ -70,7 +70,7 @@ pub fn draw_loot<Ctx:RenderingContext, Rsrc:Resources<Ctx::Image>>(
             }
         }
 
-        let longest_name_size = context.measure_text(&super::fancy_text(longest_name))?;
+        let longest_name_size = context.measure_text(&Ctx::fancy_text(longest_name))?;
         let width = 48.0 + longest_name_size.0 as f32 + 8.0;
 
         // Draw the background
@@ -112,7 +112,7 @@ pub fn draw_loot<Ctx:RenderingContext, Rsrc:Resources<Ctx::Image>>(
                     );
                     let text_pos = pos + V2::new(48.0, 10.0);
                     let name = item.name.clone();
-                    let text = super::fancy_text(name.as_str());
+                    let text = Ctx::fancy_text(name.as_str());
                     context.draw_text(&text, &text_pos)?;
                     let item_aabb_size = context.measure_text(&text)?;
                     let item_aabb = AABB {
@@ -121,7 +121,7 @@ pub fn draw_loot<Ctx:RenderingContext, Rsrc:Resources<Ctx::Image>>(
                     };
                     if item.count > 1 {
                         let pos = V2::new(item_aabb.left() as f32, item_aabb.bottom() as f32 + 2.0);
-                        let mut text = super::normal_text(&format!("x{}", item.count));
+                        let mut text = Ctx::normal_text(&format!("x{}", item.count));
                         text.font.size = 12;
                         context.draw_text(&text, &pos)?;
                     }
@@ -131,7 +131,7 @@ pub fn draw_loot<Ctx:RenderingContext, Rsrc:Resources<Ctx::Image>>(
         }
 
         // Draw the inventory name
-        let inv_name_text = super::fancy_text(inv.name.as_str());
+        let inv_name_text = Ctx::fancy_text(inv.name.as_str());
         context.draw_text(&inv_name_text, &(origin + V2::new(2.0, 2.0)))?;
 
         // Draw the cursor
@@ -142,11 +142,11 @@ pub fn draw_loot<Ctx:RenderingContext, Rsrc:Resources<Ctx::Image>>(
             let cursor_y = name_height as f32 + origin.y + ndx as f32 * 50.0;
             context.stroke_rect(&AABB {
                 top_left: V2::new(origin.x + 1.0, cursor_y),
-                extents: V2::new(width - 1.0, 50.0)
+                extents: V2::new(width - 1.0, 50.0),
             });
         } else if inv.items.len() == 0 {
             // Draw the empty inventory
-            let mut text = super::fancy_text("(empty)");
+            let mut text = Ctx::fancy_text("(empty)");
             text.color = Color::rgb(128, 128, 128);
             context.draw_text(&text, &(origin + V2::new(45.0, 32.0)))?;
         }
@@ -166,7 +166,7 @@ pub fn draw_loot<Ctx:RenderingContext, Rsrc:Resources<Ctx::Image>>(
         let items_len = usize::max(1, items_len);
         let msg_y = item_height as f32 * items_len as f32 + name_height as f32;
         let msg_point = *point + V2::new(4.0, msg_y);
-        super::action::draw_button(context, ActionButton::Y, &msg_point, &msg)?
+        action::draw_button::<Ctx>(context, ActionButton::Y, &msg_point, &msg)?
     };
 
     // Draw the "use" item inventory msg
@@ -175,7 +175,7 @@ pub fn draw_loot<Ctx:RenderingContext, Rsrc:Resources<Ctx::Image>>(
     if current_item_is_usable {
         let msg = Some("use".to_string());
         let pos = V2::new(a_btn_rect.right() as f32, a_btn_rect.top() as f32);
-        super::action::draw_button(context, ActionButton::X, &pos, &msg)?;
+        action::draw_button::<Ctx>(context, ActionButton::X, &pos, &msg)?;
     }
 
     Ok(())
