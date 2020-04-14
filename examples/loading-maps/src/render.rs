@@ -1,3 +1,4 @@
+use log::{trace, warn};
 use old_gods::{
     prelude::{
         DefaultRenderingContext, Exile, Join, Name, Player, Position, Read, ReadStorage, Resources,
@@ -9,8 +10,7 @@ use std::ops::{Deref, DerefMut};
 use wasm_bindgen::JsCast;
 use web_sys::{window, CanvasRenderingContext2d, HtmlCanvasElement};
 
-use super::components::inventory::Inventory;
-use super::systems::looting::Loot;
+use super::{components::inventory::Inventory, systems::looting::Loot};
 
 mod inventory;
 
@@ -86,18 +86,29 @@ impl HasRenderingContext for WebRenderingContext {
             ReadStorage<Player>,
         ) = world.system_data();
 
-        // Draw lootings involving a player that are on the screen
-        for loot in loots.iter() {
-            let has_position = positions.contains(loot.ent_of_inventory_here);
-            let player:Option<&Player> = players
-                .get(loot.ent_of_inventory_here)
-                .or_else(|| loot.ent_of_inventory_there.map(|ent| players.get(ent)).flatten());
-            if !has_position || player.is_none() {
-                continue;
-            }
-            if let Some(player) = player {
-                let loot_rendering = inventory::make_loot_rendering(&loot, &inventories, &names);
-                inventory::draw_loot(self, resources, &V2::new(10.0, 10.0), loot_rendering)?;
+        let (ctx_w, ctx_h) = self.context_size()?;
+        let center = V2::new(ctx_w as f32, ctx_h as f32).scalar_mul(2.0);
+        let slot_size = V2::new(48.0, 48.0);
+        let slot_padding = 2.0;
+        let frame_padding = 6.0;
+        let total_slot_size = slot_size + V2::new(slot_padding * 2.0, slot_padding * 2.0);
+        let cols = 6.0;
+        let starting_point = V2::new(center.x - cols * total_slot_size.x, 0.0);
+
+        // Draw the first looting
+        if let Some(loot) = loots.first() {
+            if let Some(inventory) = inventories.get(loot.ent_of_inventory_here) {
+                let name = names.get(loot.ent_of_inventory_here).cloned().unwrap_or(Name("unknown".into()));
+                trace!("{} items: {}", name.0, inventory.items.len());
+                for (item, ndx) in inventory.items.iter().zip(0..) {
+                    let x_ndx = ndx % cols as u32;
+                    let y_ndx = ndx / cols as u32;
+                    let point =
+                        starting_point + V2::new(x_ndx as f32, y_ndx as f32) * total_slot_size;
+                    self.draw_rendering(resources, &point, &item.rendering)?;
+                }
+            } else {
+                warn!("looting no inventory");
             }
         }
         Ok(())

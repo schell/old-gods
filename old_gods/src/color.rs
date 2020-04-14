@@ -21,16 +21,25 @@ impl Color {
     pub fn rgba(r: u8, g: u8, b: u8, a: u8) -> Color {
         Color { r, g, b, a }
     }
+
+    pub fn into_rgb(self) -> Color {
+        Color {
+            r: self.r,
+            g: self.g,
+            b: self.g,
+            a: 255
+        }
+    }
 }
 
 
 impl From<Color> for JsValue {
     fn from(color: Color) -> JsValue {
-        let alpha = (color.a / 255) as f32;
-        JsValue::from_str(&format!(
-            "rgba({}, {}, {}, {})",
-            color.r, color.g, color.b, alpha
-        ))
+        let s = format!(
+            "rgb({}, {}, {})",
+            color.r, color.g, color.b
+        );
+        JsValue::from_str(&s)
     }
 }
 

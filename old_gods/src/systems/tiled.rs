@@ -181,7 +181,7 @@ fn add_origin(ent: Entity, x: f32, y: f32, offsets: &mut WriteStorage<OriginOffs
 }
 
 
-fn object_shape(object: &Object) -> Option<Shape> {
+fn tile_object_shape(object: &Object) -> Option<Shape> {
     if let Some(_polyline) = &object.polyline {
         // A shape cannot be a polyline
         None
@@ -202,7 +202,7 @@ fn object_shape(object: &Object) -> Option<Shape> {
         Some(Shape::Polygon { vertices })
     } else {
         // It's a rectangle!
-        let lower = V2::new(object.x, object.y);
+        let lower = V2::origin();
         let upper = V2::new(object.x + object.width, object.y + object.height);
         Some(Shape::Box { lower, upper })
     }
@@ -211,14 +211,15 @@ fn object_shape(object: &Object) -> Option<Shape> {
 
 pub fn add_barrier(
     ent: Entity,
-    object: &Object,
+    obj: &Object,
     barriers: &mut WriteStorage<Barrier>,
     shapes: &mut WriteStorage<Shape>,
 ) {
-    if let Some(shape) = object_shape(object) {
-        let _ = barriers.insert(ent, Barrier);
-        let _ = shapes.insert(ent, shape);
-    }
+    let _ = barriers.insert(ent, Barrier);
+    let _ = shapes.insert(ent, Shape::Box{
+        lower: V2::new(obj.x, obj.y),
+        upper: V2::new(obj.x + obj.width, obj.y + obj.height)
+    });
 }
 
 
@@ -363,18 +364,22 @@ pub fn insert_map(map: &Tiledmap, data: &mut InsertMapData) {
             Either::Right(ObjectLayerData { objects, .. }) => {
                 for obj in objects.iter() {
                     let obj_ent = data.entities.create();
-                    let obj_pos = V2::new(obj.x, obj.y - obj.height);
                     let _ = data.zlevels.insert(obj_ent, ZLevel(z as f32));
-                    let _ = data.positions.insert(obj_ent, Position(obj_pos));
                     if let Some(name) = obj.name.non_empty() {
                         let _ = data.names.insert(obj_ent, Name(name.clone()));
                     }
-                    if let Some(shape) = object_shape(obj) {
+                    if let Some(global_ndx) = &obj.gid {
+                        let obj_pos = V2::new(obj.x, obj.y - obj.height);
+                        let _ = data.positions.insert(obj_ent, Position(obj_pos));
+
+                        // It's always a rectangle!
+                        let lower = V2::origin();
+                        let upper = V2::new(obj.width, obj.height);
+                        let shape = Shape::Box { lower, upper };
                         let _ = data
                             .shapes
-                            .insert(obj_ent, shape.translated(&obj_pos.scalar_mul(-1.0)));
-                    }
-                    if let Some(global_ndx) = &obj.gid {
+                            .insert(obj_ent, shape);
+
                         if let Some(rendering) = get_rendering(map, &global_ndx, None) {
                             let _ = data.renderings.insert(obj_ent, rendering);
                         }
@@ -404,6 +409,20 @@ pub fn insert_map(map: &Tiledmap, data: &mut InsertMapData) {
                                     panic!("unsupported object type within a tile: '{}'", t);
                                 }
                             }
+                        }
+                    } else {
+                        // The object is not a tile
+                        let _ = data.positions.insert(obj_ent, Position(V2::new(obj.x, obj.y)));
+                        if let Some(_polyline) = &obj.polyline {
+
+                        } else if let Some(_polygon) = &obj.polygon {
+                           panic!("TODO: fences and step-fences");
+                        } else {
+                            // Rectangle
+                            let _ = data.shapes.insert(obj_ent, Shape::Box {
+                                lower: V2::origin(),
+                                upper: V2::new(obj.width, obj.height)
+                            });
                         }
                     }
 

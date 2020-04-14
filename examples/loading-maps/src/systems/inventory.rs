@@ -27,6 +27,7 @@ struct UnclaimedInventory {
 
 pub struct InventorySystem {
     inventory_claims: Vec<InventoryClaim>,
+    new_unclaimed_inventories: HashMap<String, UnclaimedInventory>,
     unclaimed_inventories: HashMap<String, UnclaimedInventory>,
 }
 
@@ -35,6 +36,7 @@ impl InventorySystem {
     pub fn new() -> Self {
         InventorySystem {
             inventory_claims: vec![],
+            new_unclaimed_inventories: HashMap::new(),
             unclaimed_inventories: HashMap::new(),
         }
     }
@@ -93,6 +95,8 @@ fn create_new_inventories(
 ) -> Result<HashMap<String, UnclaimedInventory>, String> {
     let mut invs = HashMap::new();
     let mut removes = vec![];
+    let mut num_items = 0;
+    let mut num_invs = 0;
     for (ent, obj, _, ()) in (
         &data.entities,
         &data.objects,
@@ -103,6 +107,7 @@ fn create_new_inventories(
     {
         match obj.type_is.as_str() {
             "inventory" => {
+                num_invs += 1;
                 removes.push(ent);
 
                 if obj.name.is_empty() {
@@ -117,9 +122,12 @@ fn create_new_inventories(
                         inventory: Inventory::new(vec![]),
                     },
                 );
+
+                trace!("{:#?} pos: {:#?} shape: {:#?}", data.names.get(ent), data.positions.get(ent), data.shapes.get(ent));
             }
 
             "item" => {
+                num_items += 1;
                 removes.push(ent);
 
                 let properties = obj.json_properties();
@@ -131,7 +139,8 @@ fn create_new_inventories(
                     .shapes
                     .get(ent)
                     .cloned()
-                    .unwrap_or(Shape::box_with_size(0.0, 0.0));
+                    .ok_or("item must have a shape")?;
+                trace!("{:#?} pos: {:#?} shape: {:#?}", data.names.get(ent), data.positions.get(ent), data.shapes.get(ent));
                 let offset = data.offsets.get(ent).cloned();
                 let item = Item {
                     name: obj.name.clone(),
@@ -160,13 +169,17 @@ fn create_new_inventories(
         let _ = data.objects.remove(ent);
     });
 
+    if num_invs + num_items > 0 {
+        trace!("created {} invs and {} items", num_invs, num_items);
+    }
+
     Ok(invs)
 }
 
 
 /// Use the entities' shapes to locate any items on the map that belong in the
 /// newly created inventories and add them.
-fn fill_new_inventories(
+fn fill_inventories(
     invs: &mut HashMap<String, UnclaimedInventory>,
     data: &mut InventorySystemData,
 ) -> Result<(), String> {
@@ -174,16 +187,17 @@ fn fill_new_inventories(
         // The inventory should already have a shape from the TiledSystem,
         // so we can use it to query for any items that may be intersecting, and
         // then place those in the inventory.
+        let pos = data.positions.get(unclaimed_inventory.entity).ok_or("no position")?;
+        let shape = data.shapes.get(unclaimed_inventory.entity).ok_or("no shape")?;
         let items: Vec<Item> = data
             .aabb_tree
-            .query_intersecting_shapes(
+            .query(
                 &data.entities,
-                &unclaimed_inventory.entity,
-                &data.shapes,
-                &data.positions,
+                &shape.aabb().translate(&pos.0),
+                &unclaimed_inventory.entity
             )
             .into_iter()
-            .filter_map(|(ent, _, _)| {
+            .filter_map(|(ent, _)| {
                 // Take the item off the map in preparation to place it in the inventory
                 if let Some(item) = data.items.remove(ent) {
                     data.entities
@@ -225,11 +239,16 @@ impl<'a> System<'a> for InventorySystem {
     type SystemData = InventorySystemData<'a>;
 
     fn run(&mut self, mut data: Self::SystemData) {
-        // Creating new inventories and holders
-        let mut unclaimed_invs = create_new_inventories(&mut data).unwrap();
-        fill_new_inventories(&mut unclaimed_invs, &mut data).unwrap();
+        // Move the inventories we got last frame
+        let past_invs = std::mem::replace(&mut self.new_unclaimed_inventories, HashMap::new());
+        self.unclaimed_inventories.extend(past_invs);
+
+        // Create new inventories, store them for a frame to allow some items to appear on the map
+        self.new_unclaimed_inventories = create_new_inventories(&mut data).unwrap();
+
+        // Fill the unclaimed inventories
+        fill_inventories(&mut self.unclaimed_inventories, &mut data).unwrap();
         let claims = find_new_inventory_claims(&mut data);
-        self.unclaimed_inventories.extend(unclaimed_invs);
         self.inventory_claims.extend(claims);
         self.resolve_claims(&mut data);
     }

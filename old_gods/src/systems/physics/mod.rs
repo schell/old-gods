@@ -172,7 +172,7 @@ impl<'a> System<'a> for Physics {
         let shape_reader = self
             .shape_reader
             .as_mut()
-            .expect("Could not unwrap barrier reader");
+            .expect("Could not unwrap shape reader");
         let position_reader = self
             .position_reader
             .as_mut()

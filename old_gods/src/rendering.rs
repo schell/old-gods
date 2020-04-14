@@ -1,3 +1,4 @@
+use log::trace;
 use super::prelude::*;
 use std::collections::HashSet;
 use std::ops::{Deref, DerefMut};
@@ -151,8 +152,10 @@ impl RenderingContext for CanvasRenderingContext2d {
     }
 
     fn set_fill_color(self: &mut CanvasRenderingContext2d, color: &Color) {
-        //self.set_global_alpha(color.a as f64 / 255.0);
-        self.set_fill_style(&JsValue::from(color.clone()));
+        let alpha = self.global_alpha();
+        self.set_global_alpha(color.a as f64 / 255.0);
+        CanvasRenderingContext2d::set_fill_style(self, &JsValue::from(color.clone()));
+        self.set_global_alpha(alpha);
     }
 
     fn global_alpha(self: &mut CanvasRenderingContext2d) -> f64 {
@@ -193,7 +196,10 @@ impl RenderingContext for CanvasRenderingContext2d {
     }
 
     fn set_stroke_color(&mut self, color: &Color) {
-        CanvasRenderingContext2d::set_stroke_style(self, &color.clone().into());
+        let alpha = self.global_alpha();
+        self.set_global_alpha(color.a as f64 / 255.0);
+        CanvasRenderingContext2d::set_stroke_style(self, &JsValue::from(color.clone()));
+        self.set_global_alpha(alpha);
     }
 
     fn stroke_lines(&mut self, lines: &Vec<V2>) {
@@ -349,6 +355,7 @@ where
         let ctx = self.get_rendering_context();
         let font = ctx.font_details_to_font(&text.font);
         ctx.set_font(&font);
+        ctx.set_fill_color(&text.color);
         ctx.fill_text(text.text.as_str(), pos)
     }
 
@@ -482,6 +489,7 @@ where
         &mut self,
         data: &DebugRenderingData,
         player: &Option<(&Player, &ZLevel)>,
+        from_viewport: impl Fn(V2) -> V2
     ) -> Result<(), String> {
         let mbrs = data
             .aabb_tree
@@ -515,12 +523,13 @@ where
             };
             let aabb = AABB::from_mbr(&mbr);
             let aabb = AABB::from_points(
-                data.screen.from_map(&aabb.top_left),
-                data.screen.from_map(&aabb.lower()),
+                from_viewport(data.screen.from_map(&aabb.top_left)),
+                from_viewport(data.screen.from_map(&aabb.upper())),
             );
 
-            self.get_rendering_context().set_stroke_color(&color);
-            self.get_rendering_context().stroke_rect(&aabb);
+            self.set_stroke_color(&color);
+            self.set_fill_color(&color);
+            self.stroke_rect(&aabb);
             if let Some(name) = data.names.get(entity) {
                 let p = V2::new(aabb.top_left.x, aabb.bottom());
                 let mut text = Self::debug_text(name.0.as_str());
@@ -941,7 +950,7 @@ where
         &mut self,
         world: &mut World,
         // The function needed to convert a point in the map viewport to the context.
-        _viewport_to_context: impl Fn(V2) -> V2,
+        viewport_to_context: impl Fn(V2) -> V2,
     ) -> Result<(), String> {
         let data: DebugRenderingData = world.system_data();
         let next_rect = if data.global_debug_toggles.contains(&RenderingToggles::FPS) {
@@ -987,7 +996,8 @@ where
 
         if toggles.contains(&RenderingToggles::EntityCount) {
             let count: u32 = (&data.entities).join().fold(0, |n, _| n + 1);
-            let text = Self::debug_text(format!("Entities: {}", count).as_str());
+            let mut text = Self::debug_text(format!("Entities: {}", count).as_str());
+            text.color = Color::rgb(0, 255, 100);
             let pos = V2::new(0.0, next_rect.bottom() as f32 + 10.0);
             self.draw_text(&text, &pos)?;
         }
@@ -999,7 +1009,7 @@ where
                 .collect::<Vec<_>>()
                 .first()
                 .cloned();
-            self.draw_aabb_tree(&data, &player)?;
+            self.draw_aabb_tree(&data, &player, viewport_to_context)?;
         }
 
         if toggles.contains(&RenderingToggles::Screen) {
