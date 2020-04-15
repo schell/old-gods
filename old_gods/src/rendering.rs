@@ -932,15 +932,15 @@ where
     /// Renders the user interface.
     fn render_ui<Rsrc: Resources<<Self::Ctx as RenderingContext>::Image>, F>(
         &mut self,
-        world: &mut World,
+        _world: &mut World,
         _resources: &mut Rsrc,
         // The function needed to convert a point in the map viewport to the context.
-        viewport_to_context: F,
+        _viewport_to_context: F,
     ) -> Result<(), String>
     where
         F: Fn(V2) -> V2
     {
-        self.render_actions(world, viewport_to_context)?;
+        //self.render_actions(world, viewport_to_context)?;
         Ok(())
     }
 

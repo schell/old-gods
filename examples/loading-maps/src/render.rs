@@ -1,8 +1,10 @@
+use super::{components::inventory::Inventory, systems::looting::Loot};
 use log::{trace, warn};
 use old_gods::{
+    color::css,
     prelude::{
-        DefaultRenderingContext, Exile, Join, Name, Player, Position, Read, ReadStorage, Resources,
-        World, V2,
+        Color, DefaultRenderingContext, Exile, Join, Name, Player, Position, Read, ReadStorage,
+        Resources, World, AABB, V2,
     },
     rendering::*,
 };
@@ -10,9 +12,8 @@ use std::ops::{Deref, DerefMut};
 use wasm_bindgen::JsCast;
 use web_sys::{window, CanvasRenderingContext2d, HtmlCanvasElement};
 
-use super::{components::inventory::Inventory, systems::looting::Loot};
-
 mod inventory;
+
 
 pub struct WebRenderingContext(pub DefaultRenderingContext<CanvasRenderingContext2d>);
 
@@ -77,6 +78,13 @@ impl HasRenderingContext for WebRenderingContext {
         self.deref_mut()
             .render_ui(world, resources, viewport_to_context)?;
 
+        self.set_fill_color(&css::pink());
+        self.fill_rect(&AABB {
+            top_left: V2::new(10.0, 10.0),
+            extents: V2::new(100.0, 100.0),
+        });
+
+
         let (exiles, inventories, loots, names, positions, players): (
             ReadStorage<Exile>,
             ReadStorage<Inventory>,
@@ -87,25 +95,39 @@ impl HasRenderingContext for WebRenderingContext {
         ) = world.system_data();
 
         let (ctx_w, ctx_h) = self.context_size()?;
-        let center = V2::new(ctx_w as f32, ctx_h as f32).scalar_mul(2.0);
+        let center = V2::new(ctx_w as f32, ctx_h as f32).scalar_mul(0.5);
         let slot_size = V2::new(48.0, 48.0);
         let slot_padding = 2.0;
         let frame_padding = 6.0;
         let total_slot_size = slot_size + V2::new(slot_padding * 2.0, slot_padding * 2.0);
-        let cols = 6.0;
-        let starting_point = V2::new(center.x - cols * total_slot_size.x, 0.0);
+        let starting_point = V2::new(center.x - (Loot::COLS as f32 * total_slot_size.x), frame_padding);
 
         // Draw the first looting
         if let Some(loot) = loots.first() {
             if let Some(inventory) = inventories.get(loot.ent_of_inventory_here) {
-                let name = names.get(loot.ent_of_inventory_here).cloned().unwrap_or(Name("unknown".into()));
-                trace!("{} items: {}", name.0, inventory.items.len());
+                let name = names
+                    .get(loot.ent_of_inventory_here)
+                    .cloned()
+                    .unwrap_or(Name("unknown".into()));
                 for (item, ndx) in inventory.items.iter().zip(0..) {
-                    let x_ndx = ndx % cols as u32;
-                    let y_ndx = ndx / cols as u32;
+                    let x_ndx = ndx % Loot::COLS as i32;
+                    let y_ndx = ndx / Loot::COLS as i32;
                     let point =
                         starting_point + V2::new(x_ndx as f32, y_ndx as f32) * total_slot_size;
+                    self.set_fill_color(&css::dark_slate_gray());
+                    self.fill_rect(&AABB {
+                        top_left: point - V2::new(slot_padding, slot_padding),
+                        extents: total_slot_size,
+                    });
+
                     self.draw_rendering(resources, &point, &item.rendering)?;
+
+                    self.set_stroke_color(&Color::rgb(127, 127, 40));
+                    let (w, h) = item.rendering.size();
+                    self.stroke_rect(&AABB {
+                        top_left: point,
+                        extents: V2::new(w as f32, h as f32),
+                    });
                 }
             } else {
                 warn!("looting no inventory");

@@ -31,6 +31,9 @@ pub struct Loot {
 
 
 impl Loot {
+    /// How many columns do we use to display loot?
+    pub const COLS: usize = 6;
+
     pub fn clamp_index(&mut self, items_len: usize) {
         if items_len > 0 {
             let ndx = self.item_index;

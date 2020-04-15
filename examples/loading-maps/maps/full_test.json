@@ -292,7 +292,7 @@
         {
          "name":"toggle_rendering_velocities",
          "type":"bool",
-         "value":false
+         "value":true
         }, 
         {
          "name":"viewport_height_tiles",
