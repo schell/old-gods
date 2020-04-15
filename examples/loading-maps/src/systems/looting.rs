@@ -22,8 +22,11 @@ pub struct Loot {
     /// Whether or not the looter is looking here.
     pub looking_here: bool,
 
-    /// The index of the item that the looter is currently looking at.
-    pub item_index: usize,
+    /// The x index of the item that the looter is currently looking at.
+    pub cursor_x: i32,
+
+    /// The y index of the item that the looter is currently looking at.
+    pub cursor_y: i32,
 
     /// Is this loot done?
     pub should_close: bool,
@@ -34,28 +37,14 @@ impl Loot {
     /// How many columns do we use to display loot?
     pub const COLS: usize = 6;
 
-    pub fn clamp_index(&mut self, items_len: usize) {
+    pub fn clamp_cursors(&mut self, items_len: usize) {
         if items_len > 0 {
-            let ndx = self.item_index;
-            self.item_index = clamp(0, ndx, items_len - 1);
-        }
-    }
+            let x = self.cursor_x;
+            self.cursor_x = clamp(0, x, Loot::COLS as i32 - 1);
 
-    pub fn pred_index(&mut self, items_len: usize) {
-        if items_len > 0 {
-            let ndx = self.item_index;
-            self.item_index = if ndx > 0 {
-                clamp(0, ndx - 1, items_len - 1)
-            } else {
-                0
-            };
-        }
-    }
-
-    pub fn succ_index(&mut self, items_len: usize) {
-        if items_len > 0 {
-            let ndx = self.item_index;
-            self.item_index = clamp(0, ndx + 1, items_len - 1);
+            let rows = (items_len as f32 / Loot::COLS as f32).ceil() as i32;
+            let y = self.cursor_y;
+            self.cursor_y = clamp(0, y, rows - 1);
         }
     }
 }
@@ -146,15 +135,15 @@ pub enum LootingResult {
     None,
     Use {
         inv: Entity,
-        item_ndx: usize,
+        item_ndx: (usize, usize),
     },
     Drop {
         inv: Entity,
-        item_ndx: usize,
+        item_ndx: (usize, usize),
     },
     Take {
         from: Entity,
-        item_ndx: usize,
+        item_ndx: (usize, usize),
         to: Entity,
     },
 }
@@ -167,12 +156,13 @@ fn handle_inventory_action(
 ) -> Result<(), String> {
     match action {
         LootingResult::None => {}
-        LootingResult::Take { item_ndx, from, to } => {
+        LootingResult::Take { item_ndx:(x, y), from, to } => {
             let item = data
                 .inventories
                 .get_mut(from)
-                .map(|inv| inv.items.remove(item_ndx))
-                .expect("could not get item from index");
+                .ok_or("could not get inventory to get item from")?
+                .remove_xy(x, y)
+                .ok_or("could not get item from inventory")?;
 
             let into_inv = data
                 .inventories
@@ -232,36 +222,26 @@ fn run_looting(looting: &mut Loot, data: &mut LootingSystemData) -> Result<(), S
 
     data.player_controllers
         .with_ui_ctrl_at::<_, Result<(), String>>(player.0, |ctrl| {
-            let item_len = if looting.looking_here {
-                inventory_here.items.len()
-            } else {
-                inventory_there
-                    .ok_or("trying to loot an inventory that DNE".to_string())?
-                    .items
-                    .len()
-            };
+            // Determine where the looter wants to put the cursor
+            if ctrl.right().is_on_or_repeated_this_frame() {
+                looting.cursor_x += 1;
+            }
+            if ctrl.left().is_on_or_repeated_this_frame() {
+                looting.cursor_x -= 1;
+            }
+            if ctrl.down().is_on_or_repeated_this_frame() {
+                looting.cursor_y += 1;
+            }
+            if ctrl.up().is_on_or_repeated_this_frame() {
+                looting.cursor_y -= 1;
+            }
+            looting.clamp_cursors(inventory_here.item_len());
 
             // Determine where the looter is going to put the item - if the looter
             // * is hitting A it means they want to trade the item
             // * is hitting B they want to drop the item onto the map
             // * is hitting X they want to use the item
-            if ctrl.right().is_on_this_frame() && looting.looking_here && inventory_there.is_some()
-            {
-                looting.looking_here = false;
-                ctrl.debounce();
-            } else if ctrl.left().is_on_this_frame()
-                && !looting.looking_here
-                && inventory_there.is_some()
-            {
-                looting.looking_here = true;
-                ctrl.debounce();
-            } else if ctrl.down().is_on_or_repeated_this_frame() {
-                looting.succ_index(item_len);
-                ctrl.debounce();
-            } else if ctrl.up().is_on_or_repeated_this_frame() {
-                looting.pred_index(item_len);
-                ctrl.debounce();
-            } else if ctrl.y().is_on_this_frame() {
+            if ctrl.y().is_on_this_frame() {
                 looting.should_close = true;
                 // Switch to the map
                 ctrl.use_for_map();
@@ -280,7 +260,7 @@ fn run_looting(looting: &mut Loot, data: &mut LootingSystemData) -> Result<(), S
                 inv_action = LootingResult::Take {
                     from,
                     to,
-                    item_ndx: looting.item_index,
+                    item_ndx: (looting.cursor_x as usize, looting.cursor_y as usize),
                 };
                 ctrl.debounce();
             } else if ctrl.b().is_on_this_frame() {
@@ -291,7 +271,7 @@ fn run_looting(looting: &mut Loot, data: &mut LootingSystemData) -> Result<(), S
                     } else {
                         looting.ent_of_inventory_there.ok_or("inventory DNE")?
                     },
-                    item_ndx: looting.item_index,
+                    item_ndx: (looting.cursor_x as usize, looting.cursor_y as usize),
                 };
                 ctrl.debounce();
             } else if ctrl.x().is_on_this_frame() {
@@ -302,7 +282,7 @@ fn run_looting(looting: &mut Loot, data: &mut LootingSystemData) -> Result<(), S
                     } else {
                         looting.ent_of_inventory_there.ok_or("inventory DNE")?
                     },
-                    item_ndx: looting.item_index,
+                    item_ndx: (looting.cursor_x as usize, looting.cursor_y as usize),
                 };
                 ctrl.debounce();
             }
@@ -350,7 +330,8 @@ fn start_new_loots(data: &mut LootingSystemData) {
                     ent_of_inventory_there: Some(ent),
                     // it's all their own inventory here!
                     looking_here: true,
-                    item_index: 0,
+                    cursor_x: 0,
+                    cursor_y: 0,
                     should_close: false,
                 });
                 // Set the controller to be used for the UI

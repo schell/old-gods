@@ -12,8 +12,6 @@ use std::ops::{Deref, DerefMut};
 use wasm_bindgen::JsCast;
 use web_sys::{window, CanvasRenderingContext2d, HtmlCanvasElement};
 
-mod inventory;
-
 
 pub struct WebRenderingContext(pub DefaultRenderingContext<CanvasRenderingContext2d>);
 
@@ -85,13 +83,10 @@ impl HasRenderingContext for WebRenderingContext {
         });
 
 
-        let (exiles, inventories, loots, names, positions, players): (
-            ReadStorage<Exile>,
+        let (inventories, loots, names): (
             ReadStorage<Inventory>,
             Read<Vec<Loot>>,
             ReadStorage<Name>,
-            ReadStorage<Position>,
-            ReadStorage<Player>,
         ) = world.system_data();
 
         let (ctx_w, ctx_h) = self.context_size()?;
@@ -100,7 +95,6 @@ impl HasRenderingContext for WebRenderingContext {
         let slot_padding = 2.0;
         let frame_padding = 6.0;
         let total_slot_size = slot_size + V2::new(slot_padding * 2.0, slot_padding * 2.0);
-        let starting_point = V2::new(center.x - (Loot::COLS as f32 * total_slot_size.x), frame_padding);
 
         // Draw the first looting
         if let Some(loot) = loots.first() {
@@ -109,25 +103,120 @@ impl HasRenderingContext for WebRenderingContext {
                     .get(loot.ent_of_inventory_here)
                     .cloned()
                     .unwrap_or(Name("unknown".into()));
-                for (item, ndx) in inventory.items.iter().zip(0..) {
-                    let x_ndx = ndx % Loot::COLS as i32;
-                    let y_ndx = ndx / Loot::COLS as i32;
-                    let point =
-                        starting_point + V2::new(x_ndx as f32, y_ndx as f32) * total_slot_size;
-                    self.set_fill_color(&css::dark_slate_gray());
-                    self.fill_rect(&AABB {
-                        top_left: point - V2::new(slot_padding, slot_padding),
-                        extents: total_slot_size,
-                    });
+                // The left edge of the entire inv frame
+                let frame_left =
+                    center.x - (Loot::COLS as f32 * total_slot_size.x) - frame_padding * 2.0;
+                // The top edge of the entire inv frame
+                let frame_top = 0.0;
+                // Create and measure the title
+                let title = Self::fancy_text(&format!("{}'s inventory", name.0));
+                let title_size = self.measure_text(&title)?;
+                let title_point = V2::new(frame_left + frame_padding, frame_top + frame_padding);
+                // Now determine the starting point for the items
+                let num_item_rows = (inventory.item_len() as f32 / Loot::COLS as f32).ceil();
+                let first_item_point =
+                    V2::new(title_point.x, title_point.y + title_size.1 + frame_padding);
+                let total_items_size = V2::new(
+                    Loot::COLS as f32 * total_slot_size.x,
+                    num_item_rows * total_slot_size.y,
+                );
+                // Next we can determine the inventory AABB.
+                let inv_bg_size = V2::new(
+                    frame_padding + total_items_size.x + frame_padding,
+                    frame_padding
+                        + title_size.1
+                        + frame_padding
+                        + total_items_size.y
+                        + frame_padding,
+                );
+                let inv_bg_color = Color::rgb(0x33, 0x33, 0x33);
+                let inv_bg_aabb = AABB {
+                    top_left: V2::new(frame_left, frame_top),
+                    extents: inv_bg_size,
+                };
+                // Finally we can draw the inventory frame
+                self.set_fill_color(&inv_bg_color);
+                self.set_stroke_color(&inv_bg_color);
+                self.fill_rect(&inv_bg_aabb);
+                self.stroke_rect(&inv_bg_aabb);
+                // Draw the title
+                self.draw_text(&title, &(title_point + V2::new(0.0, title_size.1)))?;
 
-                    self.draw_rendering(resources, &point, &item.rendering)?;
+                let dark_color = css::dark_slate_gray();
+                let light_color = Color::rgb(127, 127, 40);
 
-                    self.set_stroke_color(&Color::rgb(127, 127, 40));
-                    let (w, h) = item.rendering.size();
-                    self.stroke_rect(&AABB {
-                        top_left: point,
-                        extents: V2::new(w as f32, h as f32),
-                    });
+                for x_ndx in 0..Loot::COLS as i32{
+                    for y_ndx in 0..num_item_rows as i32 {
+                        let point = first_item_point
+                            + V2::new(x_ndx as f32, y_ndx as f32) * total_slot_size;
+                        let is_selected = loot.looking_here
+                            && loot.cursor_x == x_ndx
+                            && loot.cursor_y == y_ndx;
+                        let (bg, outline) = if is_selected {
+                            (&light_color, &dark_color)
+                        } else {
+                            (&dark_color, &light_color)
+                        };
+
+                        self.set_fill_color(&bg);
+                        self.fill_rect(&AABB {
+                            top_left: point,
+                            extents: total_slot_size,
+                        });
+
+                        if let Some(item) = inventory.item_at_xy(x_ndx, y_ndx) {
+                            self.draw_rendering(resources, &point, &item.rendering)?;
+                        }
+
+                        self.set_stroke_color(&outline);
+                        let item_outline_aabb = AABB {
+                            top_left: point + V2::new(slot_padding, slot_padding),
+                            extents: slot_size,
+                        };
+                        self.stroke_rect(&item_outline_aabb);
+
+                        if let Some(item) = inventory.item_at_xy(x_ndx, y_ndx) {
+                            if let Some(count) = item.stack {
+                                let count_str = format!("x{}", count);
+                                let mut count_text = Self::normal_text(&count_str);
+                                count_text.size = (12, 12);
+                                self.draw_text(
+                                    &count_text,
+                                    &V2::new(
+                                        item_outline_aabb.left() + 1.0,
+                                        item_outline_aabb.bottom() - 1.0,
+                                    ),
+                                )?;
+                            }
+                        }
+
+                        if is_selected {
+                            // Draw the item name at the bottom
+                            let empty = "empty";
+                            let name = inventory
+                                .item_at_xy(x_ndx, y_ndx)
+                                .map(|item| item.name.as_str())
+                                .unwrap_or(empty);
+                            let mut item_name_text = Self::normal_text(name);
+                            item_name_text.color = css::light_grey();
+                            item_name_text.size = (12, 12);
+                            let item_name_text_size = self.measure_text(&item_name_text)?;
+                            let item_text_frame_aabb = AABB {
+                                top_left: V2::new(inv_bg_aabb.left(), inv_bg_aabb.bottom()),
+                                extents: V2::new(
+                                    inv_bg_aabb.width(),
+                                    item_name_text_size.1 + frame_padding * 2.0,
+                                ),
+                            };
+                            self.set_fill_color(&inv_bg_color);
+                            self.fill_rect(&item_text_frame_aabb);
+                            let item_name_text_point = V2::new(
+                                item_text_frame_aabb.left() + frame_padding,
+                                item_text_frame_aabb.top() + frame_padding,
+                            );
+                            self.draw_text(&item_name_text, &item_name_text_point)?;
+                        }
+                    }
                 }
             } else {
                 warn!("looting no inventory");

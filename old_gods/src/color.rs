@@ -33,8 +33,8 @@ impl Color {
 }
 
 
-impl From<Color> for JsValue {
-    fn from(color: Color) -> JsValue {
+impl From<&Color> for JsValue {
+    fn from(color: &Color) -> JsValue {
         let s = format!(
             "rgb({}, {}, {})",
             color.r, color.g, color.b

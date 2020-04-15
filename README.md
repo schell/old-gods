@@ -11,30 +11,31 @@ It reads Tiled map files into a specs based entity component system.
 Rendering is handled by HtmlCanvasElement or the built in SDL2 renderer.
 
 A number of base systems handle the core of the engine:
-* TiledmapSystem - loads maps 
-* Physics - collision detection and handling 
-* AnimationSystem - sprite animation 
-* GamepadSystem - controller support 
+* TiledmapSystem - loads maps
+* Physics - collision detection and handling
+* AnimationSystem - sprite animation
+* GamepadSystem - controller support
 
 More specific add-ons are available as separate crates.
 
 ## Performance
 I'm really surprised at the performance. So far without any attention to
-performance the engine is running at about 330FPS, with a high of about 500FPS 
+performance the engine is running at about 330FPS, with a high of about 500FPS
 (in SDL2). On wasm it's running at a pretty steady 60FPS.
 
 ## Features
 
-* Map definition using the ubiquitous Tiled map editor.
+* Map creation using the ubiquitous Tiled map editor.
 * Animation
-* Sprites
+* Sprites (nested, keyframed Tiled maps)
 * Collision detection and handling (SAT for AABBs)
 * Dynamic viewport rendering
+* Easily overridable default rendering
 * Inventory and items
 
 ## Building
 First you'll need new(ish) version of the rust toolchain. For that you can visit
-https://rustup.rs/ and follow the installation instructions. 
+https://rustup.rs/ and follow the installation instructions.
 
 This project uses the nightly release:
 

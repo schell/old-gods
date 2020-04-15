@@ -50,7 +50,7 @@ impl InventorySystem {
                 trace!(
                     "resolved inventory '{}' with {} items.",
                     claim.inventory_name,
-                    unclaimed.inventory.items.len()
+                    unclaimed.inventory.item_len()
                 );
                 data.entities.delete(unclaimed.entity).expect("delete ent");
                 data.inventories
@@ -150,7 +150,7 @@ fn create_new_inventories(
                         .flatten()
                         .unwrap_or(false),
                     stack: properties
-                        .get("stack")
+                        .get("stack_count")
                         .map(|v| v.as_u64().map(|u| u as usize))
                         .flatten(),
                     rendering: rendering.clone(),
@@ -209,7 +209,7 @@ fn fill_inventories(
                 }
             })
             .collect();
-        unclaimed_inventory.inventory.items = items;
+        let _ = unclaimed_inventory.inventory.replace_items(items);
     }
     Ok(())
 }

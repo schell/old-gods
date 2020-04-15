@@ -212,6 +212,7 @@ impl PlayerController {
 
     /// Debounce the controller, marking it unavailable to systems for the remainder of the
     /// frame.
+    /// TODO: Gamepad debounce timer
     pub fn debounce(&self) {
         self.debouncing.set(true);
     }

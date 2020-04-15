@@ -1,7 +1,5 @@
-use log::trace;
 use super::prelude::*;
 use std::collections::HashSet;
-use std::ops::{Deref, DerefMut};
 use wasm_bindgen::prelude::*;
 use web_sys::{CanvasRenderingContext2d, HtmlImageElement};
 
@@ -145,7 +143,7 @@ impl RenderingContext for CanvasRenderingContext2d {
     }
 
     fn clear(&mut self) -> Result<(), String> {
-        self.set_fill_style(&JsValue::from(Color::rgba(0, 0, 0, 0)));
+        self.set_fill_style(&JsValue::from(&Color::rgba(0, 0, 0, 0)));
         let (w, h) = self.context_size()?;
         self.fill_rect(&AABB::new(0.0, 0.0, w as f32, h as f32));
         Ok(())
@@ -154,7 +152,7 @@ impl RenderingContext for CanvasRenderingContext2d {
     fn set_fill_color(self: &mut CanvasRenderingContext2d, color: &Color) {
         let alpha = self.global_alpha();
         self.set_global_alpha(color.a as f64 / 255.0);
-        CanvasRenderingContext2d::set_fill_style(self, &JsValue::from(color.clone()));
+        CanvasRenderingContext2d::set_fill_style(self, &JsValue::from(color));
         self.set_global_alpha(alpha);
     }
 
@@ -176,8 +174,10 @@ impl RenderingContext for CanvasRenderingContext2d {
         );
     }
 
+    // TODO: Better web font handling
+    // https://developer.mozilla.org/en-US/docs/Web/API/FontFace
     fn set_font(&mut self, font: &Self::Font) {
-        CanvasRenderingContext2d::set_font(self, &format!("{}px {}", font.size, font.path));
+        CanvasRenderingContext2d::set_font(self, &font.to_css_string());
     }
 
     fn fill_text(&mut self, text: &str, point: &V2) -> Result<(), String> {
@@ -185,6 +185,8 @@ impl RenderingContext for CanvasRenderingContext2d {
             .map_err(|e| format!("cannot fill text: {:#?}", e))
     }
 
+    /// This isn't working very well.
+    /// TODO: Better web text measurement.
     fn size_of_text(&mut self, font: &Self::Font, text: &str) -> Result<(f32, f32), String> {
         self.set_font(font);
         let num_lines = text.lines().count();
@@ -198,7 +200,7 @@ impl RenderingContext for CanvasRenderingContext2d {
     fn set_stroke_color(&mut self, color: &Color) {
         let alpha = self.global_alpha();
         self.set_global_alpha(color.a as f64 / 255.0);
-        CanvasRenderingContext2d::set_stroke_style(self, &JsValue::from(color.clone()));
+        CanvasRenderingContext2d::set_stroke_style(self, &JsValue::from(color));
         self.set_global_alpha(alpha);
     }
 
@@ -436,6 +438,7 @@ where
         }
     }
 
+    /// TODO: Change this to return V2
     fn measure_text(&mut self, text: &Text) -> Result<(f32, f32), String> {
         let ctx = self.get_rendering_context();
         let font = ctx.font_details_to_font(&text.font);
@@ -1021,7 +1024,7 @@ where
 
     fn fancy_font() -> FontDetails {
         FontDetails {
-            path: "monospace".to_string(),
+            path: "Georgia,Times,Times New Roman,serif".to_string(),
             size: 18,
         }
     }
@@ -1037,7 +1040,7 @@ where
 
     fn normal_font() -> FontDetails {
         FontDetails {
-            path: "sans-serif".to_string(),
+            path: "Futura,Trebuchet MS,Arial,sans-serif".to_string(),
             size: 16,
         }
     }
@@ -1053,7 +1056,7 @@ where
 
     fn debug_font_details() -> FontDetails {
         FontDetails {
-            path: "monospace".to_string(),
+            path: "Consolas,monaco,monospace".to_string(),
             size: 16,
         }
     }
