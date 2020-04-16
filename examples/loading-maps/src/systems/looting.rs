@@ -2,9 +2,9 @@ use super::super::components::inventory::{Inventory, Item};
 /// Manages the looting process.
 use old_gods::{
     prelude::{
-        Action, Easing, Exile, FitnessStrategy, Lifespan, Name, Object, OriginOffset, Player,
-        PlayerController, PlayerControllers, Position, Rendering, Shape, Tween, TweenParam,
-        Velocity, AABB, V2,
+        Action, Barrier, Easing, Exile, FitnessStrategy, Lifespan, Name, Object, OriginOffset,
+        Player, PlayerController, PlayerControllers, Position, Rendering, Shape, Tween, TweenParam,
+        Velocity, AABB, V2, ZLevel
     },
     utils::clamp,
 };
@@ -58,6 +58,7 @@ pub struct LootingSystemData<'a> {
     player_controllers: Read<'a, PlayerControllers>,
     renderings: ReadStorage<'a, Rendering>,
     shapes: ReadStorage<'a, Shape>,
+    z_levels: ReadStorage<'a, ZLevel>
 }
 
 
@@ -145,6 +146,7 @@ pub fn throw_item_with_index_onto_the_map(
     (x, y): (usize, usize),
     starting_loc: V2,
     from_aabb: AABB,
+    z: ZLevel,
     entities: &Entities,
     lazy: &LazyUpdate,
 ) -> Result<(), String> {
@@ -159,25 +161,31 @@ pub fn throw_item_with_index_onto_the_map(
         f32::max(f, i)
     };
 
-    // Place the item
+    // Find a place for the item
     let radians = inventory.dequeue_ejection_in_radians();
     let dv = V2::new(f32::cos(radians), f32::sin(radians));
     let loc = starting_loc + (dv.scalar_mul(radius));
 
-    // Fuckit! Throw the item!
+    // Throw the item!
     let speed = 100.0;
     let starting_v = dv.scalar_mul(speed);
     let ent = lazy
         .create_entity(entities)
+        .with(Name(item.name.clone()))
         .with(Position(loc))
         .with(Velocity(starting_v))
         .with(item.rendering.clone())
         .with(item.shape.clone())
         .with(item.clone())
+        .with(z)
         .build();
     if let Some(offset) = item.offset {
         lazy.insert(ent, offset.clone());
     }
+    if item.is_barrier {
+        lazy.insert(ent, Barrier);
+    }
+
     // Tween the item flying out of the inventory, eventually stopping.
     let _ = lazy
         .create_entity(entities)
@@ -216,7 +224,7 @@ fn handle_inventory_action(
             let into_inv = data
                 .inventories
                 .get_mut(to)
-                .expect("could not get inventory to place item into");
+                .ok_or("could not get inventory to place item into")?;
             into_inv.add_item(item);
         }
         LootingResult::Drop {
@@ -226,22 +234,28 @@ fn handle_inventory_action(
             let inv = data
                 .inventories
                 .get_mut(inv_ent)
-                .expect("could not remove item from inventory");
+                .ok_or("could not remove item from inventory")?;
             let loc = data
                 .positions
                 .get(inv_ent)
                 .map(|p| p.0)
-                .expect("tried to drop an item but the dropper has no position");
+                .ok_or("tried to drop an item but the dropper has no position")?;
             let from_aabb = data
                 .shapes
                 .get(inv_ent)
                 .map(|s| s.aabb())
                 .unwrap_or(AABB::identity());
+            let z = data
+                .z_levels
+                .get(inv_ent)
+                .cloned()
+                .ok_or("cannot drop item from an inventory w/o z")?;
             throw_item_with_index_onto_the_map(
                 inv,
                 item_ndx,
                 loc,
                 from_aabb,
+                z,
                 &data.entities,
                 &data.lazy,
             )?;
@@ -297,52 +311,51 @@ fn browse_inventory(
 /// * is hitting B they want to drop the item onto the map
 /// * is hitting X they want to use the item
 fn determine_action(ctrl: &PlayerController, looting: &Loot) -> Result<LootingResult, String> {
-    let res =
-        if ctrl.a().is_on_this_frame() {
-            // Put this item in the other inventory.
-            let from = if looting.looking_here {
-                looting.ent_of_inventory_here
-            } else {
-                looting.ent_of_inventory_there.ok_or("inventory DNE")?
-            };
-            let to = if looting.looking_here {
-                looting.ent_of_inventory_there.ok_or("inventory DNE")?
-            } else {
-                looting.ent_of_inventory_here
-            };
-
-            ctrl.debounce();
-
-            LootingResult::Take {
-                from,
-                to,
-                item_ndx: (looting.cursor_x as usize, looting.cursor_y as usize),
-            }
-        } else if ctrl.b().is_on_this_frame() {
-            ctrl.debounce();
-            // Put this item on the map
-            LootingResult::Drop {
-                inv: if looting.looking_here {
-                    looting.ent_of_inventory_here
-                } else {
-                    looting.ent_of_inventory_there.ok_or("inventory DNE")?
-                },
-                item_ndx: (looting.cursor_x as usize, looting.cursor_y as usize),
-            }
-        } else if ctrl.x().is_on_this_frame() {
-            ctrl.debounce();
-            // Use this item
-            LootingResult::Use {
-                inv: if looting.looking_here {
-                    looting.ent_of_inventory_here
-                } else {
-                    looting.ent_of_inventory_there.ok_or("inventory DNE")?
-                },
-                item_ndx: (looting.cursor_x as usize, looting.cursor_y as usize),
-            }
+    let res = if ctrl.a().is_on_this_frame() {
+        // Put this item in the other inventory.
+        let from = if looting.looking_here {
+            looting.ent_of_inventory_here
         } else {
-            LootingResult::None
+            looting.ent_of_inventory_there.ok_or("inventory DNE")?
         };
+        let to = if looting.looking_here {
+            looting.ent_of_inventory_there.ok_or("inventory DNE")?
+        } else {
+            looting.ent_of_inventory_here
+        };
+
+        ctrl.debounce();
+
+        LootingResult::Take {
+            from,
+            to,
+            item_ndx: (looting.cursor_x as usize, looting.cursor_y as usize),
+        }
+    } else if ctrl.b().is_on_this_frame() {
+        ctrl.debounce();
+        // Put this item on the map
+        LootingResult::Drop {
+            inv: if looting.looking_here {
+                looting.ent_of_inventory_here
+            } else {
+                looting.ent_of_inventory_there.ok_or("inventory DNE")?
+            },
+            item_ndx: (looting.cursor_x as usize, looting.cursor_y as usize),
+        }
+    } else if ctrl.x().is_on_this_frame() {
+        ctrl.debounce();
+        // Use this item
+        LootingResult::Use {
+            inv: if looting.looking_here {
+                looting.ent_of_inventory_here
+            } else {
+                looting.ent_of_inventory_there.ok_or("inventory DNE")?
+            },
+            item_ndx: (looting.cursor_x as usize, looting.cursor_y as usize),
+        }
+    } else {
+        LootingResult::None
+    };
     Ok(res)
 }
 

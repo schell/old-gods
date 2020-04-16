@@ -64,7 +64,7 @@ pub struct Inventory {
 
     /// A place to store the next angle to use for throwing an item out
     /// of the inventory.
-    pub next_ejection_angle: u32,
+    next_ejection_angle: u32,
 }
 
 
