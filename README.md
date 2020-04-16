@@ -23,7 +23,7 @@ I'm really surprised at the performance. So far without any attention to
 performance the engine is running at about 330FPS, with a high of about 500FPS
 (in SDL2). On wasm it's running at a pretty steady 60FPS.
 
-## Features
+## Core Features
 
 * Map creation using the ubiquitous Tiled map editor.
 * Animation
@@ -31,6 +31,8 @@ performance the engine is running at about 330FPS, with a high of about 500FPS
 * Collision detection and handling (SAT for AABBs)
 * Dynamic viewport rendering
 * Easily overridable default rendering
+
+## Extras
 * Inventory and items
 
 ## Building
