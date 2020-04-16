@@ -38,13 +38,15 @@ impl Loot {
     pub const COLS: usize = 6;
 
     pub fn clamp_cursors(&mut self, items_len: usize) {
-        if items_len > 0 {
-            let x = self.cursor_x;
-            self.cursor_x = clamp(0, x, Loot::COLS as i32 - 1);
+        let x = self.cursor_x;
+        self.cursor_x = clamp(0, x, Loot::COLS as i32 - 1);
 
+        if items_len > 0 {
             let rows = (items_len as f32 / Loot::COLS as f32).ceil() as i32;
             let y = self.cursor_y;
             self.cursor_y = clamp(0, y, rows - 1);
+        } else {
+            self.cursor_y = 0;
         }
     }
 }

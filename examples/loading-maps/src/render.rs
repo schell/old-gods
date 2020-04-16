@@ -109,11 +109,21 @@ impl HasRenderingContext for WebRenderingContext {
                 // The top edge of the entire inv frame
                 let frame_top = 0.0;
                 // Create and measure the title
-                let title = Self::fancy_text(&format!("{}'s inventory", name.0));
+                let title = format!(
+                    "{}'s inventory{}",
+                    name.0,
+                    if inventory.item_len() == 0 {
+                        " is empty!"
+                    } else {
+                        ""
+                    }
+                );
+                let title = Self::fancy_text(&title);
                 let title_size = self.measure_text(&title)?;
                 let title_point = V2::new(frame_left + frame_padding, frame_top + frame_padding);
                 // Now determine the starting point for the items
                 let num_item_rows = (inventory.item_len() as f32 / Loot::COLS as f32).ceil();
+                let num_item_rows = f32::max(1.0, num_item_rows);
                 let first_item_point =
                     V2::new(title_point.x, title_point.y + title_size.1 + frame_padding);
                 let total_items_size = V2::new(
@@ -145,13 +155,12 @@ impl HasRenderingContext for WebRenderingContext {
                 let dark_color = css::dark_slate_gray();
                 let light_color = Color::rgb(127, 127, 40);
 
-                for x_ndx in 0..Loot::COLS as i32{
+                for x_ndx in 0..Loot::COLS as i32 {
                     for y_ndx in 0..num_item_rows as i32 {
                         let point = first_item_point
                             + V2::new(x_ndx as f32, y_ndx as f32) * total_slot_size;
-                        let is_selected = loot.looking_here
-                            && loot.cursor_x == x_ndx
-                            && loot.cursor_y == y_ndx;
+                        let is_selected =
+                            loot.looking_here && loot.cursor_x == x_ndx && loot.cursor_y == y_ndx;
                         let (bg, outline) = if is_selected {
                             (&light_color, &dark_color)
                         } else {
