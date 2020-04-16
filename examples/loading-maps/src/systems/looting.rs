@@ -2,8 +2,9 @@ use super::super::components::inventory::{Inventory, Item};
 /// Manages the looting process.
 use old_gods::{
     prelude::{
-        Action, Exile, FitnessStrategy, Lifespan, Name, Object, OriginOffset, Player,
-        PlayerControllers, Position, Rendering, Shape, AABB, V2,
+        Action, Easing, Exile, FitnessStrategy, Lifespan, Name, Object, OriginOffset, Player,
+        PlayerController, PlayerControllers, Position, Rendering, Shape, Tween, TweenParam,
+        Velocity, AABB, V2,
     },
     utils::clamp,
 };
@@ -36,19 +37,6 @@ pub struct Loot {
 impl Loot {
     /// How many columns do we use to display loot?
     pub const COLS: usize = 6;
-
-    pub fn clamp_cursors(&mut self, items_len: usize) {
-        let x = self.cursor_x;
-        self.cursor_x = clamp(0, x, Loot::COLS as i32 - 1);
-
-        if items_len > 0 {
-            let rows = (items_len as f32 / Loot::COLS as f32).ceil() as i32;
-            let y = self.cursor_y;
-            self.cursor_y = clamp(0, y, rows - 1);
-        } else {
-            self.cursor_y = 0;
-        }
-    }
 }
 
 
@@ -151,6 +139,61 @@ pub enum LootingResult {
 }
 
 
+/// Finds a position around the holder that's out of the way, and then throws the item there.
+pub fn throw_item_with_index_onto_the_map(
+    inventory: &mut Inventory,
+    (x, y): (usize, usize),
+    starting_loc: V2,
+    from_aabb: AABB,
+    entities: &Entities,
+    lazy: &LazyUpdate,
+) -> Result<(), String> {
+    let item = inventory.remove_xy(x, y).ok_or("no item at x y")?;
+
+    let item_aabb = item.shape.aabb();
+    // From there we must offset it some amount to account for
+    // the barriers of each
+    let radius = {
+        let f = from_aabb.greater_extent();
+        let i = item_aabb.greater_extent();
+        f32::max(f, i)
+    };
+
+    // Place the item
+    let radians = inventory.dequeue_ejection_in_radians();
+    let dv = V2::new(f32::cos(radians), f32::sin(radians));
+    let loc = starting_loc + (dv.scalar_mul(radius));
+
+    // Fuckit! Throw the item!
+    let speed = 100.0;
+    let starting_v = dv.scalar_mul(speed);
+    let ent = lazy
+        .create_entity(entities)
+        .with(Position(loc))
+        .with(Velocity(starting_v))
+        .with(item.rendering.clone())
+        .with(item.shape.clone())
+        .with(item.clone())
+        .build();
+    if let Some(offset) = item.offset {
+        lazy.insert(ent, offset.clone());
+    }
+    // Tween the item flying out of the inventory, eventually stopping.
+    let _ = lazy
+        .create_entity(entities)
+        .with(Tween::new(
+            ent,
+            TweenParam::Velocity(starting_v, V2::origin()),
+            Easing::Linear,
+            0.5,
+        ))
+        .build();
+
+    println!("dv:{:?} radius:{:?} vel:{:?}", dv, radius, starting_v);
+
+    Ok(())
+}
+
 
 fn handle_inventory_action(
     action: LootingResult,
@@ -158,7 +201,11 @@ fn handle_inventory_action(
 ) -> Result<(), String> {
     match action {
         LootingResult::None => {}
-        LootingResult::Take { item_ndx:(x, y), from, to } => {
+        LootingResult::Take {
+            item_ndx: (x, y),
+            from,
+            to,
+        } => {
             let item = data
                 .inventories
                 .get_mut(from)
@@ -190,13 +237,14 @@ fn handle_inventory_action(
                 .get(inv_ent)
                 .map(|s| s.aabb())
                 .unwrap_or(AABB::identity());
-            inv.throw_item_with_index_onto_the_map(
+            throw_item_with_index_onto_the_map(
+                inv,
                 item_ndx,
                 loc,
                 from_aabb,
                 &data.entities,
                 &data.lazy,
-            );
+            )?;
         }
         LootingResult::Use { .. } => {
             panic!("TODO: use item");
@@ -204,6 +252,98 @@ fn handle_inventory_action(
     }
 
     Ok(())
+}
+
+
+pub fn clamp_cursors(cursor_x: &mut i32, cursor_y: &mut i32, items_len: usize) {
+    let x = *cursor_x;
+    *cursor_x = clamp(0, x, Loot::COLS as i32 - 1);
+
+    if items_len > 0 {
+        let rows = (items_len as f32 / Loot::COLS as f32).ceil() as i32;
+        let y = *cursor_y;
+        *cursor_y = clamp(0, y, rows - 1);
+    } else {
+        *cursor_y = 0;
+    }
+}
+
+
+/// Determine where the looter wants to put the cursor.
+fn browse_inventory(
+    ctrl: &PlayerController,
+    cursor_x: &mut i32,
+    cursor_y: &mut i32,
+    items_len: usize,
+) {
+    if ctrl.right().is_on_or_repeated_this_frame() {
+        *cursor_x += 1;
+    }
+    if ctrl.left().is_on_or_repeated_this_frame() {
+        *cursor_x -= 1;
+    }
+    if ctrl.down().is_on_or_repeated_this_frame() {
+        *cursor_y += 1;
+    }
+    if ctrl.up().is_on_or_repeated_this_frame() {
+        *cursor_y -= 1;
+    }
+    clamp_cursors(cursor_x, cursor_y, items_len);
+}
+
+/// Determine where the looter is going to put an item.
+/// If the looter:
+/// * is hitting A it means they want to trade the item
+/// * is hitting B they want to drop the item onto the map
+/// * is hitting X they want to use the item
+fn determine_action(ctrl: &PlayerController, looting: &Loot) -> Result<LootingResult, String> {
+    let res =
+        if ctrl.a().is_on_this_frame() {
+            // Put this item in the other inventory.
+            let from = if looting.looking_here {
+                looting.ent_of_inventory_here
+            } else {
+                looting.ent_of_inventory_there.ok_or("inventory DNE")?
+            };
+            let to = if looting.looking_here {
+                looting.ent_of_inventory_there.ok_or("inventory DNE")?
+            } else {
+                looting.ent_of_inventory_here
+            };
+
+            ctrl.debounce();
+
+            LootingResult::Take {
+                from,
+                to,
+                item_ndx: (looting.cursor_x as usize, looting.cursor_y as usize),
+            }
+        } else if ctrl.b().is_on_this_frame() {
+            ctrl.debounce();
+            // Put this item on the map
+            LootingResult::Drop {
+                inv: if looting.looking_here {
+                    looting.ent_of_inventory_here
+                } else {
+                    looting.ent_of_inventory_there.ok_or("inventory DNE")?
+                },
+                item_ndx: (looting.cursor_x as usize, looting.cursor_y as usize),
+            }
+        } else if ctrl.x().is_on_this_frame() {
+            ctrl.debounce();
+            // Use this item
+            LootingResult::Use {
+                inv: if looting.looking_here {
+                    looting.ent_of_inventory_here
+                } else {
+                    looting.ent_of_inventory_there.ok_or("inventory DNE")?
+                },
+                item_ndx: (looting.cursor_x as usize, looting.cursor_y as usize),
+            }
+        } else {
+            LootingResult::None
+        };
+    Ok(res)
 }
 
 
@@ -224,69 +364,32 @@ fn run_looting(looting: &mut Loot, data: &mut LootingSystemData) -> Result<(), S
 
     data.player_controllers
         .with_ui_ctrl_at::<_, Result<(), String>>(player.0, |ctrl| {
-            // Determine where the looter wants to put the cursor
-            if ctrl.right().is_on_or_repeated_this_frame() {
-                looting.cursor_x += 1;
-            }
-            if ctrl.left().is_on_or_repeated_this_frame() {
-                looting.cursor_x -= 1;
-            }
-            if ctrl.down().is_on_or_repeated_this_frame() {
-                looting.cursor_y += 1;
-            }
-            if ctrl.up().is_on_or_repeated_this_frame() {
-                looting.cursor_y -= 1;
-            }
-            looting.clamp_cursors(inventory_here.item_len());
+            browse_inventory(
+                ctrl,
+                &mut looting.cursor_x,
+                &mut looting.cursor_y,
+                if looting.looking_here {
+                    inventory_here.item_len()
+                } else {
+                    inventory_there.ok_or("inventory there DNE")?.item_len()
+                },
+            );
 
-            // Determine where the looter is going to put the item - if the looter
-            // * is hitting A it means they want to trade the item
-            // * is hitting B they want to drop the item onto the map
-            // * is hitting X they want to use the item
+            let may_item_at_cursor = if looting.looking_here {
+                inventory_here.item_at_xy(looting.cursor_x, looting.cursor_y)
+            } else {
+                inventory_there
+                    .ok_or("inventory there DNE for select")?
+                    .item_at_xy(looting.cursor_x, looting.cursor_y)
+            };
+
+            // Close the inventory if the player hits y
             if ctrl.y().is_on_this_frame() {
                 looting.should_close = true;
                 // Switch to the map
                 ctrl.use_for_map();
-            } else if ctrl.a().is_on_this_frame() {
-                // Put this item in the other inventory.
-                let from = if looting.looking_here {
-                    looting.ent_of_inventory_here
-                } else {
-                    looting.ent_of_inventory_there.ok_or("inventory DNE")?
-                };
-                let to = if looting.looking_here {
-                    looting.ent_of_inventory_there.ok_or("inventory DNE")?
-                } else {
-                    looting.ent_of_inventory_here
-                };
-                inv_action = LootingResult::Take {
-                    from,
-                    to,
-                    item_ndx: (looting.cursor_x as usize, looting.cursor_y as usize),
-                };
-                ctrl.debounce();
-            } else if ctrl.b().is_on_this_frame() {
-                // Put this item on the map
-                inv_action = LootingResult::Drop {
-                    inv: if looting.looking_here {
-                        looting.ent_of_inventory_here
-                    } else {
-                        looting.ent_of_inventory_there.ok_or("inventory DNE")?
-                    },
-                    item_ndx: (looting.cursor_x as usize, looting.cursor_y as usize),
-                };
-                ctrl.debounce();
-            } else if ctrl.x().is_on_this_frame() {
-                // Use this item
-                inv_action = LootingResult::Use {
-                    inv: if looting.looking_here {
-                        looting.ent_of_inventory_here
-                    } else {
-                        looting.ent_of_inventory_there.ok_or("inventory DNE")?
-                    },
-                    item_ndx: (looting.cursor_x as usize, looting.cursor_y as usize),
-                };
-                ctrl.debounce();
+            } else if may_item_at_cursor.is_some() {
+                inv_action = determine_action(ctrl, looting)?;
             }
 
             Ok(())
@@ -353,7 +456,7 @@ impl<'a> System<'a> for LootingSystem {
         start_new_loots(&mut data);
         // Get all the lootings
         let mut loots = {
-            let loots_ref:&mut Vec<Loot> = &mut data.loots;
+            let loots_ref: &mut Vec<Loot> = &mut data.loots;
             std::mem::replace(loots_ref, vec![])
         };
         // Run all the lootings

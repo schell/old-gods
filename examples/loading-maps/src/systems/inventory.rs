@@ -2,8 +2,8 @@
 use super::super::components::inventory::{Inventory, Item};
 use log::trace;
 use old_gods::prelude::{
-    AABBTree, Exile, Name, Object, OriginOffset, Player, PlayerControllers, Position, Rendering,
-    Shape, JSON,
+    AABBTree, Barrier, Exile, Name, Object, OriginOffset, Player, PlayerControllers, Position,
+    Rendering, Shape, JSON,
 };
 use specs::prelude::*;
 use std::collections::HashMap;
@@ -70,18 +70,15 @@ impl InventorySystem {
 #[derive(SystemData)]
 pub struct InventorySystemData<'a> {
     aabb_tree: Write<'a, AABBTree>,
+    barriers: ReadStorage<'a, Barrier>,
     entities: Entities<'a>,
-    exiles: WriteStorage<'a, Exile>,
     inventories: WriteStorage<'a, Inventory>,
     items: WriteStorage<'a, Item>,
     jsons: WriteStorage<'a, JSON>,
-    lazy: Read<'a, LazyUpdate>,
     names: ReadStorage<'a, Name>,
     objects: WriteStorage<'a, Object>,
     offsets: WriteStorage<'a, OriginOffset>,
     positions: ReadStorage<'a, Position>,
-    players: ReadStorage<'a, Player>,
-    player_controllers: Read<'a, PlayerControllers>,
     renderings: ReadStorage<'a, Rendering>,
     shapes: ReadStorage<'a, Shape>,
 }
@@ -123,7 +120,12 @@ fn create_new_inventories(
                     },
                 );
 
-                trace!("{:#?} pos: {:#?} shape: {:#?}", data.names.get(ent), data.positions.get(ent), data.shapes.get(ent));
+                trace!(
+                    "{:#?} pos: {:#?} shape: {:#?}",
+                    data.names.get(ent),
+                    data.positions.get(ent),
+                    data.shapes.get(ent)
+                );
             }
 
             "item" => {
@@ -140,8 +142,14 @@ fn create_new_inventories(
                     .get(ent)
                     .cloned()
                     .ok_or("item must have a shape")?;
-                trace!("{:#?} pos: {:#?} shape: {:#?}", data.names.get(ent), data.positions.get(ent), data.shapes.get(ent));
+                trace!(
+                    "{:#?} pos: {:#?} shape: {:#?}",
+                    data.names.get(ent),
+                    data.positions.get(ent),
+                    data.shapes.get(ent)
+                );
                 let offset = data.offsets.get(ent).cloned();
+                let is_barrier = data.barriers.contains(ent);
                 let item = Item {
                     name: obj.name.clone(),
                     usable: properties
@@ -156,6 +164,7 @@ fn create_new_inventories(
                     rendering: rendering.clone(),
                     shape,
                     offset,
+                    is_barrier,
                 };
 
                 let _ = data.items.insert(ent, item);
@@ -187,14 +196,20 @@ fn fill_inventories(
         // The inventory should already have a shape from the TiledSystem,
         // so we can use it to query for any items that may be intersecting, and
         // then place those in the inventory.
-        let pos = data.positions.get(unclaimed_inventory.entity).ok_or("no position")?;
-        let shape = data.shapes.get(unclaimed_inventory.entity).ok_or("no shape")?;
+        let pos = data
+            .positions
+            .get(unclaimed_inventory.entity)
+            .ok_or("no position")?;
+        let shape = data
+            .shapes
+            .get(unclaimed_inventory.entity)
+            .ok_or("no shape")?;
         let items: Vec<Item> = data
             .aabb_tree
             .query(
                 &data.entities,
                 &shape.aabb().translate(&pos.0),
-                &unclaimed_inventory.entity
+                &unclaimed_inventory.entity,
             )
             .into_iter()
             .filter_map(|(ent, _)| {

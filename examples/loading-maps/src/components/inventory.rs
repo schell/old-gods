@@ -1,11 +1,6 @@
 use super::super::systems::looting::Loot;
-use old_gods::prelude::{
-    Component, Easing, HashMapStorage, OriginOffset, Position, Rendering, Shape, Tween, TweenParam,
-    Velocity, AABB, V2,
-};
-use specs::prelude::*;
+use old_gods::prelude::{Component, HashMapStorage, OriginOffset, Rendering, Shape};
 use std::f32::consts::PI;
-use std::slice::Iter;
 
 
 /// An entity with an item component can be kept in an inventory.
@@ -29,6 +24,9 @@ pub struct Item {
 
     /// An origin, if it exists.
     pub offset: Option<OriginOffset>,
+
+    /// Is this a barrier?
+    pub is_barrier: bool
 }
 
 
@@ -78,31 +76,9 @@ impl Inventory {
         }
     }
 
-    //pub fn remove_item(&mut self, item: &Item) -> Option<Item> {
-    //    let mut found = None;
-    //    for row in self.items.iter_mut() {
-    //        row.retain(|item_here| {
-    //            if found.is_some() {
-    //                true
-    //            } else if item_here == item {
-    //                found = Some(item.clone());
-    //                false
-    //            } else {
-    //                true
-    //            }
-    //        })
-    //    }
-
-    //    // Reduce the number of rows
-    //    if found.is_some() {
-    //        self.items.retain(|row| row.len() > 0);
-    //    }
-    //    found
-    //}
-
     /// Dequeue the next item ejection angle. This is nice for
     /// a good item dropping effect.
-    fn dequeue_ejection_in_radians(&mut self) -> f32 {
+    pub fn dequeue_ejection_in_radians(&mut self) -> f32 {
         let n = self.next_ejection_angle as usize;
         self.next_ejection_angle += 1;
 
@@ -110,8 +86,8 @@ impl Inventory {
     }
 
     /// Add the item, stacking it in an available stack if possible.
-    pub fn add_item(&mut self, mut item: Item) {
-        if let Some(count) = item.stack {
+    pub fn add_item(&mut self, item: Item) {
+        if item.stack.is_some() {
             for prev_item in self.items.iter_mut() {
                 if prev_item.stack.is_some() && prev_item.name == item.name {
                     let stack = prev_item.stack.as_mut().unwrap();
@@ -125,12 +101,12 @@ impl Inventory {
     }
 
     /// An iterator over the items.
-    pub fn item_at_xy(&self, x:i32, y:i32) -> Option<&Item> {
+    pub fn item_at_xy(&self, x: i32, y: i32) -> Option<&Item> {
         self.items.get(y as usize * Loot::COLS + x as usize)
     }
 
     /// Remove the item at the given index.
-    pub fn remove(&mut self, ndx:usize) -> Option<Item> {
+    pub fn remove(&mut self, ndx: usize) -> Option<Item> {
         if ndx < self.items.len() {
             Some(self.items.remove(ndx))
         } else {
@@ -139,7 +115,7 @@ impl Inventory {
     }
 
     /// Remove the item at the given x and y
-    pub fn remove_xy(&mut self, x:usize, y: usize) -> Option<Item> {
+    pub fn remove_xy(&mut self, x: usize, y: usize) -> Option<Item> {
         let ndx = y * Loot::COLS + x;
         self.remove(ndx)
     }
@@ -153,64 +129,6 @@ impl Inventory {
     /// Returns the old items.
     pub fn replace_items(&mut self, items: Vec<Item>) -> Vec<Item> {
         std::mem::replace(&mut self.items, items)
-    }
-
-    /// Finds a position around the holder that's out of the way, and then throws the item there.
-    pub fn throw_item_with_index_onto_the_map(
-        &mut self,
-        (x, y): (usize, usize),
-        starting_loc: V2,
-        from_aabb: AABB,
-        entities: &Entities,
-        lazy: &LazyUpdate,
-    ) -> Result<(), String> {
-        let item = self
-            .remove_xy(x, y)
-            .ok_or("no item at x y")?;
-
-        let item_aabb = item.shape.aabb();
-        // From there we must offset it some amount to account for
-        // the barriers of each
-        let radius = {
-            let f = from_aabb.greater_extent();
-            let i = item_aabb.greater_extent();
-            f32::max(f, i)
-        };
-
-        // Place the item
-        let radians = self.dequeue_ejection_in_radians();
-        let dv = V2::new(f32::cos(radians), f32::sin(radians));
-        let loc = starting_loc + (dv.scalar_mul(radius));
-
-        // Fuckit! Throw the item!
-        let speed = 100.0;
-        let starting_v = dv.scalar_mul(speed);
-        let subject = lazy
-            .create_entity(entities)
-            .with(Position(loc))
-            .with(Velocity(starting_v))
-            .with(item.rendering.clone())
-            .with(item.shape.clone());
-        let subject = if let Some(offset) = item.offset {
-            subject.with(offset)
-        } else {
-            subject
-        };
-        let subject = subject.with(item).build();
-        // Tween the item flying out of the inventory, eventually stopping.
-        let _ = lazy
-            .create_entity(entities)
-            .with(Tween::new(
-                subject,
-                TweenParam::Velocity(starting_v, V2::origin()),
-                Easing::Linear,
-                0.5,
-            ))
-            .build();
-
-        println!("dv:{:?} radius:{:?} vel:{:?}", dv, radius, starting_v);
-
-        Ok(())
     }
 }
 
