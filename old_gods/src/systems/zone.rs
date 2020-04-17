@@ -1,6 +1,7 @@
+//! Keeps track of any entities that are within the boundaries of a zone.
 use specs::prelude::*;
 
-use super::super::prelude::{AABBTree, Barrier, Exile, Position, Shape};
+use super::super::prelude::{AABBTree, Exile, Position, Shape};
 
 
 /// A Zone is an area that can hold some entities. In order to work properly

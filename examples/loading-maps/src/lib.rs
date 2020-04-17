@@ -1,7 +1,6 @@
 use log::{trace, Level};
 use mogwai::prelude::*;
-use old_gods::prelude::*;
-use old_gods::fetch;
+use old_gods::{fetch, prelude::*};
 use std::{
     collections::HashSet,
     panic,
@@ -167,16 +166,24 @@ pub fn main() -> Result<(), JsValue> {
     console_log::init_with_level(Level::Trace).unwrap();
 
     let app_ecs = {
+        let dispatcher = DispatcherBuilder::new()
+            .with_thread_local(systems::action::ActionSystem)
+            .with_thread_local(systems::inventory::InventorySystem::new())
+            .with_thread_local(systems::looting::LootingSystem);
         let mut ecs = Engine::new_with(
             "http://localhost:8888",
-            DispatcherBuilder::new()
-                .with_thread_local(systems::inventory::InventorySystem::new())
-                .with_thread_local(systems::looting::LootingSystem),
-            WebRenderingContext::new
+            dispatcher,
+            WebRenderingContext::new,
         );
         ecs.set_window_size(1600, 900);
-        ecs.rendering_context.0.context.set_image_smoothing_enabled(false);
-        ecs.map_rendering_context.0.context.set_image_smoothing_enabled(false);
+        ecs.rendering_context
+            .0
+            .context
+            .set_image_smoothing_enabled(false);
+        ecs.map_rendering_context
+            .0
+            .context
+            .set_image_smoothing_enabled(false);
         if cfg!(debug_assertions) {
             ecs.set_debug_mode(true);
         }

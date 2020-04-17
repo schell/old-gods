@@ -3,10 +3,10 @@
 //! The engine itself is a struct with some type variables that determine what
 //! kind of rendering context and resources the engine will manage.
 use super::prelude::{
-    entity_local_origin, Action, AnimationSystem, BackgroundColor, Color, DebugRenderingData,
+    entity_local_origin, AnimationSystem, BackgroundColor, Color, DebugRenderingData,
     Dispatcher, DispatcherBuilder, FPSCounter, GamepadSystem, HasRenderingContext, Join, MapEntity,
-    MapRenderingData, Physics, PlayerSystem, ReadStorage, RenderingContext, Resources, Screen,
-    ScreenSystem, SystemData, TiledmapSystem, TweenSystem, World, WorldExt, ZLevel, AABB, V2,
+    MapRenderingData, Physics, PlayerSystem, RenderingContext, Resources, Screen,
+    ScreenSystem, SystemData, TiledmapSystem, TweenSystem, World, WorldExt, ZLevel, AABB, V2, ZoneSystem
 };
 use std::cmp::Ordering;
 
@@ -47,17 +47,14 @@ where
             .with_thread_local(GamepadSystem::new())
             .with_thread_local(PlayerSystem)
             .with_thread_local(TweenSystem)
+            .with_thread_local(ZoneSystem)
             //.with_thread_local(SoundSystem::new())
             //.with_thread_local(MapLoadingSystem { opt_reader: None })
-            //.with_thread_local(ActionSystem)
             //.with_thread_local(SpriteSystem)
-            //.with_thread_local(ZoneSystem)
             //.with_thread_local(FenceSystem)
             .build();
 
         dispatcher.setup(&mut world);
-        // Just until the action system is back
-        <ReadStorage<Action> as SystemData>::setup(&mut world);
 
         // Maintain once so all our resources are created.
         world.maintain();
@@ -218,11 +215,12 @@ where
         self.rendering_context.render_ui(
             &mut self.world,
             &mut self.resources,
+            &map_ents,
             viewport_to_context,
         )?;
         if self.debug_mode {
             self.rendering_context
-                .render_ui_debug(&mut self.world, viewport_to_context)?;
+                .render_ui_debug(&mut self.world, &map_ents, viewport_to_context)?;
         }
 
         Ok(())

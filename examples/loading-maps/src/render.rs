@@ -1,12 +1,17 @@
-use super::{components::inventory::Inventory, systems::looting::Loot};
+use super::{
+    components::{Action, Inventory, Item},
+    systems::looting::Loot,
+};
 use log::{trace, warn};
 use old_gods::{
     color::css,
     prelude::{
-        Color, DefaultRenderingContext, Exile, Join, Name, Player, Position, Read, ReadStorage,
-        Resources, World, AABB, V2,
+        entity_local_origin, Color, DefaultRenderingContext, Exile, Join, Name, OriginOffset,
+        Player, Position, Read, ReadStorage, ResourceId, Resources, Screen, Shape, SystemData,
+        World, AABB, V2,
     },
     rendering::*,
+    utils::CanBeEmpty,
 };
 use std::ops::{Deref, DerefMut};
 use wasm_bindgen::JsCast;
@@ -37,6 +42,42 @@ impl WebRenderingContext {
     pub fn canvas(&self) -> Option<HtmlCanvasElement> {
         self.0.context.canvas()
     }
+
+
+    fn render_actions(
+        &mut self,
+        world: &mut World,
+        viewport_to_context: impl Fn(V2) -> V2,
+    ) -> Result<(), String> {
+        let (actions, exiles, offsets, players, positions, shapes, screen): (
+            ReadStorage<Action>,
+            ReadStorage<Exile>,
+            ReadStorage<OriginOffset>,
+            ReadStorage<Player>,
+            ReadStorage<Position>,
+            ReadStorage<Shape>,
+            Read<Screen>,
+        ) = world.system_data();
+
+        for (action, ()) in (&actions, !&exiles).join() {
+            // Only render actions if they have a player that is elligible.
+            for elligible_ent in action.elligibles.iter() {
+                if players.contains(*elligible_ent) {
+                    if let Some(position) = positions.get(*elligible_ent) {
+                        let offset = entity_local_origin(*elligible_ent, &shapes, &offsets);
+                        let extra_y_offset = shapes
+                            .get(*elligible_ent)
+                            .map(|s| s.extents() * V2::new(-0.5, 0.5) + V2::new(0.0, 4.0))
+                            .unwrap_or(V2::origin());
+                        let point = position.0 + offset + extra_y_offset;
+                        let point = viewport_to_context(screen.from_map(&point));
+                        draw_action(self, &point, &action.text)?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 
@@ -56,6 +97,97 @@ impl DerefMut for WebRenderingContext {
 }
 
 
+/// ## ActionButton
+/// These are buttons on the user's controller that show them they can take an
+/// action on an object.
+#[derive(Debug, Clone)]
+pub enum ActionButton {
+    A,
+    B,
+    X,
+    Y,
+}
+
+
+fn button_color(btn: &ActionButton) -> Color {
+    match btn {
+        ActionButton::A => Color::rgb(50, 229, 56),
+        ActionButton::B => Color::rgb(202, 16, 16),
+        ActionButton::X => Color::rgb(16, 124, 202),
+        ActionButton::Y => Color::rgb(197, 164, 23),
+    }
+}
+
+
+fn button_text(btn: &ActionButton) -> String {
+    match btn {
+        ActionButton::A => "A",
+        ActionButton::B => "B",
+        ActionButton::X => "X",
+        ActionButton::Y => "Y",
+    }
+    .to_string()
+}
+
+/// Draw an action button at a point with an optional message to the right.
+pub fn draw_button<Ctx: HasRenderingContext>(
+    context: &mut Ctx,
+    btn: ActionButton,
+    point: &V2,
+    msg: &str,
+) -> Result<AABB, String> {
+    let mut btn_text = Ctx::fancy_text(&button_text(&btn).as_str());
+    btn_text.color = button_color(&btn);
+    context.draw_text(&btn_text, point)?;
+
+    let dest_size = context.measure_text(&btn_text)?;
+    let btn_rect = AABB {
+        top_left: *point,
+        extents: V2::new(dest_size.0, dest_size.1),
+    };
+    let text_rect = if !msg.is_empty() {
+        let point = V2::new(point.x + dest_size.0, point.y);
+        let text = Ctx::normal_text(&msg);
+        context.draw_text(&text, &point)?;
+        let text_size = context.measure_text(&text)?;
+        AABB {
+            top_left: point,
+            extents: V2::new(text_size.0, text_size.1),
+        }
+    } else {
+        btn_rect
+    };
+    Ok(AABB::union(&btn_rect, &text_rect))
+}
+
+
+/// Draw an Action.
+pub fn draw_action<Ctx: HasRenderingContext>(
+    context: &mut Ctx,
+    point: &V2,
+    msg: &str
+) -> Result<(), String> {
+    draw_button::<Ctx>(
+        context,
+        ActionButton::A,
+        &(*point - V2::new(7.0, 7.0)),
+        &msg,
+    )?;
+    Ok(())
+}
+
+
+#[derive(SystemData)]
+struct UISystemData<'a> {
+    inventories: ReadStorage<'a, Inventory>,
+    items: ReadStorage<'a, Item>,
+    loots: Read<'a, Vec<Loot>>,
+    names: ReadStorage<'a, Name>,
+    positions: ReadStorage<'a, Position>,
+    screen: Read<'a, Screen>,
+}
+
+
 impl HasRenderingContext for WebRenderingContext {
     type Ctx = CanvasRenderingContext2d;
 
@@ -67,6 +199,7 @@ impl HasRenderingContext for WebRenderingContext {
         &mut self,
         world: &mut World,
         resources: &mut R,
+        map_ents: &Vec<MapEntity>,
         viewport_to_context: F,
     ) -> Result<(), String>
     where
@@ -74,21 +207,12 @@ impl HasRenderingContext for WebRenderingContext {
         R: Resources<<Self::Ctx as RenderingContext>::Image>,
     {
         self.deref_mut()
-            .render_ui(world, resources, viewport_to_context)?;
+            .render_ui(world, resources, map_ents, &viewport_to_context)?;
 
-        self.set_fill_color(&css::pink());
-        self.fill_rect(&AABB {
-            top_left: V2::new(10.0, 10.0),
-            extents: V2::new(100.0, 100.0),
-        });
+        self.render_actions(world, &viewport_to_context)?;
 
-
-        let (inventories, loots, names): (
-            ReadStorage<Inventory>,
-            Read<Vec<Loot>>,
-            ReadStorage<Name>,
-        ) = world.system_data();
-
+        let data: UISystemData = world.system_data();
+        // Draw looting
         let (ctx_w, ctx_h) = self.context_size()?;
         let center = V2::new(ctx_w as f32, ctx_h as f32).scalar_mul(0.5);
         let slot_size = V2::new(48.0, 48.0);
@@ -96,10 +220,10 @@ impl HasRenderingContext for WebRenderingContext {
         let frame_padding = 6.0;
         let total_slot_size = slot_size + V2::new(slot_padding * 2.0, slot_padding * 2.0);
 
-        // Draw the first looting
-        if let Some(loot) = loots.first() {
-            if let Some(inventory) = inventories.get(loot.ent_of_inventory_here) {
-                let name = names
+        if let Some(loot) = data.loots.first() {
+            if let Some(inventory) = data.inventories.get(loot.ent_of_inventory_here) {
+                let name = data
+                    .names
                     .get(loot.ent_of_inventory_here)
                     .cloned()
                     .unwrap_or(Name("unknown".into()));

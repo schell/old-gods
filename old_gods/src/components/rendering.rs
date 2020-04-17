@@ -45,18 +45,6 @@ impl Component for OriginOffset {
 }
 
 
-/// ## ActionButton
-/// These are buttons on the user's controller that show them they can take an
-/// action on an object.
-#[derive(Debug, Clone)]
-pub enum ActionButton {
-    A,
-    B,
-    X,
-    Y,
-}
-
-
 #[derive(Debug, Clone, PartialEq, Hash)]
 /// A frame within a texture.
 pub struct TextureFrame {

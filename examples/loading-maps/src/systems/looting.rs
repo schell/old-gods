@@ -1,10 +1,11 @@
-use super::super::components::inventory::{Inventory, Item};
+use log::trace;
+use super::super::components::{Action, FitnessStrategy, Inventory, Item, Lifespan};
 /// Manages the looting process.
 use old_gods::{
     prelude::{
-        Action, Barrier, Easing, Exile, FitnessStrategy, Lifespan, Name, Object, OriginOffset,
-        Player, PlayerController, PlayerControllers, Position, Rendering, Shape, Tween, TweenParam,
-        Velocity, AABB, V2, ZLevel
+        Barrier, Easing, Exile, Name, Object, OriginOffset, Player, PlayerController,
+        PlayerControllers, Position, Rendering, Shape, Tween, TweenParam, Velocity, ZLevel, Zone,
+        AABB, V2,
     },
     utils::clamp,
 };
@@ -45,79 +46,20 @@ pub struct LootingSystem;
 
 #[derive(SystemData)]
 pub struct LootingSystemData<'a> {
+    actions: WriteStorage<'a, Action>,
     entities: Entities<'a>,
     exiles: WriteStorage<'a, Exile>,
     inventories: WriteStorage<'a, Inventory>,
+    items: ReadStorage<'a, Item>,
     lazy: Read<'a, LazyUpdate>,
     loots: Write<'a, Vec<Loot>>,
-    names: ReadStorage<'a, Name>,
-    objects: WriteStorage<'a, Object>,
     offsets: WriteStorage<'a, OriginOffset>,
     positions: ReadStorage<'a, Position>,
     players: ReadStorage<'a, Player>,
     player_controllers: Read<'a, PlayerControllers>,
-    renderings: ReadStorage<'a, Rendering>,
     shapes: ReadStorage<'a, Shape>,
-    z_levels: ReadStorage<'a, ZLevel>
-}
-
-
-/// Find actionless items on the map.
-pub fn find_actionless_map_items<'a>(
-    entities: &Entities<'a>,
-    items: &ReadStorage<'a, Item>,
-    positions: &WriteStorage<'a, Position>,
-    names: &ReadStorage<'a, Name>,
-    exiles: &WriteStorage<'a, Exile>,
-    actions: &WriteStorage<'a, Action>,
-) -> Vec<(Entity, Name)> {
-    // Items that have a position but no action need to have an action created
-    // for them so they can be picked up.
-    // Items that don't have a position are assumed to be sitting in an
-    // inventory, and nothing has to be done.
-    (entities, items, positions, names, !exiles, !actions)
-        .join()
-        .map(|(ent, _, _, name, _, _)| (ent, name.clone()))
-        .collect()
-}
-
-
-/// Creates a new item pickup action
-pub fn new_pickup_action(
-    entities: &Entities,
-    lazy: &LazyUpdate,
-    name: String,
-    p: V2,
-    item_shape: Option<&Shape>,
-) -> Entity {
-    let a = Action {
-        elligibles: vec![],
-        taken_by: vec![],
-        text: format!("Pick up {}", name),
-        strategy: FitnessStrategy::HasInventory,
-        lifespan: Lifespan::Many(1),
-    };
-    let s = item_shape
-        .map(|s| {
-            let aabb = s.aabb();
-            let mut new_aabb = aabb.clone();
-            new_aabb.extents += V2::new(4.0, 4.0);
-            new_aabb.set_center(&aabb.center());
-            new_aabb.to_shape()
-        })
-        .unwrap_or(Shape::Box {
-            lower: V2::origin(),
-            upper: V2::new(15.0, 15.0),
-        });
-
-    println!("Creating an action {:?}", a.text);
-
-    lazy.create_entity(&entities)
-        .with(a)
-        .with(Position(p))
-        .with(s)
-        .with(Name("pickup item".to_string()))
-        .build()
+    z_levels: ReadStorage<'a, ZLevel>,
+    zones: ReadStorage<'a, Zone>,
 }
 
 
@@ -479,5 +421,49 @@ impl<'a> System<'a> for LootingSystem {
         loots.retain(|loot| !loot.should_close);
         // Put the remaining lootings back
         *data.loots = loots;
+
+        // Add pickup actions for map items:
+        // Items that have a position but no action need to have an action created
+        // for them so they can be picked up.
+        let mut actions = vec![];
+        for (ent, item, _pos, (), ()) in (
+            &data.entities,
+            &data.items,
+            &data.positions,
+            !&data.exiles,
+            !&data.actions,
+        )
+            .join()
+        {
+            let a = Action {
+                elligibles: vec![],
+                taken_by: vec![],
+                text: format!("Pick up {}", item.name),
+                strategy: FitnessStrategy::HasInventory,
+                lifespan: Lifespan::Many(1),
+            };
+
+            trace!("Creating an action {:?}", a.text);
+            actions.push((ent, a));
+        }
+
+        for (ent, action) in actions.into_iter() {
+            let _ = data.actions.insert(ent, action);
+        }
+
+        // When an item action is taken we need to put the item in the taker's inventory.
+        // Then remove it from the map.
+        let mut taken_items = vec![];
+        for (item_ent, item, action) in (&data.entities, &data.items, &data.actions).join() {
+            for taker_ent in action.taken_by.iter() {
+                if let Some(inventory) = data.inventories.get_mut(*taker_ent) {
+                    inventory.add_item(item.clone());
+                    taken_items.push(item_ent);
+                }
+            }
+        }
+        taken_items.into_iter().for_each(|e| {
+            let _ = data.entities.delete(e);
+        });
     }
 }

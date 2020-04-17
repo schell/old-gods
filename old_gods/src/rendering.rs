@@ -3,8 +3,6 @@ use std::collections::HashSet;
 use wasm_bindgen::prelude::*;
 use web_sys::{CanvasRenderingContext2d, HtmlImageElement};
 
-pub mod action;
-
 
 #[derive(SystemData)]
 pub struct MapRenderingData<'s> {
@@ -76,7 +74,7 @@ fn point_lines(p: V2) -> Vec<V2> {
 /// rendering functions. Any of these functions can be redefinied.
 pub trait RenderingContext
 where
-    Self: Sized
+    Self: Sized,
 {
     type Image;
     type Font;
@@ -267,7 +265,7 @@ impl RenderingContext for CanvasRenderingContext2d {
 
 pub trait HasRenderingContext
 where
-    Self: Sized
+    Self: Sized,
 {
     type Ctx: RenderingContext;
 
@@ -314,7 +312,11 @@ where
     }
 
 
-    fn size_of_text(&mut self, font: &<Self::Ctx as RenderingContext>::Font, text: &str) -> Result<(f32, f32), String> {
+    fn size_of_text(
+        &mut self,
+        font: &<Self::Ctx as RenderingContext>::Font,
+        text: &str,
+    ) -> Result<(f32, f32), String> {
         self.get_rendering_context().size_of_text(font, text)
     }
 
@@ -343,14 +345,18 @@ where
 
     /// Draw one context into another.
     fn draw_context(&mut self, context: &Self::Ctx, destination: &AABB) -> Result<(), String> {
-        self.get_rendering_context().draw_context(context, destination)
+        self.get_rendering_context()
+            .draw_context(context, destination)
     }
 
 
-    fn font_details_to_font(&mut self, font_details: &FontDetails) -> <Self::Ctx as RenderingContext>::Font {
-        self.get_rendering_context().font_details_to_font(font_details)
+    fn font_details_to_font(
+        &mut self,
+        font_details: &FontDetails,
+    ) -> <Self::Ctx as RenderingContext>::Font {
+        self.get_rendering_context()
+            .font_details_to_font(font_details)
     }
-
 
 
     fn draw_text(&mut self, text: &Text, pos: &V2) -> Result<(), String> {
@@ -391,7 +397,8 @@ where
             //}
             _ => {}
         }
-        self.get_rendering_context().draw_image(tex, &src, &destination)
+        self.get_rendering_context()
+            .draw_image(tex, &src, &destination)
     }
 
     fn draw_rendering<T>(
@@ -414,7 +421,8 @@ where
                         f.source_aabb.h as f32,
                     );
                     let alpha = self.get_rendering_context().global_alpha();
-                    self.get_rendering_context().set_global_alpha(rendering.alpha as f64 / 255.0);
+                    self.get_rendering_context()
+                        .set_global_alpha(rendering.alpha as f64 / 255.0);
                     self.draw_sprite(
                         src,
                         dest,
@@ -447,19 +455,12 @@ where
 
     fn draw_map_aabb(&mut self, screen: &Screen) {
         let size = screen.get_size();
-        self.get_rendering_context().stroke_rect(&AABB::new(0.0, 0.0, size.x as f32, size.y as f32));
-    }
-
-
-    fn draw_map_arrow(&mut self, from: V2, to: V2, screen: &Screen) {
-        let lines = arrow_lines(screen.from_map(&from), screen.from_map(&to));
-        self.get_rendering_context().stroke_lines(&lines);
-    }
-
-
-    fn draw_map_point(&mut self, at: V2, screen: &Screen) {
-        let lines = point_lines(screen.from_map(&at));
-        self.get_rendering_context().stroke_lines(&lines);
+        self.get_rendering_context().stroke_rect(&AABB::new(
+            0.0,
+            0.0,
+            size.x as f32,
+            size.y as f32,
+        ));
     }
 
 
@@ -467,6 +468,7 @@ where
         &mut self,
         data: &DebugRenderingData,
         map_ent: &MapEntity,
+        viewport_to_context: impl Fn(V2) -> V2,
     ) {
         let velo = if let Some(velo) = data.velocities.get(map_ent.entity) {
             velo
@@ -482,8 +484,9 @@ where
         let offset: V2 = entity_local_origin(map_ent.entity, &data.shapes, &data.offsets);
         let p1 = map_ent.position + offset;
         let p2 = p1 + v;
-        let lines = arrow_lines(p1, p2);
-        self.get_rendering_context().set_stroke_color(&Color::rgb(255, 255, 0));
+        let lines = arrow_lines(viewport_to_context(p1), viewport_to_context(p2));
+        self.get_rendering_context()
+            .set_stroke_color(&Color::rgb(255, 255, 0));
         self.get_rendering_context().stroke_lines(&lines);
     }
 
@@ -492,7 +495,7 @@ where
         &mut self,
         data: &DebugRenderingData,
         player: &Option<(&Player, &ZLevel)>,
-        from_viewport: impl Fn(V2) -> V2
+        from_viewport: impl Fn(V2) -> V2,
     ) -> Result<(), String> {
         let mbrs = data
             .aabb_tree
@@ -549,6 +552,7 @@ where
         &mut self,
         data: &DebugRenderingData,
         map_ent: &MapEntity,
+        viewport_to_context: impl Fn(V2) -> V2,
     ) -> Result<(), String> {
         if let Some(_zone) = data.zones.get(map_ent.entity) {
             if let Some(shape) = data.shapes.get(map_ent.entity) {
@@ -563,8 +567,8 @@ where
 
                 let extents = shape.extents();
                 let aabb = AABB::from_points(
-                    data.screen.from_map(&map_ent.position),
-                    data.screen.from_map(&(map_ent.position + extents)),
+                    viewport_to_context(data.screen.from_map(&map_ent.position)),
+                    viewport_to_context(data.screen.from_map(&(map_ent.position + extents))),
                 );
                 self.get_rendering_context().fill_rect(&aabb);
 
@@ -584,6 +588,7 @@ where
         &mut self,
         data: &DebugRenderingData,
         map_ent: &MapEntity,
+        viewport_to_context: impl Fn(V2) -> V2,
     ) -> Result<(), String> {
         let mut fences = vec![];
         if let Some(fence) = data.fences.get(map_ent.entity) {
@@ -595,7 +600,11 @@ where
 
         for (fence, color) in fences {
             let pos = data.screen.from_map(&map_ent.position);
-            let lines: Vec<V2> = fence.points.iter().map(|p| pos + *p).collect();
+            let lines: Vec<V2> = fence
+                .points
+                .iter()
+                .map(|p| viewport_to_context(pos + *p))
+                .collect();
             self.get_rendering_context().set_fill_color(&color);
             self.get_rendering_context().stroke_lines(&lines);
             if let Some(name) = data.names.get(map_ent.entity) {
@@ -611,10 +620,13 @@ where
         &mut self,
         data: &DebugRenderingData,
         map_ent: &MapEntity,
+        viewport_to_context: impl Fn(V2) -> V2,
     ) {
-        let p = data.screen.from_map(&(map_ent.position + map_ent.offset));
-        self.get_rendering_context().set_fill_color(&Color::rgb(0, 255, 255));
-        self.get_rendering_context().fill_rect(&AABB::new(p.x - 24.0, p.y - 24.0, 48.0, 48.0));
+        let p = viewport_to_context(data.screen.from_map(&(map_ent.position + map_ent.offset)));
+        self.get_rendering_context()
+            .set_fill_color(&Color::rgb(0, 255, 255));
+        self.get_rendering_context()
+            .fill_rect(&AABB::new(p.x - 24.0, p.y - 24.0, 48.0, 48.0));
         //let text =
         //  Self::debug_text(format!("{:?}", player));
         //RenderText::draw_text(canvas, resources, &p);
@@ -626,7 +638,8 @@ where
             data.screen.from_map(&screen_aabb.lower()),
             data.screen.from_map(&screen_aabb.upper()),
         );
-        self.get_rendering_context().set_stroke_color(&Color::rgb(0, 255, 0));
+        self.get_rendering_context()
+            .set_stroke_color(&Color::rgb(0, 255, 0));
         self.get_rendering_context().stroke_rect(&window_aabb);
 
         let focus_aabb = data.screen.focus_aabb();
@@ -642,6 +655,7 @@ where
         &mut self,
         data: &DebugRenderingData,
         map_ent: &MapEntity,
+        viewport_to_context: impl Fn(V2) -> V2,
     ) {
         let is_exiled = data.exiles.contains(map_ent.entity);
 
@@ -652,7 +666,7 @@ where
         };
         self.get_rendering_context().set_fill_color(&color);
 
-        let a = data.screen.from_map(&map_ent.position);
+        let a = viewport_to_context(data.screen.from_map(&map_ent.position));
         let b = a + V2::new(10.0, -20.0);
         let c = a + V2::new(-10.0, -20.0);
         let lines = vec![a, b, c, a];
@@ -664,6 +678,7 @@ where
         &mut self,
         data: &DebugRenderingData,
         map_ent: &MapEntity,
+        viewport_to_context: impl Fn(V2) -> V2,
     ) -> Option<()> {
         let color = Color::rgb(128, 128, 255);
         self.get_rendering_context().set_fill_color(&color);
@@ -672,7 +687,7 @@ where
         let lines: Vec<V2> = shape
             .vertices_closed()
             .into_iter()
-            .map(|v| data.screen.from_map(&(map_ent.position + v)))
+            .map(|v| viewport_to_context(data.screen.from_map(&(map_ent.position + v))))
             .collect();
         self.get_rendering_context().stroke_lines(&lines);
 
@@ -686,6 +701,7 @@ where
         show_collision_info: bool,
         player_z: f32,
         map_ent: &MapEntity,
+        viewport_to_context: impl Fn(V2) -> V2,
     ) -> Option<()> {
         let _barrier = data.barriers.get(map_ent.entity)?;
         let shape = data.shapes.get(map_ent.entity)?;
@@ -706,7 +722,7 @@ where
         let lines: Vec<V2> = shape
             .vertices_closed()
             .into_iter()
-            .map(|v| map_ent.position + v)
+            .map(|v| viewport_to_context(map_ent.position + v))
             .collect();
         self.get_rendering_context().stroke_lines(&lines);
 
@@ -718,12 +734,14 @@ where
             let color = Color::rgb(255, 128, 128);
             self.get_rendering_context().set_stroke_color(&color);
             for (axis, midpoint) in axes.into_iter().zip(midpoints) {
+                let midpoint = viewport_to_context(midpoint + map_ent.position);
                 let lines = arrow_lines(midpoint, midpoint + (axis.scalar_mul(20.0)));
                 self.get_rendering_context().stroke_lines(&lines);
             }
 
             // Draw its collision with other shapes
-            let aabb = shape.aabb().translate(&map_ent.position);
+            let pos = data.positions.get(map_ent.entity).unwrap();
+            let aabb = shape.aabb().translate(&pos.0);
             let broad_phase_collisions: Vec<(Entity, AABB)> =
                 data.aabb_tree.query(&data.entities, &aabb, &map_ent.entity);
             broad_phase_collisions
@@ -733,26 +751,37 @@ where
                     // broad phase collision
                     let color = Color::rgb(255, 128, 64); // orange
                     self.get_rendering_context().set_stroke_color(&color);
-                    self.draw_map_aabb(&data.screen);
+                    let both_aabb = AABB::union(&aabb, &other_aabb);
+                    self.stroke_rect(&AABB::from_points(
+                        viewport_to_context(data.screen.from_map(&both_aabb.lower())),
+                        viewport_to_context(data.screen.from_map(&both_aabb.upper())),
+                    ));
 
                     // Find out if they actually collide and what the
                     // mtv is
-                    let other_shape = data.shapes.get(other_ent).expect("Can't get other shape");
+                    let other_shape = if let Some(other_shape) = data.shapes.get(other_ent) {
+                        other_shape
+                    } else {
+                        return;
+                    };
                     let other_position = data.positions.get(other_ent);
                     if other_position.is_none() {
                         // This is probably an item that's in an inventory.
                         return;
                     }
                     let other_position = other_position.unwrap();
-                    let mtv = shape.mtv_apart(map_ent.position, &other_shape, other_position.0);
+                    let mtv = shape.mtv_apart(pos.0, &other_shape, other_position.0);
                     mtv.map(|mtv| {
-                        self.get_rendering_context().set_stroke_color(&Color::rgb(255, 255, 255));
-                        self.draw_map_point(other_aabb.center(), &data.screen);
-                        self.draw_map_arrow(
-                            other_aabb.center(),
-                            other_aabb.center() + mtv,
-                            &data.screen,
-                        );
+                        self.get_rendering_context()
+                            .set_stroke_color(&Color::rgb(255, 255, 255));
+
+                        let from = viewport_to_context(data.screen.from_map(&other_aabb.center()));
+                        let to = viewport_to_context(data.screen.from_map(&(other_aabb.center() + mtv)));
+                        let lines = point_lines(from);
+                        self.get_rendering_context().stroke_lines(&lines);
+
+                        let lines = arrow_lines(from, to);
+                        self.get_rendering_context().stroke_lines(&lines);
                     });
                 });
         }
@@ -765,15 +794,24 @@ where
         &mut self,
         data: &DebugRenderingData,
         map_ent: &MapEntity,
+        viewport_to_context: impl Fn(V2) -> V2,
     ) -> Result<(), String> {
-        self.get_rendering_context().set_stroke_color(&Color::rgb(0, 0, 255));
+        self.get_rendering_context()
+            .set_stroke_color(&Color::rgb(0, 0, 255));
 
         let draw = |label: &str, v: V2, ctx: &mut Self| -> Result<(), String> {
-            ctx.get_rendering_context().stroke_rect(&AABB::new(v.x as f32 - 2.0, v.y as f32 - 2.0, 4.0, 4.0));
+            let v = viewport_to_context(v);
+            ctx.get_rendering_context().stroke_rect(&AABB::new(
+                v.x as f32 - 2.0,
+                v.y as f32 - 2.0,
+                4.0,
+                4.0,
+            ));
 
             let pos_str = format!("{}: ({:.1}, {:.1})", label, v.x, v.y,);
             let text = Self::debug_map_text(&pos_str);
-            ctx.get_rendering_context().set_fill_color(&Color::rgb(255, 255, 255));
+            ctx.get_rendering_context()
+                .set_fill_color(&Color::rgb(255, 255, 255));
             ctx.draw_text(&text, &v)?;
             Ok(())
         };
@@ -784,10 +822,11 @@ where
         draw(position_label, map_ent.position, self)?;
 
         if map_ent.offset != V2::origin() {
-            self.get_rendering_context().set_stroke_color(&Color::rgb(0, 200, 200));
+            self.get_rendering_context()
+                .set_stroke_color(&Color::rgb(0, 200, 200));
             self.get_rendering_context().stroke_lines(&arrow_lines(
-                map_ent.position,
-                map_ent.position + map_ent.offset,
+                viewport_to_context(map_ent.position),
+                viewport_to_context(map_ent.position + map_ent.offset),
             ));
             draw("orgo", map_ent.position + map_ent.offset, self)?;
         }
@@ -795,41 +834,6 @@ where
         Ok(())
     }
 
-
-    fn render_actions(
-        &mut self,
-        world: &mut World,
-        viewport_to_context: impl Fn(V2) -> V2,
-    ) -> Result<(), String> {
-        let (actions, exiles, offsets, players, positions, shapes, screen): (
-            ReadStorage<Action>,
-            ReadStorage<Exile>,
-            ReadStorage<OriginOffset>,
-            ReadStorage<Player>,
-            ReadStorage<Position>,
-            ReadStorage<Shape>,
-            Read<Screen>,
-        ) = world.system_data();
-
-        for (action, ()) in (&actions, !&exiles).join() {
-            // Only render actions if they have a player that is elligible.
-            for elligible_ent in action.elligibles.iter() {
-                if players.contains(*elligible_ent) {
-                    if let Some(position) = positions.get(*elligible_ent) {
-                        let offset = entity_local_origin(*elligible_ent, &shapes, &offsets);
-                        let extra_y_offset = shapes
-                            .get(*elligible_ent)
-                            .map(|s| s.extents() * V2::new(-0.5, 0.5) + V2::new(0.0, 4.0))
-                            .unwrap_or(V2::origin());
-                        let point = position.0 + offset + extra_y_offset;
-                        let point = viewport_to_context(screen.from_map(&point));
-                        action::draw(self, &point, action)?;
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
 
     /// Render the map in a standard way, compositing all of the renderings from back to front, bottom to top.
     /// Returns the drawn entities.
@@ -845,7 +849,8 @@ where
         let background_color: Read<BackgroundColor> = world.system_data();
         let size = self.get_rendering_context().context_size()?;
         // Render into our render target texture
-        self.get_rendering_context().set_fill_color(&background_color.0);
+        self.get_rendering_context()
+            .set_fill_color(&background_color.0);
         self.get_rendering_context().fill_rect(&AABB {
             top_left: V2::new(0.0, 0.0),
             extents: V2::new(size.0 as f32, size.1 as f32),
@@ -863,44 +868,51 @@ where
     fn render_map_entity_debug(
         &mut self,
         data: &DebugRenderingData,
-        toggles: HashSet<&RenderingToggles>,
+        toggles: &HashSet<&RenderingToggles>,
         player: Option<(&Player, &ZLevel)>,
         map_ent: &MapEntity,
+        viewport_to_context: impl Fn(V2) -> V2,
     ) -> Result<(), String> {
         if toggles.contains(&RenderingToggles::Positions) {
-            self.draw_position(data, map_ent)?;
+            self.draw_position(data, map_ent, &viewport_to_context)?;
         }
 
         if toggles.contains(&RenderingToggles::Velocities) {
-            self.draw_velocity(data, map_ent);
+            self.draw_velocity(data, map_ent, &viewport_to_context);
         }
 
         if toggles.contains(&RenderingToggles::Zones) {
-            self.draw_zone(data, map_ent)?;
+            self.draw_zone(data, map_ent, &viewport_to_context)?;
         }
 
         if toggles.contains(&RenderingToggles::Fences) {
-            self.draw_fence(data, map_ent)?;
+            self.draw_fence(data, map_ent, &viewport_to_context)?;
         }
 
         if toggles.contains(&RenderingToggles::Players)
             && !toggles.contains(&RenderingToggles::Barriers)
         {
-            self.draw_player(data, map_ent);
+            self.draw_player(data, map_ent, &viewport_to_context);
         }
 
         if toggles.contains(&RenderingToggles::Actions) {
-            self.draw_action(data, map_ent);
+            self.draw_action(data, map_ent, &viewport_to_context);
         }
 
         if toggles.contains(&RenderingToggles::Shapes) {
-            self.draw_shape(data, map_ent);
+            self.draw_shape(data, map_ent, &viewport_to_context);
         }
 
         let show_collision_info = toggles.contains(&RenderingToggles::CollisionInfo);
         if toggles.contains(&RenderingToggles::Barriers) || show_collision_info {
             let player_z = player.map(|(_, z)| z.0).unwrap_or(0.0);
-            self.draw_barrier(data, show_collision_info, player_z, map_ent);
+            self.draw_barrier(
+                data,
+                show_collision_info,
+                player_z,
+                map_ent,
+                viewport_to_context,
+            );
         }
 
         Ok(())
@@ -911,24 +923,6 @@ where
         world: &mut World,
         map_entities: &Vec<MapEntity>,
     ) -> Result<(), String> {
-        let data: DebugRenderingData = world.system_data();
-        let player = (&data.players, &data.z_levels)
-            .join()
-            .filter(|(p, _)| p.0 == 0)
-            .collect::<Vec<_>>()
-            .first()
-            .cloned();
-        for map_ent in map_entities.into_iter() {
-            let global_toggles: HashSet<_> = data.global_debug_toggles.clone();
-            let obj_toggles: HashSet<_> = data
-                .object_debug_toggles
-                .get(map_ent.entity)
-                .map(|ts| ts.0.clone())
-                .unwrap_or(HashSet::new());
-            let toggles: HashSet<_> = global_toggles.union(&obj_toggles).collect::<HashSet<_>>();
-            self.render_map_entity_debug(&data, toggles, player, map_ent)?;
-        }
-
         Ok(())
     }
 
@@ -937,11 +931,12 @@ where
         &mut self,
         _world: &mut World,
         _resources: &mut Rsrc,
+        _map_entities: &Vec<MapEntity>,
         // The function needed to convert a point in the map viewport to the context.
         _viewport_to_context: F,
     ) -> Result<(), String>
     where
-        F: Fn(V2) -> V2
+        F: Fn(V2) -> V2,
     {
         //self.render_actions(world, viewport_to_context)?;
         Ok(())
@@ -952,6 +947,7 @@ where
     fn render_ui_debug(
         &mut self,
         world: &mut World,
+        map_entities: &Vec<MapEntity>,
         // The function needed to convert a point in the map viewport to the context.
         viewport_to_context: impl Fn(V2) -> V2,
     ) -> Result<(), String> {
@@ -960,7 +956,8 @@ where
             let fps_text = Self::debug_text(&data.fps.current_fps_string());
             let size = self.measure_text(&fps_text)?;
             let pos = V2::new(0.0, size.1);
-            self.get_rendering_context().set_fill_color(&Color::rgb(255, 255, 255));
+            self.get_rendering_context()
+                .set_fill_color(&Color::rgb(255, 255, 255));
             self.draw_text(&fps_text, &pos)?;
 
             // Draw a graph of the FPS
@@ -980,7 +977,8 @@ where
                     points.push(V2::new(x, y - (percent * height)));
                     x += 1.0
                 }
-                self.get_rendering_context().set_stroke_color(&super::color::css::gold());
+                self.get_rendering_context()
+                    .set_stroke_color(&super::color::css::gold());
                 self.get_rendering_context().stroke_lines(&points);
             }
 
@@ -996,7 +994,6 @@ where
         };
 
         let toggles = &data.global_debug_toggles;
-
         if toggles.contains(&RenderingToggles::EntityCount) {
             let count: u32 = (&data.entities).join().fold(0, |n, _| n + 1);
             let mut text = Self::debug_text(format!("Entities: {}", count).as_str());
@@ -1012,12 +1009,30 @@ where
                 .collect::<Vec<_>>()
                 .first()
                 .cloned();
-            self.draw_aabb_tree(&data, &player, viewport_to_context)?;
+            self.draw_aabb_tree(&data, &player, &viewport_to_context)?;
         }
 
         if toggles.contains(&RenderingToggles::Screen) {
             self.draw_screen(&data);
         }
+
+        let player = (&data.players, &data.z_levels)
+            .join()
+            .filter(|(p, _)| p.0 == 0)
+            .collect::<Vec<_>>()
+            .first()
+            .cloned();
+        let empty_toggles = HashSet::new();
+        for map_ent in map_entities.into_iter() {
+            let obj_toggles: &HashSet<_> = data
+                .object_debug_toggles
+                .get(map_ent.entity)
+                .map(|t| &t.0)
+                .unwrap_or(&empty_toggles);
+            let toggles: &HashSet<_> = &toggles.union(&obj_toggles).collect::<HashSet<_>>();
+            self.render_map_entity_debug(&data, toggles, player, map_ent, &viewport_to_context)?;
+        }
+
 
         Ok(())
     }
@@ -1084,7 +1099,7 @@ where
 /// When you want to call the default implementations of a rendering context you
 /// can wrap it in a DefaultRenderingContext.
 pub struct DefaultRenderingContext<T> {
-    pub context: T
+    pub context: T,
 }
 
 
