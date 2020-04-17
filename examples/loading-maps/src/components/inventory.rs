@@ -1,6 +1,7 @@
 use super::super::systems::looting::Loot;
 use old_gods::prelude::{Component, HashMapStorage, OriginOffset, Rendering, Shape};
 use std::f32::consts::PI;
+use std::slice::Iter;
 
 
 /// An entity with an item component can be kept in an inventory.
@@ -129,6 +130,11 @@ impl Inventory {
     /// Returns the old items.
     pub fn replace_items(&mut self, items: Vec<Item>) -> Vec<Item> {
         std::mem::replace(&mut self.items, items)
+    }
+
+    /// An iterator over all items.
+    pub fn item_iter(&self) -> Iter<Item> {
+        self.items.iter()
     }
 }
 

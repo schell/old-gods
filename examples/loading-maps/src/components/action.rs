@@ -1,7 +1,7 @@
-use specs::prelude::{Component, Entity, FlaggedStorage, HashMapStorage, ReadStorage};
+use old_gods::prelude::{Component, Entity, FlaggedStorage, HashMapStorage, ReadStorage};
+use old_gods::parser::*;
 use std::convert::TryFrom;
 
-use super::{super::parser::*, Name};
 
 
 /// Encodes the strategies by which we evaluate an entity's elligibility to take
@@ -156,80 +156,4 @@ pub struct TakeAction;
 
 impl Component for TakeAction {
     type Storage = HashMapStorage<TakeAction>;
-}
-
-
-#[derive(Debug, PartialEq)]
-enum FitnessResult {
-    Fit,
-    UnfitDoesntHaveItem,
-    UnfitDoesntHaveInventory,
-    Unfit,
-}
-
-
-impl FitnessStrategy {
-    ///// Determine whether or not the target entity is fit to take this action.
-    //fn target_is_fit<'a>(
-    //  &self,
-    //  target_entity: &Entity,
-    //  inventories: &ReadStorage<'a, Inventory>,
-    //  names: &ReadStorage<'a, Name>,
-    //) -> FitnessResult {
-    //  match self {
-    //    FitnessStrategy::HasItem(name) => {
-    //      println!("  looking for item {:?}", name);
-    //      let has_item = inventories
-    //        .get(*target_entity)
-    //        .map(|inv| {
-    //          for item_ent in &inv.items {
-    //            let Name(item_name) =
-    //              names.get(*item_ent).expect("An item is missing a name.");
-    //            println!("  checking item {:?}", item_name);
-    //            if name == item_name {
-    //              return true;
-    //            }
-    //          }
-    //          false
-    //        })
-    //        .unwrap_or(false);
-    //      if has_item {
-    //        FitnessResult::Fit
-    //      } else {
-    //        FitnessResult::UnfitDoesntHaveItem
-    //      }
-    //    }
-
-    //    FitnessStrategy::HasInventory => {
-    //      let has_inventory = inventories.contains(*target_entity);
-    //      if has_inventory {
-    //        FitnessResult::Fit
-    //      } else {
-    //        FitnessResult::UnfitDoesntHaveInventory
-    //      }
-    //    }
-
-    //    FitnessStrategy::All(strategies) => {
-    //      for strategy in strategies {
-    //        let fitness =
-    //          strategy.target_is_fit(target_entity, inventories, names);
-    //        if fitness != FitnessResult::Fit {
-    //          return fitness;
-    //        }
-    //      }
-    //      FitnessResult::Fit
-    //    }
-
-    //    FitnessStrategy::Any(strategies) => {
-    //      for strategy in strategies {
-    //        let fitness =
-    //          strategy.target_is_fit(target_entity, inventories, names);
-    //        if fitness == FitnessResult::Fit {
-    //          return fitness;
-    //        }
-    //      }
-    //      FitnessResult::Unfit
-    //    }
-    //  }
-    //}
 }

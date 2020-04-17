@@ -352,6 +352,12 @@ pub fn insert_map(map: &Tiledmap, data: &mut InsertMapData) {
                                 "barrier" => {
                                     add_barrier(tile_ent, obj, &mut data.barriers, &mut data.shapes)
                                 }
+                                "shape" => {
+                                    let lower = V2::new(obj.x, obj.y);
+                                    let upper = lower + V2::new(obj.width, obj.height);
+                                    let shape = Shape::Box { lower, upper };
+                                    let _ = data.shapes.insert(tile_ent, shape);
+                                }
                                 t => {
                                     panic!("unsupported object type within a tile: '{}'", t);
                                 }
@@ -405,8 +411,14 @@ pub fn insert_map(map: &Tiledmap, data: &mut InsertMapData) {
                                     &mut data.barriers,
                                     &mut data.shapes,
                                 ),
+                                "shape" => {
+                                    let lower = V2::new(sub_obj.x, sub_obj.y);
+                                    let upper = lower + V2::new(sub_obj.width, sub_obj.height);
+                                    let shape = Shape::Box { lower, upper };
+                                    let _ = data.shapes.insert(obj_ent, shape);
+                                }
                                 t => {
-                                    panic!("unsupported object type within a tile: '{}'", t);
+                                    panic!("unsupported sub-object type: '{}'", t);
                                 }
                             }
                         }

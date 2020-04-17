@@ -36,7 +36,7 @@
         {
          "draworder":"topdown",
          "id":3,
-         "name":"hero, door",
+         "name":"hero, door, treasure",
          "objects":[
                 {
                  "gid":765,
@@ -62,7 +62,7 @@
                         {
                          "name":"toggle_rendering_positions",
                          "type":"bool",
-                         "value":true
+                         "value":false
                         }],
                  "rotation":0,
                  "type":"character",
@@ -232,15 +232,15 @@
                  "y":370.666666666667
                 }, 
                 {
-                 "height":65.9999999999997,
+                 "height":137.333333333333,
                  "id":17,
                  "name":"treasure_inv",
                  "rotation":0,
                  "type":"inventory",
                  "visible":true,
-                 "width":84.0000000000004,
-                 "x":344,
-                 "y":9.33333333333334
+                 "width":272.666666666667,
+                 "x":257.333333333333,
+                 "y":276.666666666667
                 }, 
                 {
                  "gid":1318,
@@ -251,8 +251,8 @@
                  "type":"item",
                  "visible":true,
                  "width":48,
-                 "x":361.333333333333,
-                 "y":64.0000000000004
+                 "x":277.333333333333,
+                 "y":350.666666666667
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -273,6 +273,11 @@
          "name":"toggle_rendering_barriers",
          "type":"bool",
          "value":false
+        }, 
+        {
+         "name":"toggle_rendering_collision_info",
+         "type":"bool",
+         "value":true
         }, 
         {
          "name":"toggle_rendering_entity_count",

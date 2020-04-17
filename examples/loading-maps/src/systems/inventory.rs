@@ -1,8 +1,8 @@
 /// Manages the creation of inventories and items from tiled Object and JSON components.
-use super::super::components::inventory::{Inventory, Item};
+use super::super::components::{Inventory, Item};
 use log::trace;
 use old_gods::prelude::{
-    AABBTree, Barrier, Exile, Name, Object, OriginOffset, Player, PlayerControllers, Position,
+    AABBTree, Barrier, Name, Object, OriginOffset, Position,
     Rendering, Shape, JSON,
 };
 use specs::prelude::*;

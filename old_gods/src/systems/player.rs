@@ -6,7 +6,7 @@ use log::{trace, warn};
 use specs::prelude::*;
 
 use super::super::prelude::{
-    Exile, MaxSpeed, Object, Player, PlayerControllers, TakeAction, Velocity, V2,
+    Exile, MaxSpeed, Object, Player, PlayerControllers, Velocity, V2,
 };
 
 
@@ -22,7 +22,6 @@ pub struct PlayerSystemData<'a> {
     exiles: ReadStorage<'a, Exile>,
     max_speeds: ReadStorage<'a, MaxSpeed>,
     objects: WriteStorage<'a, Object>,
-    take_actions: WriteStorage<'a, TakeAction>,
     velocities: WriteStorage<'a, Velocity>,
 }
 
@@ -85,9 +84,6 @@ impl<'a> System<'a> for PlayerSystem {
             (ep.clone(), p.clone())
         }).collect();
         for (ent, player) in joints.into_iter() {
-            // Remove any previous TakeAction from this toon to begin with
-            data.take_actions.remove(ent);
-
             let v = data
                 .velocities
                 .get_mut(ent)
@@ -100,7 +96,7 @@ impl<'a> System<'a> for PlayerSystem {
                 .unwrap_or(MaxSpeed(100.0));
 
             // Get the player's controller on the map
-            let res = data
+            data
                 .player_controllers
                 .with_map_ctrl_at(player.0, |ctrl| {
                     // Update the velocity of the toon based on the
@@ -109,23 +105,7 @@ impl<'a> System<'a> for PlayerSystem {
                     let rate = ana.unitize().unwrap_or(V2::new(0.0, 0.0));
                     let mult = rate.scalar_mul(max_speed.0);
                     v.0 = mult;
-
-                    // TODO: Inspect how TakeAction is used -
-                    // I suspect we don't need to do this - why not just
-                    // query the controller from the ActionSystem?
-                    // Add a TakeAction if the player has hit the A button
-                    let has_hit_a = ctrl.a().is_on_this_frame();
-                    has_hit_a
                 });
-
-            match res {
-                Some(true) => {
-                    data.take_actions
-                        .insert(ent, TakeAction)
-                        .expect("Could not insert TakeAction.");
-                }
-                _ => {}
-            }
         }
     }
 }
