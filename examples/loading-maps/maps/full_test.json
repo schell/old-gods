@@ -144,6 +144,34 @@
                  "width":0,
                  "x":30.2857142857143,
                  "y":84.0392156862745
+                }, 
+                {
+                 "height":0,
+                 "id":21,
+                 "name":"hero's fence",
+                 "polyline":[
+                        {
+                         "x":0,
+                         "y":0
+                        }, 
+                        {
+                         "x":25.3333333333333,
+                         "y":-17.3333333333333
+                        }, 
+                        {
+                         "x":66,
+                         "y":-9.33333333333331
+                        }, 
+                        {
+                         "x":82.6666666666667,
+                         "y":19.3333333333333
+                        }],
+                 "rotation":0,
+                 "type":"fence",
+                 "visible":true,
+                 "width":0,
+                 "x":48.6666666666667,
+                 "y":183.333333333333
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -293,7 +321,7 @@
          "y":0
         }],
  "nextlayerid":5,
- "nextobjectid":21,
+ "nextobjectid":22,
  "orientation":"orthogonal",
  "properties":[
         {
@@ -313,6 +341,11 @@
         }, 
         {
          "name":"toggle_rendering_entity_count",
+         "type":"bool",
+         "value":true
+        }, 
+        {
+         "name":"toggle_rendering_fences",
          "type":"bool",
          "value":true
         }, 

@@ -148,10 +148,7 @@ impl RenderingContext for CanvasRenderingContext2d {
     }
 
     fn set_fill_color(self: &mut CanvasRenderingContext2d, color: &Color) {
-        let alpha = self.global_alpha();
-        self.set_global_alpha(color.a as f64 / 255.0);
         CanvasRenderingContext2d::set_fill_style(self, &JsValue::from(color));
-        self.set_global_alpha(alpha);
     }
 
     fn global_alpha(self: &mut CanvasRenderingContext2d) -> f64 {
@@ -196,10 +193,7 @@ impl RenderingContext for CanvasRenderingContext2d {
     }
 
     fn set_stroke_color(&mut self, color: &Color) {
-        let alpha = self.global_alpha();
-        self.set_global_alpha(color.a as f64 / 255.0);
         CanvasRenderingContext2d::set_stroke_style(self, &JsValue::from(color));
-        self.set_global_alpha(alpha);
     }
 
     fn stroke_lines(&mut self, lines: &Vec<V2>) {
@@ -209,8 +203,8 @@ impl RenderingContext for CanvasRenderingContext2d {
             .iter()
             .for_each(|point| self.move_to(point.x as f64, point.y as f64));
         iter.for_each(|point| self.line_to(point.x as f64, point.y as f64));
-        self.close_path();
         self.stroke();
+        self.close_path();
     }
 
     fn stroke_rect(&mut self, aabb: &AABB) {
@@ -583,24 +577,34 @@ where
     ) -> Result<(), String> {
         let mut fences = vec![];
         if let Some(fence) = data.fences.get(map_ent.entity) {
-            fences.push((fence, Color::rgb(153, 102, 255)));
+            fences.push((fence, Color::rgb(0xff, 0, 0xff)));
         }
         if let Some(step_fence) = data.step_fences.get(map_ent.entity) {
-            fences.push((&step_fence.0, Color::rgb(102, 0, 255)));
+            fences.push((&step_fence.0, Color::rgb(0xff, 0x66, 0xa8)));
         }
 
         for (fence, color) in fences {
-            let pos = data.screen.from_map(&map_ent.position);
+            let pos = &map_ent.position;
             let lines: Vec<V2> = fence
                 .points
                 .iter()
-                .map(|p| viewport_to_context(pos + *p))
+                .map(|p| viewport_to_context(*pos + *p))
                 .collect();
-            self.get_rendering_context().set_fill_color(&color);
+            self.get_rendering_context().set_stroke_color(&color);
             self.get_rendering_context().stroke_lines(&lines);
+            for (_, watched_pos) in fence.watching.iter() {
+                let watched_pos = data.screen.from_map(watched_pos);
+                let from = viewport_to_context(fence.points.first().map(|p| *pos + *p).unwrap_or(watched_pos));
+                let to = viewport_to_context(watched_pos);
+                let lines = arrow_lines(from, to);
+                let mut color = color.clone();
+                color.a = 72;
+                self.set_stroke_color(&color);
+                self.stroke_lines(&lines);
+            }
             if let Some(name) = data.names.get(map_ent.entity) {
                 let text = Self::debug_text(name.0.as_str());
-                self.draw_text(&text, &pos)?;
+                self.draw_text(&text, &viewport_to_context(pos.clone()))?;
             }
         }
 

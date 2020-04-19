@@ -36,8 +36,8 @@ impl Color {
 impl From<&Color> for JsValue {
     fn from(color: &Color) -> JsValue {
         let s = format!(
-            "rgb({}, {}, {})",
-            color.r, color.g, color.b
+            "rgba({}, {}, {}, {:.3})",
+            color.r, color.g, color.b, (color.a as f32/ 255.0)
         );
         JsValue::from_str(&s)
     }
