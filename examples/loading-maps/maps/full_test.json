@@ -112,6 +112,38 @@
                  "width":48,
                  "x":153.713248638839,
                  "y":184.464609800363
+                }, 
+                {
+                 "height":0,
+                 "id":20,
+                 "name":"treasure_zone",
+                 "polygon":[
+                        {
+                         "x":0,
+                         "y":0
+                        }, 
+                        {
+                         "x":36.4285714285714,
+                         "y":-4.70588235294118
+                        }, 
+                        {
+                         "x":43.7142857142857,
+                         "y":21.5686274509804
+                        }, 
+                        {
+                         "x":18.8571428571429,
+                         "y":35.2941176470588
+                        }, 
+                        {
+                         "x":-4.28571428571429,
+                         "y":24.7058823529412
+                        }],
+                 "rotation":0,
+                 "type":"zone",
+                 "visible":true,
+                 "width":0,
+                 "x":30.2857142857143,
+                 "y":84.0392156862745
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -261,7 +293,7 @@
          "y":0
         }],
  "nextlayerid":5,
- "nextobjectid":20,
+ "nextobjectid":21,
  "orientation":"orthogonal",
  "properties":[
         {
@@ -277,7 +309,7 @@
         {
          "name":"toggle_rendering_collision_info",
          "type":"bool",
-         "value":true
+         "value":false
         }, 
         {
          "name":"toggle_rendering_entity_count",
@@ -296,6 +328,11 @@
         }, 
         {
          "name":"toggle_rendering_velocities",
+         "type":"bool",
+         "value":true
+        }, 
+        {
+         "name":"toggle_rendering_zones",
          "type":"bool",
          "value":true
         }, 

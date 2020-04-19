@@ -32,7 +32,10 @@ performance the engine is running at about 330FPS, with a high of about 500FPS
 * Dynamic viewport rendering
 * Easily overridable default rendering
 
-## Extras
+See the [old gods architectural diagram](old_gods/architecture.md) for a quick
+overview of the core systems.
+
+## Extras / Examples
 * Inventory and items
 
 ## Building

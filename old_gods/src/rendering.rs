@@ -554,30 +554,21 @@ where
         map_ent: &MapEntity,
         viewport_to_context: impl Fn(V2) -> V2,
     ) -> Result<(), String> {
-        if let Some(_zone) = data.zones.get(map_ent.entity) {
+        if let Some(zone) = data.zones.get(map_ent.entity) {
             if let Some(shape) = data.shapes.get(map_ent.entity) {
-                let mut color = Color::rgb(139, 175, 214);
-                let alpha = if data.exiles.contains(map_ent.entity) {
-                    128
+                let saturation = if zone.inside.len() > 1 {0} else {50};
+                let mut color = Color::rgb(149 - saturation, 56 - saturation, 255 - saturation);
+                if data.exiles.contains(map_ent.entity) {
+                    color.a = 128;
                 } else {
-                    255
-                };
-                color.a = alpha;
-                self.get_rendering_context().set_fill_color(&color);
-
-                let extents = shape.extents();
-                let aabb = AABB::from_points(
-                    viewport_to_context(data.screen.from_map(&map_ent.position)),
-                    viewport_to_context(data.screen.from_map(&(map_ent.position + extents))),
-                );
-                self.get_rendering_context().fill_rect(&aabb);
-
-                if let Some(name) = data.names.get(map_ent.entity) {
-                    let p = V2::new(aabb.top_left.x, aabb.bottom());
-                    let mut text = Self::debug_text(name.0.as_str());
-                    text.color = color;
-                    self.draw_text(&text, &p)?;
+                    color.a = 255;
                 }
+                self.get_rendering_context().set_stroke_color(&color);
+
+                let lines:Vec<_> = shape.vertices_closed().into_iter().map(|v| {
+                    viewport_to_context(map_ent.position + v)
+                }).collect();
+                self.get_rendering_context().stroke_lines(&lines);
             }
         }
         Ok(())
@@ -881,10 +872,6 @@ where
             self.draw_velocity(data, map_ent, &viewport_to_context);
         }
 
-        if toggles.contains(&RenderingToggles::Zones) {
-            self.draw_zone(data, map_ent, &viewport_to_context)?;
-        }
-
         if toggles.contains(&RenderingToggles::Fences) {
             self.draw_fence(data, map_ent, &viewport_to_context)?;
         }
@@ -911,8 +898,12 @@ where
                 show_collision_info,
                 player_z,
                 map_ent,
-                viewport_to_context,
+                &viewport_to_context,
             );
+        }
+
+        if toggles.contains(&RenderingToggles::Zones) {
+            self.draw_zone(data, map_ent, &viewport_to_context)?;
         }
 
         Ok(())

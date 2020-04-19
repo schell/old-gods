@@ -15,7 +15,7 @@ pub enum Shape {
         upper: V2, // bottom right
     },
 
-    /// Some (assumed to be) convex polygon
+    /// An assumed to be convex polygon
     Polygon { vertices: Vec<V2> },
 }
 

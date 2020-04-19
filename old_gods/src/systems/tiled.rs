@@ -4,13 +4,14 @@
 //! Once the objects are injected in the ECS it's up to other systems to modify
 //! and replace them.
 use super::super::{
+    tiled::json::Point,
     fetch,
     prelude::{
         Animation, Barrier, CanBeEmpty, Component, Either, Entities, Entity, Frame,
         GlobalTileIndex, HashMapStorage, Join, Layer, LayerData, LoadStatus, Name, Object,
         ObjectGroup, ObjectLayerData, ObjectRenderingToggles, OriginOffset, Position,
         Rendering, RenderingToggles, ResourceId, Resources, Shape, System, SystemData,
-        TextureFrame, TileLayerData, Tiledmap, World, WriteStorage, ZLevel, JSON, V2,
+        TextureFrame, TileLayerData, Tiledmap, World, WriteStorage, ZLevel, JSON, V2, Zone, Fence, StepFence
     },
 };
 use log::{trace, warn};
@@ -214,6 +215,7 @@ pub struct InsertMapData<'s> {
     entities: Entities<'s>,
     animations: WriteStorage<'s, Animation>,
     barriers: WriteStorage<'s, Barrier>,
+    fences: WriteStorage<'s, Fence>,
     jsons: WriteStorage<'s, JSON>,
     names: WriteStorage<'s, Name>,
     objects: WriteStorage<'s, Object>,
@@ -222,7 +224,9 @@ pub struct InsertMapData<'s> {
     positions: WriteStorage<'s, Position>,
     renderings: WriteStorage<'s, Rendering>,
     shapes: WriteStorage<'s, Shape>,
+    step_fences: WriteStorage<'s, StepFence>,
     zlevels: WriteStorage<'s, ZLevel>,
+    zones: WriteStorage<'s, Zone>,
 }
 
 
@@ -394,11 +398,16 @@ pub fn insert_map(map: &Tiledmap, data: &mut InsertMapData) {
                         }
                     } else {
                         // The object is not a tile
+                        // Create its Position
                         let _ = data.positions.insert(obj_ent, Position(V2::new(obj.x, obj.y)));
+                        // Create its Shape
                         if let Some(_polyline) = &obj.polyline {
-
-                        } else if let Some(_polygon) = &obj.polygon {
-                           panic!("TODO: fences and step-fences");
+                            panic!("TODO: Polyline shape");
+                        } else if let Some(polygon) = &obj.polygon {
+                            // Polygon
+                            let vertices = polygon.iter().map(|p| V2::new(p.x, p.y)).collect();
+                            let shape = Shape::Polygon{ vertices };
+                            let _ = data.shapes.insert(obj_ent, shape);
                         } else {
                             // Rectangle
                             let _ = data.shapes.insert(obj_ent, Shape::Box {
@@ -426,7 +435,10 @@ pub fn insert_map(map: &Tiledmap, data: &mut InsertMapData) {
                     match obj.get_deep_type(map).as_str() {
                         //"sprite" => Sprite::read(self, map, object),
 
-                        "zone" => { panic!("TODO: Zones") }
+                        "zone" => {
+                            let _ = data.zones.insert(obj_ent, Zone{ inside: vec![] });
+                        }
+
                         "fence" => { panic!("TODO: Fences") }
                         "step_fence" => { panic!("TODO: Step fences") }
 
