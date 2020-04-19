@@ -1,8 +1,8 @@
 use super::{
-    components::{Action, Inventory, Item},
+    components::{Action, Inventory},
     systems::looting::Loot,
 };
-use log::{trace, warn};
+use log::warn;
 use old_gods::{
     color::css,
     prelude::{
@@ -11,7 +11,6 @@ use old_gods::{
         World, AABB, V2,
     },
     rendering::*,
-    utils::CanBeEmpty,
 };
 use std::ops::{Deref, DerefMut};
 use wasm_bindgen::JsCast;
@@ -103,18 +102,18 @@ impl DerefMut for WebRenderingContext {
 #[derive(Debug, Clone)]
 pub enum ActionButton {
     A,
-    B,
-    X,
-    Y,
+    _B,
+    _X,
+    _Y,
 }
 
 
 fn button_color(btn: &ActionButton) -> Color {
     match btn {
         ActionButton::A => Color::rgb(50, 229, 56),
-        ActionButton::B => Color::rgb(202, 16, 16),
-        ActionButton::X => Color::rgb(16, 124, 202),
-        ActionButton::Y => Color::rgb(197, 164, 23),
+        ActionButton::_B => Color::rgb(202, 16, 16),
+        ActionButton::_X => Color::rgb(16, 124, 202),
+        ActionButton::_Y => Color::rgb(197, 164, 23),
     }
 }
 
@@ -122,9 +121,9 @@ fn button_color(btn: &ActionButton) -> Color {
 fn button_text(btn: &ActionButton) -> String {
     match btn {
         ActionButton::A => "A",
-        ActionButton::B => "B",
-        ActionButton::X => "X",
-        ActionButton::Y => "Y",
+        ActionButton::_B => "B",
+        ActionButton::_X => "X",
+        ActionButton::_Y => "Y",
     }
     .to_string()
 }
@@ -180,11 +179,8 @@ pub fn draw_action<Ctx: HasRenderingContext>(
 #[derive(SystemData)]
 struct UISystemData<'a> {
     inventories: ReadStorage<'a, Inventory>,
-    items: ReadStorage<'a, Item>,
     loots: Read<'a, Vec<Loot>>,
     names: ReadStorage<'a, Name>,
-    positions: ReadStorage<'a, Position>,
-    screen: Read<'a, Screen>,
 }
 
 

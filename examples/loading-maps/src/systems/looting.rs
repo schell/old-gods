@@ -1,11 +1,10 @@
-use log::trace;
 use super::super::components::{Action, FitnessStrategy, Inventory, Item, Lifespan};
+use log::trace;
 /// Manages the looting process.
 use old_gods::{
     prelude::{
-        Barrier, Easing, Exile, Name, Object, OriginOffset, Player, PlayerController,
-        PlayerControllers, Position, Rendering, Shape, Tween, TweenParam, Velocity, ZLevel, Zone,
-        AABB, V2,
+        Barrier, Easing, Exile, Name, Player, PlayerController, PlayerControllers, Position, Shape,
+        Tween, TweenParam, Velocity, ZLevel, AABB, V2,
     },
     utils::clamp,
 };
@@ -53,13 +52,11 @@ pub struct LootingSystemData<'a> {
     items: ReadStorage<'a, Item>,
     lazy: Read<'a, LazyUpdate>,
     loots: Write<'a, Vec<Loot>>,
-    offsets: WriteStorage<'a, OriginOffset>,
     positions: ReadStorage<'a, Position>,
     players: ReadStorage<'a, Player>,
     player_controllers: Read<'a, PlayerControllers>,
     shapes: ReadStorage<'a, Shape>,
     z_levels: ReadStorage<'a, ZLevel>,
-    zones: ReadStorage<'a, Zone>,
 }
 
 

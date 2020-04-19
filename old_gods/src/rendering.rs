@@ -920,8 +920,8 @@ where
 
     fn render_map_debug(
         &mut self,
-        world: &mut World,
-        map_entities: &Vec<MapEntity>,
+        _world: &mut World,
+        _map_entities: &Vec<MapEntity>,
     ) -> Result<(), String> {
         Ok(())
     }

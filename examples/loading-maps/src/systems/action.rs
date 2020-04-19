@@ -1,12 +1,11 @@
-use super::super::components::{Action, FitnessStrategy, Inventory};
+use super::super::components::{Action, FitnessStrategy, Inventory, Lifespan};
 use log::trace;
-use old_gods::{
-    parser::*,
-    prelude::{
-        Entities, Entity, Exile, Join, LazyUpdate, Name, Player, PlayerControllers, Read,
-        ReadStorage, System, WriteStorage, Zone,
-    },
+use serde_json::Value;
+use old_gods::prelude::{
+    Entities, Entity, Exile, Join, LazyUpdate, Name, Player, PlayerControllers, Read, ReadStorage,
+    System, WriteStorage, Zone, Object
 };
+
 
 #[derive(Debug, PartialEq)]
 pub enum FitnessResult {
@@ -89,6 +88,7 @@ impl<'a> System<'a> for ActionSystem {
         ReadStorage<'a, Exile>,
         ReadStorage<'a, Inventory>,
         Read<'a, LazyUpdate>,
+        WriteStorage<'a, Object>,
         ReadStorage<'a, Player>,
         Read<'a, PlayerControllers>,
         ReadStorage<'a, Name>,
@@ -97,8 +97,63 @@ impl<'a> System<'a> for ActionSystem {
 
     fn run(
         &mut self,
-        (mut actions, entities, exiles, inventories, lazy, players, gamepads, names, mut zones): Self::SystemData,
+        (mut actions, entities, exiles, inventories, lazy, mut objects, players, gamepads, names, mut zones): Self::SystemData,
     ) {
+        // Find objects that have action types and turn them into actions, deleting the object.
+        let mut remove_objects = vec![];
+        for (ent, obj) in (&entities, &mut objects).join() {
+            if &obj.type_is != "action" {
+                continue;
+            }
+            remove_objects.push(ent);
+
+            let properties = obj.json_properties();
+            let text_value: &Value = properties
+                .get("text")
+                .expect("An action must have a 'text' property");
+            let text: String = text_value
+                .as_str()
+                .expect("An action's 'text' property must be a string")
+                .to_string();
+            let strategy = properties
+                .get("strategy")
+                .expect("An action must have a 'fitness' property")
+                .as_str()
+                .map(|s| {
+                    FitnessStrategy::try_from_str(s).map_err(|e| {
+                        format!("Could not parse action's fitness strategy: {:?}", e)
+                    })
+                        .unwrap()
+                })
+                .expect("An action's 'fitness' property must be a string")
+;
+            let lifespan_val: &Value = properties
+                .get("lifespan")
+                .expect("An action must have a 'lifespan' property");
+
+            let lifespan =
+                if Some("forever") == lifespan_val.as_str() {
+                    Lifespan::Forever
+                } else if let Some(num) = lifespan_val.as_u64() {
+                    Lifespan::Many(num as u32)
+                } else {
+                    panic!("lifespan value must be the string \"forever\" or an int. Found '{}'", lifespan_val)
+                };
+
+            let action = Action {
+                elligibles: vec![],
+                taken_by: vec![],
+                text,
+                strategy,
+                lifespan,
+            };
+            let _ = actions.insert(ent, action);
+        }
+
+        for ent in remove_objects.into_iter() {
+            let _ = objects.remove(ent);
+        }
+
         // Find any actions that don't have zones, then create zones for them.
         // A zone will keep track of any entities intersecting the action.
         (&entities, &actions, !&zones)
@@ -107,8 +162,8 @@ impl<'a> System<'a> for ActionSystem {
             .collect::<Vec<_>>()
             .into_iter()
             .for_each(|ent| {
-            let _ = zones.insert(ent, Zone { inside: vec![] });
-        });
+                let _ = zones.insert(ent, Zone { inside: vec![] });
+            });
 
         // Run through each action and test the fitness of any entities in its zone
         for (action_ent, mut action, zone, ()) in (&entities, &mut actions, &zones, !&exiles).join()
@@ -132,8 +187,8 @@ impl<'a> System<'a> for ActionSystem {
                 action.elligibles.push(inside_ent);
 
                 if let Some(player) = players.get(inside_ent) {
-                    let action_is_dead =
-                        gamepads.with_map_ctrl_at(player.0, |ctrl| {
+                    let action_is_dead = gamepads
+                        .with_map_ctrl_at(player.0, |ctrl| {
                             if ctrl.a().is_on_this_frame() {
                                 // Allow some other system to handle it.
                                 action.taken_by.push(inside_ent);

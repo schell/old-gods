@@ -1,5 +1,4 @@
 //! Information needed to load a Font
-use wasm_bindgen::JsValue;
 
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

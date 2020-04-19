@@ -1,7 +1,5 @@
-use old_gods::prelude::{Component, Entity, FlaggedStorage, HashMapStorage, ReadStorage};
+use old_gods::prelude::{Component, Entity, FlaggedStorage, HashMapStorage};
 use old_gods::parser::*;
-use std::convert::TryFrom;
-
 
 
 /// Encodes the strategies by which we evaluate an entity's elligibility to take
@@ -101,7 +99,7 @@ pub enum Lifespan {
 
 
 impl Lifespan {
-    pub fn succ(&self) -> Lifespan {
+    pub fn _succ(&self) -> Lifespan {
         match self {
             Lifespan::Many(n) => Lifespan::Many(n + 1),
             Lifespan::Forever => Lifespan::Forever,

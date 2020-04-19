@@ -8,9 +8,9 @@ use super::super::{
     prelude::{
         Animation, Barrier, CanBeEmpty, Component, Either, Entities, Entity, Frame,
         GlobalTileIndex, HashMapStorage, Join, Layer, LayerData, LoadStatus, Name, Object,
-        ObjectGroup, ObjectLayerData, ObjectRenderingToggles, OriginOffset, Player, Position,
+        ObjectGroup, ObjectLayerData, ObjectRenderingToggles, OriginOffset, Position,
         Rendering, RenderingToggles, ResourceId, Resources, Shape, System, SystemData,
-        TextureFrame, TileLayerData, Tiledmap, Velocity, World, WriteStorage, ZLevel, JSON, V2,
+        TextureFrame, TileLayerData, Tiledmap, World, WriteStorage, ZLevel, JSON, V2,
     },
 };
 use log::{trace, warn};
@@ -181,34 +181,6 @@ fn add_origin(ent: Entity, x: f32, y: f32, offsets: &mut WriteStorage<OriginOffs
 }
 
 
-fn tile_object_shape(object: &Object) -> Option<Shape> {
-    if let Some(_polyline) = &object.polyline {
-        // A shape cannot be a polyline
-        None
-    } else if let Some(polygon) = &object.polygon {
-        let vertices: Vec<V2> = polygon
-            .clone()
-            .into_iter()
-            .map(|p| V2::new(p.x + object.x, p.y + object.y))
-            .collect();
-        // TODO: Check polygon for concavity at construction
-        // ```rust
-        // pub fn polygon_from_vertices() -> Option<Shape>
-        // ```
-        // because not all polygons are convex
-
-        // TODO: Support a shape made of many shapes.
-        // This way we can decompose concave polygons into a number of convex ones.
-        Some(Shape::Polygon { vertices })
-    } else {
-        // It's a rectangle!
-        let lower = V2::origin();
-        let upper = V2::new(object.x + object.width, object.y + object.height);
-        Some(Shape::Box { lower, upper })
-    }
-}
-
-
 pub fn add_barrier(
     ent: Entity,
     obj: &Object,
@@ -247,11 +219,9 @@ pub struct InsertMapData<'s> {
     objects: WriteStorage<'s, Object>,
     object_toggles: WriteStorage<'s, ObjectRenderingToggles>,
     offsets: WriteStorage<'s, OriginOffset>,
-    players: WriteStorage<'s, Player>,
     positions: WriteStorage<'s, Position>,
     renderings: WriteStorage<'s, Rendering>,
     shapes: WriteStorage<'s, Shape>,
-    velocities: WriteStorage<'s, Velocity>,
     zlevels: WriteStorage<'s, ZLevel>,
 }
 
@@ -454,30 +424,6 @@ pub fn insert_map(map: &Tiledmap, data: &mut InsertMapData) {
                         properties.into_iter().map(|(k, p)| (k, p.value)).collect();
 
                     match obj.get_deep_type(map).as_str() {
-                        //"item" => {
-                        //  let item = Item {
-                        //    stack: properties
-                        //      .remove("stack_count")
-                        //      .map(|var| var.as_u64().map(|u| u as usize))
-                        //      .flatten(),
-                        //    usable: properties
-                        //      .remove("usable")
-                        //      .map(|var| var.as_bool())
-                        //      .flatten()
-                        //      .unwrap_or(false),
-                        //  };
-                        //  let _ = data.items.insert(obj_ent, item);
-                        //}
-                        //"action" => {
-                        //  let mut attributes = Attributes::read(map, object)?;
-                        //  attributes.position_mut().map(|pos| pos.0 += self.origin);
-                        //  let _action = attributes.action().ok_or(format!(
-                        //    "Could not read action {:?}\nDid read:\n{:?}",
-                        //    object, attributes
-                        //  ))?;
-                        //  println!("Creating action:\n{:?}", attributes);
-                        //  Ok(attributes.into_ecs(self.world, self.z_level))
-                        //}
                         //"sprite" => Sprite::read(self, map, object),
 
                         //"zone" | "fence" | "step_fence" => {
