@@ -1,4 +1,7 @@
 //! Keeps track of any entities that are within the boundaries of a zone.
+//!
+//! Zones are essentially a cache of entities whose shapes intersect the
+//! zone's shape.
 use specs::prelude::*;
 
 use super::super::prelude::{AABBTree, Exile, Position, Shape};

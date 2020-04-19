@@ -426,13 +426,9 @@ pub fn insert_map(map: &Tiledmap, data: &mut InsertMapData) {
                     match obj.get_deep_type(map).as_str() {
                         //"sprite" => Sprite::read(self, map, object),
 
-                        //"zone" | "fence" | "step_fence" => {
-                        //  let mut attributes = Attributes::read(map, object)?;
-                        //  attributes.position_mut().map(|p| {
-                        //    p.0 += self.origin + V2::new(0.0, object.height);
-                        //  });
-                        //  Ok(attributes.into_ecs(self.world, self.z_level))
-                        //}
+                        "zone" => { panic!("TODO: Zones") }
+                        "fence" => { panic!("TODO: Fences") }
+                        "step_fence" => { panic!("TODO: Step fences") }
 
                         //"point" | "sound" | "music" => {
                         //  let mut attributes = Attributes::read(map, object)?;

@@ -3,10 +3,11 @@
 //! The engine itself is a struct with some type variables that determine what
 //! kind of rendering context and resources the engine will manage.
 use super::prelude::{
-    entity_local_origin, AnimationSystem, BackgroundColor, Color, DebugRenderingData,
-    Dispatcher, DispatcherBuilder, FPSCounter, GamepadSystem, HasRenderingContext, Join, MapEntity,
-    MapRenderingData, Physics, PlayerSystem, RenderingContext, Resources, Screen,
-    ScreenSystem, SystemData, TiledmapSystem, TweenSystem, World, WorldExt, ZLevel, AABB, V2, ZoneSystem
+    entity_local_origin, AnimationSystem, BackgroundColor, Color, DebugRenderingData, Dispatcher,
+    DispatcherBuilder, FPSCounter, FenceSystem, GamepadSystem, HasRenderingContext, Join,
+    MapEntity, MapRenderingData, Physics, PlayerSystem, RenderingContext, Resources, Screen,
+    ScreenSystem, SystemData, TiledmapSystem, TweenSystem, World, WorldExt, ZLevel, ZoneSystem,
+    AABB, V2,
 };
 use std::cmp::Ordering;
 
@@ -48,10 +49,9 @@ where
             .with_thread_local(PlayerSystem)
             .with_thread_local(TweenSystem)
             .with_thread_local(ZoneSystem)
+            .with_thread_local(FenceSystem)
             //.with_thread_local(SoundSystem::new())
-            //.with_thread_local(MapLoadingSystem { opt_reader: None })
             //.with_thread_local(SpriteSystem)
-            //.with_thread_local(FenceSystem)
             .build();
 
         dispatcher.setup(&mut world);
@@ -219,8 +219,11 @@ where
             viewport_to_context,
         )?;
         if self.debug_mode {
-            self.rendering_context
-                .render_ui_debug(&mut self.world, &map_ents, viewport_to_context)?;
+            self.rendering_context.render_ui_debug(
+                &mut self.world,
+                &map_ents,
+                viewport_to_context,
+            )?;
         }
 
         Ok(())

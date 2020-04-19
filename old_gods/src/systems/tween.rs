@@ -93,7 +93,7 @@ pub struct TweenSystem;
 impl<'a> System<'a> for TweenSystem {
     type SystemData = (
         Entities<'a>,
-        Write<'a, FPSCounter>,
+        Read<'a, FPSCounter>,
         Read<'a, LazyUpdate>,
         WriteStorage<'a, Position>,
         WriteStorage<'a, Tween>,

@@ -1,5 +1,7 @@
-/// A fence is a line of demarcation.
-/// The fence system tracks what entities have crossed a fence.
+//! A fence is a line of demarcation.
+//!
+//! The fence system tracks what entities have crossed a fence from one frame to
+//! another.
 use specs::prelude::*;
 
 use std::collections::HashMap;

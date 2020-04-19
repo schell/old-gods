@@ -1,7 +1,5 @@
 /// Manages:
 /// * moving players based on their controllers' axes
-/// * adding and removing take-action components, allowing the ActionSystem to do
-///   its job
 use log::{trace, warn};
 use specs::prelude::*;
 
