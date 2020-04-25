@@ -22,7 +22,6 @@ pub struct RenderUI;
 impl<'ctx, 'res, 'sys> RenderUI {
 
   pub fn fancy_font() -> FontDetails {
-    // TODO: Allow the UI font to be customized
     FontDetails {
       path: "GothicPixels".to_string(),
       size: 16
@@ -41,7 +40,6 @@ impl<'ctx, 'res, 'sys> RenderUI {
 
 
   pub fn normal_font() -> FontDetails {
-    // TODO: Allow the UI font to be customized
     FontDetails {
       path: "sans-serif".to_string(),
       size: 16
