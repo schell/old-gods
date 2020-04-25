@@ -20,6 +20,5 @@ pub mod prelude;
 pub mod rendering;
 pub mod resources;
 pub mod systems;
-pub mod tiled;
 pub mod time;
 pub mod utils;

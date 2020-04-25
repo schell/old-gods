@@ -12,7 +12,6 @@ use super::super::{
         RenderingToggles, ResourceId, Resources, Shape, StepFence, System, SystemData,
         TextureFrame, TileLayerData, Tiledmap, World, WriteStorage, ZLevel, Zone, JSON, V2,
     },
-    tiled::json::Point,
 };
 use log::{trace, warn};
 use serde_json::Value;
@@ -257,17 +256,18 @@ pub fn insert_map(map: &Tiledmap, data: &mut InsertMapData) {
                     warn!("found unsupported layer type '{}'", t);
                 }
             }
-            match (&layer.layer_data, layer.name.as_str()) {
-                (LayerData::Tiles(tiles), _) => {
+            match &layer.layer_data {
+                LayerData::Tiles(tiles) => {
                     layers_out.push(Either::Left(tiles));
                 }
-                (LayerData::Objects(objects), _) => {
+                LayerData::Objects(objects) => {
                     layers_out.push(Either::Right(objects));
                 }
-                (LayerData::Layers(layers), _) => {
+                LayerData::Layers(layers) => {
                     let tobjs = flatten_layers(&layers.layers);
                     layers_out.extend(tobjs);
                 }
+
             }
         }
         layers_out
@@ -435,7 +435,7 @@ pub fn insert_map(map: &Tiledmap, data: &mut InsertMapData) {
                         let _ = data.object_toggles.insert(obj_ent, debug_toggles);
                     }
 
-                    let properties: HashMap<String, Value> =
+                    let mut properties: HashMap<String, Value> =
                         properties.into_iter().map(|(k, p)| (k, p.value)).collect();
 
                     match obj.get_deep_type(map).as_str() {
@@ -456,7 +456,28 @@ pub fn insert_map(map: &Tiledmap, data: &mut InsertMapData) {
                                 panic!("a fence must be a polyline");
                             }
                         }
-                        "step_fence" => panic!("TODO: Step fences"),
+                        "step_fence" => {
+                            if let Some(polyline) = &obj.polyline {
+                                let _ = data.step_fences.insert(
+                                    obj_ent,
+                                    StepFence {
+                                        step: properties
+                                            .remove("step")
+                                            .map(|v| v.as_f64().map(|f| f as f32))
+                                            .flatten()
+                                            .expect(
+                                                "StepFence must have a proprety 'step' with a \
+                                                 float value",
+                                            ),
+                                        fence: Fence::new(
+                                            polyline.iter().map(|p| V2::new(p.x, p.y)).collect(),
+                                        ),
+                                    },
+                                );
+                            } else {
+                                panic!("a fence must be a polyline");
+                            }
+                        }
 
                         //"point" | "sound" | "music" => {
                         //  let mut attributes = Attributes::read(map, object)?;
@@ -465,55 +486,16 @@ pub fn insert_map(map: &Tiledmap, data: &mut InsertMapData) {
                         //  });
                         //  Ok(attributes.into_ecs(self.world, self.z_level))
                         //}
+
                         "barrier" => {
                             let _ = data.barriers.insert(obj_ent, Barrier);
                         }
 
-                        ty if ty.is_empty() => {
-                            //  let gid = object.gid.clone();
-                            //  if let Some(gid) = gid {
-                            //    // Tiled tiles' origin is at the bottom of the tile, not the top
-                            //    let y = object.y - object.height;
-                            //    let p = self.origin + V2::new(object.x, y);
-                            //    let size = (object.width as u32, object.height as u32);
-
-                            //    let mut attribs = Attributes::read_gid(map, &gid, Some(size))?;
-                            //    attribs.push(Attribute::Position(Position(p)));
-
-                            //    let props = object
-                            //      .properties
-                            //      .iter()
-                            //      .map(|p| (&p.name, p))
-                            //      .collect::<HashMap<_, _>>();
-                            //    let mut prop_attribs = Attributes::read_properties(&props)?;
-                            //    attribs.append(&mut prop_attribs);
-
-                            //    let attributes = Attributes { attribs };
-                            //    println!("  {:?} with attributes:{:?}", ty, attributes);
-
-                            //    Ok(attributes.into_ecs(self.world, self.z_level))
-                            //  } else {
-                            //    if object.text.len() > 0 {
-                            //      // This is a text object
-                            //      let mut attribs = Attributes::read(map, object)?;
-                            //      let p =
-                            //        attribs.position_mut().expect("Text must have a Position");
-                            //      p.0 += self.origin;
-                            //      println!(
-                            //        "  {:?} with attributes:{:?} and z_level:{:?}",
-                            //        ty, attribs, self.z_level
-                            //      );
-                            //      Ok(attribs.into_ecs(self.world, self.z_level))
-                            //    } else {
-                            //      Err(format!("Unsupported object\n{:?}", object))
-                            //    }
-                            //  }
-                        }
-
                         // Otherwise this object was unhandled and should live in the ECS
                         // for something else to pick up.
+                        // TODO: Remove Object from components - only use JSON
                         _ => {
-                            println!("object is unknown to TiledSystem:\n{:#?}", obj);
+                            trace!("object is unknown to TiledSystem:\n{:#?}", obj);
                             let _ = data.objects.insert(obj_ent, obj.clone());
                         }
                     }

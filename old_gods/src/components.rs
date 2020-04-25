@@ -6,23 +6,17 @@ use specs::prelude::{
 use std::collections::HashMap;
 
 pub use super::geom::*;
-//pub use super::systems::action::{
-//  Action, FitnessStrategy, Lifespan, TakeAction,
-//};
 pub use super::systems::animation::Animation;
-//pub use super::systems::effect::Effect;
 pub use super::systems::{
     fence::{Fence, StepFence},
     physics::{Barrier, Position, Velocity},
 };
-//pub use super::systems::script::Script;
 //pub use super::systems::sound::{Music, Sound};
 pub use super::{
     systems::{
         tween::{Easing, Tween, TweenParam},
         zone::Zone,
     },
-    tiled::json::{Object, Property},
 };
 
 mod cardinal;
@@ -42,6 +36,9 @@ pub use rendering::*;
 
 mod sprite;
 pub use sprite::*;
+
+pub mod tiled;
+pub use tiled::{Tiledmap, Object, Property};
 
 
 /// One of the simplest and most common components.

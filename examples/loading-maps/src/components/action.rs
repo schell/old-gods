@@ -27,15 +27,6 @@ impl FitnessStrategy {
     }
 
     /// Parse a HasItem
-    /// ```
-    /// use old_gods::components::FitnessStrategy;
-    ///
-    /// let my_str = "has_item \"white key\"";
-    /// assert_eq!(
-    ///     FitnessStrategy::try_from_str(my_str),
-    ///     Ok(FitnessStrategy::HasItem("white key".to_string()))
-    /// );
-    /// ```
     fn has_item(i: &str) -> IResult<&str, FitnessStrategy> {
         let (i, _) = tag("has_item")(i)?;
         let (i, _) = multispace1(i)?;
@@ -44,15 +35,6 @@ impl FitnessStrategy {
     }
 
     /// Parse a HasInventory
-    /// ```
-    /// use old_gods::components::FitnessStrategy;
-    ///
-    /// let my_str = "has_inventory";
-    /// assert_eq!(
-    ///     FitnessStrategy::try_from_str(my_str),
-    ///     Ok(FitnessStrategy::HasInventory)
-    /// );
-    /// ```
     fn has_inventory(i: &str) -> IResult<&str, FitnessStrategy> {
         let (i, _) = tag("has_inventory")(i)?;
         Ok((i, FitnessStrategy::HasInventory))
@@ -84,6 +66,27 @@ impl FitnessStrategy {
             FitnessStrategy::any,
             FitnessStrategy::all,
         ))(i)
+    }
+}
+
+
+#[cfg(test)]
+mod fitness_strategy_tests {
+    use super::*;
+
+    #[test]
+    fn can_parse_lifespan() {
+        let my_str = "has_item \"white key\"";
+        assert_eq!(
+            FitnessStrategy::try_from_str(my_str),
+            Ok(FitnessStrategy::HasItem("white key".to_string()))
+        );
+
+        let my_str = "has_inventory";
+        assert_eq!(
+            FitnessStrategy::try_from_str(my_str),
+            Ok(FitnessStrategy::HasInventory)
+        );
     }
 }
 

@@ -3,19 +3,33 @@
 //! TODO: Investigate whether we can support external tilesets on web
 use log::trace;
 use serde::de::{Deserialize, Deserializer};
-use serde_json::{from_reader, from_str, Error, Value};
+use serde_json::Value;
 use specs::prelude::{Component as SpecsComponent, HashMapStorage};
 use std::{
     collections::HashMap,
     fs::File,
     future::Future,
-    io::BufReader,
+    io::Read,
     path::{Component, Path, PathBuf},
     result::Result,
     vec::Vec,
 };
 
 use super::super::geom::V2;
+
+
+#[cfg(feature = "serde_path_to_error")]
+/// Deserialize a json file.
+pub fn from_str<'a, T: Deserialize<'a>>(s: &'a str) -> Result<T, String> {
+    let jd = &mut serde_json::Deserializer::from_str(s);
+    serde_path_to_error::deserialize(jd).map_err(|e| format!("{:#?}", e))
+}
+
+#[cfg(not(feature = "serde_path_to_error"))]
+/// Deserialize a json file.
+pub fn from_str<'a, T: Deserialize<'a>>(s: &'a str) -> Result<Tiledmap, String> {
+    serde_json::from_str(s)
+}
 
 
 /// #Tile-flipping constants
@@ -268,7 +282,7 @@ pub struct Layer {
 
     /// string key-value pairs.
     #[serde(default)]
-    pub properties: HashMap<String, String>,
+    pub properties: Option<Vec<Property>>,
 
     /// Value between 0 and 1
     pub opacity: f32,
@@ -281,12 +295,17 @@ pub struct Layer {
 
 impl Layer {
     pub fn get_z(&self) -> Option<i32> {
-        let s = self.properties.get("z")?;
-        from_str(s).expect("Could not read layer z")
+        let may_val = self.json_properties().get("z").cloned();
+        let val:Value = may_val?;
+        let z:i64 = val.as_i64()?;
+        Some(z as i32)
     }
+
     pub fn get_z_inc(&self) -> Option<i32> {
-        let s = self.properties.get("z_inc")?;
-        from_str(s).expect("Could not read layer z_inc")
+        let may_val = self.json_properties().get("z_inc").cloned();
+        let val:Value = may_val?;
+        let z:i64 = val.as_i64()?;
+        Some(z as i32)
     }
 
     pub fn is_group(&self) -> bool {
@@ -313,6 +332,87 @@ impl Layer {
             }
         }
         None
+    }
+
+    pub fn json_properties(&self) -> HashMap<String, Value> {
+        self.properties
+            .as_ref()
+            .map(|vals| {
+                vals.iter()
+                    .map(|p| (p.name.clone(), p.value.clone()))
+                    .collect()
+            })
+            .unwrap_or(HashMap::new())
+    }
+}
+
+
+#[cfg(test)]
+mod layer_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn can_read_object_layer() {
+        let layer = json!({
+            "id":6,
+            "name":"objects",
+            "type":"objectgroup",
+            "visible":true,
+            "x":0,
+            "y":0,
+            "properties":[
+                {
+                    "name":"step",
+                    "type":"int",
+                    "value":1
+                }],
+            "opacity":1,
+            "draworder":"topdown",
+            "objects":[],
+        });
+
+        match serde_json::from_value::<Layer>(layer) {
+            Ok(_) => {}
+            Err(e) => panic!("{}", e),
+        }
+    }
+
+    #[test]
+    fn can_read_group_layer() {
+        let layer = json!({
+            "id":10,
+            "name":"floor 2",
+            "type":"group",
+            "visible":true,
+            "x":0,
+            "y":0,
+            "opacity":1,
+            "layers":[
+                {
+                    "id":6,
+                    "name":"objects",
+                    "type":"objectgroup",
+                    "visible":true,
+                    "x":0,
+                    "y":0,
+                    "properties":[
+                        {
+                            "name":"step",
+                            "type":"int",
+                            "value":1
+                        }],
+                    "opacity":1,
+                    "draworder":"topdown",
+                    "objects":[],
+                }
+            ]
+        });
+
+        match serde_json::from_value::<Layer>(layer) {
+            Ok(_) => {}
+            Err(e) => panic!("{}", e),
+        }
     }
 }
 
@@ -572,8 +672,8 @@ pub struct TilesetItem {
 impl TilesetItem {
     /// Hydrate any TilesetItem into a Tileset.
     /// This loads any external tilesets, as well as extends each Tile's properties
-    /// to include thos in the set's tileproperties.
-    pub fn hydrate_tileset(&self, path_prefix: &Path) -> Result<Tileset, Error> {
+    /// to include those in the set's tileproperties.
+    pub fn hydrate_tileset(&self, path_prefix: &Path) -> Result<Tileset, String> {
         match &self.payload {
             TilesetPayload::Embedded(s) => {
                 let mut set = s.clone();
@@ -583,16 +683,15 @@ impl TilesetItem {
             TilesetPayload::Source(s) => {
                 let path: PathBuf = path_prefix.join(Path::new(&s.source));
                 trace!("Hydrating tileset with path {:?}", path);
-                let file = File::open(path.clone()).unwrap();
-                let reader = BufReader::new(file);
-                from_reader(reader).map(|s: Tileset| {
-                    let img_path: PathBuf =
-                        path.parent().unwrap().to_path_buf().join(s.image.clone());
-                    let mut s = s;
-                    s.image = img_path.to_str().unwrap().to_string();
-                    s.extend_tiles_with_tileproperties();
-                    s
-                })
+                let mut file = File::open(path.clone()).unwrap();
+                let mut contents = String::new();
+                file.read_to_string(&mut contents)
+                    .map_err(|e| format!("could not read file {:#?}: {}", s.source, e))?;
+                let mut s: Tileset = from_str(&contents)?;
+                let img_path: PathBuf = path.parent().unwrap().to_path_buf().join(s.image.clone());
+                s.image = img_path.to_str().unwrap().to_string();
+                s.extend_tiles_with_tileproperties();
+                Ok(s)
             }
         }
     }
@@ -651,16 +750,19 @@ pub struct Tiledmap {
     pub nextobjectid: i32,
 }
 
-// TODO: Keep Tiledmap from panicking on parse failure.
+// TODO: Use serde_path_to_error on Tileset.
 impl Tiledmap {
+    /// Deserialize a Tiled map file.
     pub fn from_text(text: &str) -> Result<Tiledmap, String> {
-        from_str(text).map_err(|e| format!("{}", e))
+        from_str(text)
     }
 
-    pub fn from_file(file: &str) -> Tiledmap {
+    /// Load and deserialize a Tiled map file synchronously.
+    pub fn from_file(file: &str) -> Result<Tiledmap, String> {
         Self::new(Path::new(file))
     }
 
+    /// Load and deserialize a Tiled map file asyncronously.
     pub async fn from_url<F, R>(base_url: &str, path: &str, load: F) -> Result<Tiledmap, String>
     where
         F: Fn(&str) -> R,
@@ -668,25 +770,31 @@ impl Tiledmap {
     {
         let url = format!("{}/{}", base_url, path);
         let data = load(&url).await?;
-        let mut tiledmap: Tiledmap = from_str(&data).map_err(|e| format!("{}", e))?;
+        let mut tiledmap: Tiledmap = from_str(&data)?;
         tiledmap
             .hydrate_tilesets_async(base_url, path, load)
             .await?;
         Ok(tiledmap)
     }
 
-    pub fn new(path: &Path) -> Tiledmap {
+    pub fn new(path: &Path) -> Result<Tiledmap, String> {
         trace!("Opening Tiled map file {:?}", path);
-        let file = File::open(path).expect(&format!("Could not open the file '{:?}'.", path));
-        let reader = BufReader::new(file);
-        let m1: Tiledmap = from_reader(reader).expect("Could not read a file.");
+        let mut file = File::open(path)
+            .map_err(|e| format!("Could not open the file '{:?}': '{}'", path, e))?;
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)
+            .map_err(|e| format!("Could not read the file {:?}: {}", path, e))?;
+        let m1: Tiledmap = from_str(&contents)?;
         if let Some(parent) = path.parent() {
-            m1.hydrate_tilesets(parent).expect(&format!(
-                "Could not hydrate a Tileset in directory '{:?}'.",
-                parent
-            ))
+            let m2 = m1.hydrate_tilesets(parent).map_err(|e| {
+                format!(
+                    "Could not hydrate a Tileset in directory '{:?}': '{}'",
+                    parent, e
+                )
+            })?;
+            Ok(m2)
         } else {
-            m1
+            Ok(m1)
         }
     }
 
@@ -771,7 +879,7 @@ impl Tiledmap {
 
 
     /// Hydrate all tilesets and return them in a map.
-    pub fn hydrate_tilesets(self, path_prefix: &Path) -> Result<Tiledmap, Error> {
+    pub fn hydrate_tilesets(self, path_prefix: &Path) -> Result<Tiledmap, String> {
         let mut tm = self.clone();
         for mut item in tm.tilesets.iter_mut() {
             let tileset = item.hydrate_tileset(path_prefix)?;
@@ -882,4 +990,25 @@ impl Tiledmap {
 
 impl SpecsComponent for Tiledmap {
     type Storage = HashMapStorage<Self>;
+}
+
+
+#[cfg(test)]
+mod tiled_tests {
+    use super::*;
+
+    #[test]
+    fn can_read_tiled() {
+        Tiledmap::from_file("test_data/layer_groups.json").unwrap();
+    }
+
+    #[test]
+    fn can_read_group_layers_in_loading_maps_example() {
+        match Tiledmap::from_file("../examples/loading-maps/maps/full_test.json") {
+            Ok(_) => {}
+            Err(e) => {
+                panic!("{}", e);
+            }
+        }
+    }
 }

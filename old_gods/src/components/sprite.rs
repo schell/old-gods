@@ -2,7 +2,7 @@ use serde_json::Value;
 use specs::prelude::*;
 use std::collections::HashMap;
 
-use super::{super::tiled::json::Tiledmap, Exile, Object};
+use super::{Exile, Object, Tiledmap};
 
 
 /// Sprites are a collection of other entities.

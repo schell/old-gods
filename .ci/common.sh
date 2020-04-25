@@ -50,8 +50,4 @@ cargo build || exit 1
 echo "Building w/ wasm-pack..."
 wasm-pack build --debug --target web examples/loading-maps || exit 1
 
-#echo "Optimizing..."
-#wasm-opt -Os ad-to-bag/pkg/ad_to_bag_client_bg.wasm -o ad-to-bag/pkg/ad_to_bag_client_bg.wasm || exit 1
-#wasm2js -Oz ad-to-bag/pkg/ad_to_bag_client_bg.wasm -o ad-to-bag/pkg/ad_to_bag_client_bg.js || exit 1
-#bash scripts/js_min.sh ad-to-bag/pkg/ad_to_bag_client_bg.js ad-to-bag/pkg/ad_to_bag_client_bg.min.js || exit 1
 echo "Done building on ${GITHUB_REF}"

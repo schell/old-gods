@@ -580,7 +580,7 @@ where
             fences.push((fence, Color::rgb(0xff, 0, 0xff)));
         }
         if let Some(step_fence) = data.step_fences.get(map_ent.entity) {
-            fences.push((&step_fence.0, Color::rgb(0xff, 0x66, 0xa8)));
+            fences.push((&step_fence.fence, Color::rgb(0xff, 0x66, 0xa8)));
         }
 
         for (fence, color) in fences {

@@ -18,6 +18,87 @@
  "tileheight":48,
  "tiles":[
         {
+         "id":48,
+         "objectgroup":
+            {
+             "draworder":"index",
+             "id":2,
+             "name":"",
+             "objects":[
+                    {
+                     "height":0,
+                     "id":1,
+                     "name":"",
+                     "point":true,
+                     "rotation":0,
+                     "type":"origin_offset",
+                     "visible":true,
+                     "width":0,
+                     "x":25,
+                     "y":44
+                    }],
+             "opacity":1,
+             "type":"objectgroup",
+             "visible":true,
+             "x":0,
+             "y":0
+            }
+        }, 
+        {
+         "id":50,
+         "objectgroup":
+            {
+             "draworder":"index",
+             "id":2,
+             "name":"",
+             "objects":[
+                    {
+                     "height":0,
+                     "id":1,
+                     "name":"",
+                     "point":true,
+                     "rotation":0,
+                     "type":"origin_offset",
+                     "visible":true,
+                     "width":0,
+                     "x":25,
+                     "y":44
+                    }],
+             "opacity":1,
+             "type":"objectgroup",
+             "visible":true,
+             "x":0,
+             "y":0
+            }
+        }, 
+        {
+         "id":52,
+         "objectgroup":
+            {
+             "draworder":"index",
+             "id":2,
+             "name":"",
+             "objects":[
+                    {
+                     "height":0,
+                     "id":1,
+                     "name":"",
+                     "point":true,
+                     "rotation":0,
+                     "type":"origin_offset",
+                     "visible":true,
+                     "width":0,
+                     "x":24.25,
+                     "y":46.5
+                    }],
+             "opacity":1,
+             "type":"objectgroup",
+             "visible":true,
+             "x":0,
+             "y":0
+            }
+        }, 
+        {
          "id":113,
          "properties":[
                 {
@@ -488,25 +569,9 @@
          "objectgroup":
             {
              "draworder":"index",
+             "id":2,
              "name":"",
              "objects":[
-                    {
-                     "height":23.8181818181818,
-                     "id":1,
-                     "name":"",
-                     "properties":[
-                            {
-                             "name":"z",
-                             "type":"string",
-                             "value":"1"
-                            }],
-                     "rotation":0,
-                     "type":"barrier",
-                     "visible":true,
-                     "width":48,
-                     "x":0,
-                     "y":24
-                    }, 
                     {
                      "ellipse":true,
                      "height":0,

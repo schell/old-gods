@@ -4,6 +4,7 @@
 //! another.
 //!
 //! Step fences alter the ZLevel of entities that have crossed them.
+use log::trace;
 use specs::prelude::*;
 
 use std::collections::HashMap;
@@ -58,7 +59,10 @@ impl Component for Fence {
 /// ZLevel. This is a bit of a hack to allow creatures to move up stairs and still
 /// render properly.
 #[derive(Debug, Clone)]
-pub struct StepFence(pub Fence);
+pub struct StepFence {
+    pub step: f32,
+    pub fence: Fence
+}
 
 
 impl Component for StepFence {
@@ -184,17 +188,22 @@ impl<'a> System<'a> for FenceSystem {
                 &aabb_tree,
                 &entities,
                 fence_ent,
-                &mut step_fence.0,
+                &mut step_fence.fence,
                 pos,
                 &velocities,
             );
 
             // run through all crossings and adjust their zlevel
-            for (entity, is_positive) in step_fence.0.crossed.iter() {
+            for (entity, is_positive) in step_fence.fence.crossed.iter() {
                 zlevels.get_mut(*entity).map(|z| {
-                    let inc = if *is_positive { 1.0 } else { -1.0 };
+                    let inc = if *is_positive {
+                        step_fence.step
+                    } else {
+                        -step_fence.step
+                    };
+
                     z.0 += inc;
-                    println!("Stepping z {:?} to {:?}", inc, z.0);
+                    trace!("Stepping z {:?} to {:?}", inc, z.0);
                 });
             }
         }

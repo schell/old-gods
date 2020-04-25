@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 
 use super::super::{
     prelude::{Color, FontDetails, V2},
-    tiled::json::{Property, AABB as TiledAABB},
+    components::tiled::{Property, AABB as TiledAABB},
 };
 
 
