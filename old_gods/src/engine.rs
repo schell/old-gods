@@ -11,23 +11,25 @@ use super::prelude::{
 };
 use std::cmp::Ordering;
 
+// TODO: Use snafu error handling
 
-pub struct Engine<'a, 'b, Ctx, Rsrc> {
+
+pub struct Engine<'a, 'b, Ctx, ImageResources> {
     pub base_url: String,
     pub world: World,
     pub map_rendering_context: Ctx,
     pub rendering_context: Ctx,
-    pub resources: Rsrc,
+    pub images: ImageResources,
 
     dispatcher: Dispatcher<'a, 'b>,
     debug_mode: bool,
 }
 
 
-impl<'a, 'b, Ctx, Rsrc> Engine<'a, 'b, Ctx, Rsrc>
+impl<'a, 'b, Ctx, ImageResources> Engine<'a, 'b, Ctx, ImageResources>
 where
     Ctx: HasRenderingContext,
-    Rsrc: Resources<<Ctx::Ctx as RenderingContext>::Image> + Default,
+    ImageResources: Resources<<Ctx::Ctx as RenderingContext>::Image> + Default,
 {
     pub fn new_with<F>(
         base_url: &str,
@@ -66,7 +68,7 @@ where
             debug_mode: false,
             rendering_context: new_ctx(),
             map_rendering_context: new_ctx(),
-            resources: Rsrc::default(),
+            images: ImageResources::default(),
         }
     }
 
@@ -88,6 +90,14 @@ where
             .get_rendering_context()
             .set_context_size((w, h))
             .expect("could not set map rendering size");
+    }
+
+
+    /// Set the top left x and y position of the map viewport in map coordinates.
+    pub fn set_map_viewport_top_left(&mut self, x: u32, y: u32) {
+        let mut screen = self.world.write_resource::<Screen>();
+        let mut viewport = screen.get_mut_viewport();
+        viewport.top_left = V2::new(x as f32, y as f32);
     }
 
 
@@ -180,7 +190,7 @@ where
         let map_ents = self.get_map_entities()?;
 
         self.map_rendering_context
-            .render_map(&mut self.world, &mut self.resources, &map_ents)?;
+            .render_map(&mut self.world, &mut self.images, &map_ents)?;
 
         if self.debug_mode {
             self.map_rendering_context
@@ -214,7 +224,7 @@ where
         // Draw the UI
         self.rendering_context.render_ui(
             &mut self.world,
-            &mut self.resources,
+            &mut self.images,
             &map_ents,
             viewport_to_context,
         )?;

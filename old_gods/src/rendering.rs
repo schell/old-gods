@@ -1,4 +1,4 @@
-use super::prelude::*;
+use super::{prelude::*, resources};
 use std::collections::HashSet;
 use wasm_bindgen::prelude::*;
 use web_sys::{CanvasRenderingContext2d, HtmlImageElement};
@@ -406,7 +406,7 @@ where
     {
         match &rendering.primitive {
             RenderingPrimitive::TextureFrame(f) => {
-                let res = rsc.when_loaded(&f.sprite_sheet, |tex| {
+                let res = resources::when_loaded(rsc, &f.sprite_sheet, |tex| {
                     let dest = AABB::new(point.x, point.y, f.size.0 as f32, f.size.1 as f32);
                     let src = AABB::new(
                         f.source_aabb.x as f32,
@@ -550,7 +550,7 @@ where
     ) -> Result<(), String> {
         if let Some(zone) = data.zones.get(map_ent.entity) {
             if let Some(shape) = data.shapes.get(map_ent.entity) {
-                let saturation = if zone.inside.len() > 1 {0} else {50};
+                let saturation = if zone.inside.len() > 1 { 0 } else { 50 };
                 let mut color = Color::rgb(149 - saturation, 56 - saturation, 255 - saturation);
                 if data.exiles.contains(map_ent.entity) {
                     color.a = 128;
@@ -559,9 +559,11 @@ where
                 }
                 self.get_rendering_context().set_stroke_color(&color);
 
-                let lines:Vec<_> = shape.vertices_closed().into_iter().map(|v| {
-                    viewport_to_context(map_ent.position + v)
-                }).collect();
+                let lines: Vec<_> = shape
+                    .vertices_closed()
+                    .into_iter()
+                    .map(|v| viewport_to_context(map_ent.position + v))
+                    .collect();
                 self.get_rendering_context().stroke_lines(&lines);
             }
         }
@@ -594,7 +596,13 @@ where
             self.get_rendering_context().stroke_lines(&lines);
             for (_, watched_pos) in fence.watching.iter() {
                 let watched_pos = data.screen.from_map(watched_pos);
-                let from = viewport_to_context(fence.points.first().map(|p| *pos + *p).unwrap_or(watched_pos));
+                let from = viewport_to_context(
+                    fence
+                        .points
+                        .first()
+                        .map(|p| *pos + *p)
+                        .unwrap_or(watched_pos),
+                );
                 let to = viewport_to_context(watched_pos);
                 let lines = arrow_lines(from, to);
                 let mut color = color.clone();
@@ -771,7 +779,8 @@ where
                             .set_stroke_color(&Color::rgb(255, 255, 255));
 
                         let from = viewport_to_context(data.screen.from_map(&other_aabb.center()));
-                        let to = viewport_to_context(data.screen.from_map(&(other_aabb.center() + mtv)));
+                        let to =
+                            viewport_to_context(data.screen.from_map(&(other_aabb.center() + mtv)));
                         let lines = point_lines(from);
                         self.get_rendering_context().stroke_lines(&lines);
 

@@ -10,9 +10,7 @@ pub struct FontDetails {
 
 impl FontDetails {
     pub fn to_css_string(&self) -> String {
-        let s = format!(
-            "{}px {}", self.size, self.path
-        );
+        let s = format!("{}px {}", self.size, self.path);
         s
     }
 }
@@ -25,5 +23,4 @@ impl<'a> From<&'a FontDetails> for FontDetails {
             size: details.size,
         }
     }
-
 }

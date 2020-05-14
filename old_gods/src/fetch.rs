@@ -3,11 +3,10 @@ use serde_json;
 use std::{future::Future, pin::Pin};
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
-use web_sys::{Request, RequestInit, RequestMode, Response, window};
+use web_sys::{window, Request, RequestInit, RequestMode, Response};
 
 async fn request_to_text(req: Request) -> Result<String, String> {
-    let window = window()
-        .ok_or("could not get window")?;
+    let window = window().ok_or("could not get window")?;
     let resp: Response = JsFuture::from(window.fetch_with_request(&req))
         .await
         .map_err(|_| "request failed".to_string())?

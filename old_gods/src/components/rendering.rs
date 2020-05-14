@@ -3,8 +3,8 @@ use specs::prelude::*;
 use std::collections::{HashMap, HashSet};
 
 use super::super::{
-    prelude::{Color, FontDetails, V2},
     components::tiled::{Property, AABB as TiledAABB},
+    prelude::{Color, FontDetails, V2},
 };
 
 

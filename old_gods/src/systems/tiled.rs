@@ -7,42 +7,33 @@ use super::super::{
     fetch,
     prelude::{
         Animation, Barrier, CanBeEmpty, Component, Either, Entities, Entity, Fence, Frame,
-        GlobalTileIndex, HashMapStorage, Join, Layer, LayerData, LoadStatus, Name, Object,
-        ObjectGroup, ObjectLayerData, ObjectRenderingToggles, OriginOffset, Position, Rendering,
-        RenderingToggles, ResourceId, Resources, Shape, StepFence, System, SystemData,
-        TextureFrame, TileLayerData, Tiledmap, World, WriteStorage, ZLevel, Zone, JSON, V2,
+        GlobalTileIndex, HashMapStorage, Join, Layer, LayerData, LoadStatus, LoadableResources,
+        Name, Object, ObjectGroup, ObjectLayerData, ObjectRenderingToggles, OriginOffset, Position,
+        Rendering, RenderingToggles, ResourceId, Resources, Shape, SharedResource, StepFence,
+        System, SystemData, TextureFrame, TileLayerData, Tiledmap, World, WriteStorage, ZLevel,
+        Zone, JSON, V2,
     },
+    resources,
 };
 use log::{trace, warn};
 use serde_json::Value;
-use std::{
-    collections::HashMap,
-    iter::FromIterator,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, iter::FromIterator};
 use wasm_bindgen_futures::spawn_local;
 
 
 pub struct TiledmapResources {
     base_url: String,
-    loads: HashMap<String, Arc<Mutex<(LoadStatus, Option<Tiledmap>)>>>,
+    loads: LoadableResources<Tiledmap>,
 }
 
 
-async fn load_map_wasm(
-    base_url: &str,
-    path: &str,
-    var: Arc<Mutex<(LoadStatus, Option<Tiledmap>)>>,
-) {
+async fn load_map_wasm(base_url: &str, path: &str, shared: SharedResource<Tiledmap>) {
     match Tiledmap::from_url(base_url, path, fetch::from_url).await {
         Ok(map) => {
-            let mut status = var.try_lock().expect("no Tiledmap lock on load success");
-            status.0 = LoadStatus::Complete;
-            status.1 = Some(map);
+            shared.set_status_and_resource((LoadStatus::Complete, Some(map)));
         }
         Err(err) => {
-            let mut status = var.try_lock().expect("no Tiledmap lock on load error");
-            status.0 = LoadStatus::Error(err);
+            shared.set_status(LoadStatus::Error(err));
         }
     }
 }
@@ -52,7 +43,7 @@ impl TiledmapResources {
     fn new(base_url: &str) -> Self {
         TiledmapResources {
             base_url: base_url.to_string(),
-            loads: HashMap::new(),
+            loads: LoadableResources::new(),
         }
     }
 }
@@ -60,40 +51,25 @@ impl TiledmapResources {
 
 impl Resources<Tiledmap> for TiledmapResources {
     fn status_of(&self, key: &str) -> LoadStatus {
-        self.loads
-            .get(key)
-            .map(|payload| {
-                let status_and_may_map = payload.try_lock().expect("no Tiledmap status lock");
-                status_and_may_map.0.clone()
-            })
-            .unwrap_or(LoadStatus::None)
+        self.loads.status_of(key)
     }
 
     fn load(&mut self, path: &str) {
         trace!("loading map '{}'", path);
         let path = path.to_string();
-        let var = Arc::new(Mutex::new((LoadStatus::Started, None)));
-        self.loads.insert(path.clone(), var.clone());
+        let shared = SharedResource::new();
+        self.loads.resources.insert(path.clone(), shared.clone());
         let base_url = self.base_url.clone();
 
-        spawn_local(async move { load_map_wasm(&base_url, &path, var).await });
+        spawn_local(async move { load_map_wasm(&base_url, &path, shared).await });
     }
 
-    fn take(&mut self, path: &str) -> Option<Tiledmap> {
-        self.loads
-            .remove(path)
-            .map(|var| {
-                let status_and_map = var.try_lock().expect("no Tiledmap lock on take");
-                status_and_map.1.clone()
-            })
-            .flatten()
+    fn take(&mut self, path: &str) -> Option<SharedResource<Tiledmap>> {
+        self.loads.take(path)
     }
 
-    fn put(&mut self, path: &str, map: Tiledmap) {
-        self.loads.insert(
-            path.to_string(),
-            Arc::new(Mutex::new((LoadStatus::Complete, Some(map)))),
-        );
+    fn put(&mut self, path: &str, map: SharedResource<Tiledmap>) {
+        self.loads.put(path, map)
     }
 }
 
@@ -267,7 +243,6 @@ pub fn insert_map(map: &Tiledmap, data: &mut InsertMapData) {
                     let tobjs = flatten_layers(&layers.layers);
                     layers_out.extend(tobjs);
                 }
-
             }
         }
         layers_out
@@ -486,7 +461,6 @@ pub fn insert_map(map: &Tiledmap, data: &mut InsertMapData) {
                         //  });
                         //  Ok(attributes.into_ecs(self.world, self.z_level))
                         //}
-
                         "barrier" => {
                             let _ = data.barriers.insert(obj_ent, Barrier);
                         }
@@ -522,7 +496,7 @@ impl<'s> System<'s> for TiledmapSystem {
         let mut delete = vec![];
         for (ent, LoadMap { file }) in (&entities, &reqs).join() {
             trace!("loading map '{}'", file);
-            let res = self.resources.when_loaded(&file, |map| {
+            let res = resources::when_loaded(&mut self.resources, &file, |map| {
                 insert_map(map, &mut data);
                 delete.push(ent);
             });

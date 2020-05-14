@@ -495,7 +495,7 @@
         {
          "name":"toggle_rendering_barriers",
          "type":"bool",
-         "value":false
+         "value":true
         }, 
         {
          "name":"toggle_rendering_collision_info",

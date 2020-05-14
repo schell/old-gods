@@ -3,9 +3,7 @@
 use log::{trace, warn};
 use specs::prelude::*;
 
-use super::super::prelude::{
-    Exile, MaxSpeed, Object, Player, PlayerControllers, Velocity, V2,
-};
+use super::super::prelude::{Exile, MaxSpeed, Object, Player, PlayerControllers, Velocity, V2};
 
 
 /// Players the movement and actions taken by characters.
@@ -78,9 +76,10 @@ impl<'a> System<'a> for PlayerSystem {
         });
 
         // Run over all players and enforce their motivations.
-        let joints:Vec<_> = (&data.entities, &data.players, !&data.exiles).join().map(|(ep,p,())| {
-            (ep.clone(), p.clone())
-        }).collect();
+        let joints: Vec<_> = (&data.entities, &data.players, !&data.exiles)
+            .join()
+            .map(|(ep, p, ())| (ep.clone(), p.clone()))
+            .collect();
         for (ent, player) in joints.into_iter() {
             let v = data
                 .velocities
@@ -94,16 +93,14 @@ impl<'a> System<'a> for PlayerSystem {
                 .unwrap_or(MaxSpeed(100.0));
 
             // Get the player's controller on the map
-            data
-                .player_controllers
-                .with_map_ctrl_at(player.0, |ctrl| {
-                    // Update the velocity of the toon based on the
-                    // player's controller
-                    let ana = ctrl.analog_rate();
-                    let rate = ana.unitize().unwrap_or(V2::new(0.0, 0.0));
-                    let mult = rate.scalar_mul(max_speed.0);
-                    v.0 = mult;
-                });
+            data.player_controllers.with_map_ctrl_at(player.0, |ctrl| {
+                // Update the velocity of the toon based on the
+                // player's controller
+                let ana = ctrl.analog_rate();
+                let rate = ana.unitize().unwrap_or(V2::new(0.0, 0.0));
+                let mult = rate.scalar_mul(max_speed.0);
+                v.0 = mult;
+            });
         }
     }
 }

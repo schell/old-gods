@@ -164,7 +164,7 @@ pub fn draw_button<Ctx: HasRenderingContext>(
 pub fn draw_action<Ctx: HasRenderingContext>(
     context: &mut Ctx,
     point: &V2,
-    msg: &str
+    msg: &str,
 ) -> Result<(), String> {
     draw_button::<Ctx>(
         context,

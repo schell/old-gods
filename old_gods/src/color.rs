@@ -27,7 +27,7 @@ impl Color {
             r: self.r,
             g: self.g,
             b: self.g,
-            a: 255
+            a: 255,
         }
     }
 }
@@ -37,7 +37,10 @@ impl From<&Color> for JsValue {
     fn from(color: &Color) -> JsValue {
         let s = format!(
             "rgba({}, {}, {}, {:.3})",
-            color.r, color.g, color.b, (color.a as f32/ 255.0)
+            color.r,
+            color.g,
+            color.b,
+            (color.a as f32 / 255.0)
         );
         JsValue::from_str(&s)
     }
@@ -50,7 +53,7 @@ impl From<u32> for Color {
             (n >> 24 & 0xff) as u8,
             (n >> 16 & 0xff) as u8,
             (n >> 8 & 0xff) as u8,
-            (n & 0xff) as u8
+            (n & 0xff) as u8,
         )
     }
 }
@@ -69,8 +72,7 @@ impl Default for BackgroundColor {
 
 #[cfg(test)]
 mod color_tests {
-    use super::*;
-    use super::css::red;
+    use super::{css::red, *};
 
     #[test]
     fn hex() {

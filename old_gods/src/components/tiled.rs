@@ -296,15 +296,15 @@ pub struct Layer {
 impl Layer {
     pub fn get_z(&self) -> Option<i32> {
         let may_val = self.json_properties().get("z").cloned();
-        let val:Value = may_val?;
-        let z:i64 = val.as_i64()?;
+        let val: Value = may_val?;
+        let z: i64 = val.as_i64()?;
         Some(z as i32)
     }
 
     pub fn get_z_inc(&self) -> Option<i32> {
         let may_val = self.json_properties().get("z_inc").cloned();
-        let val:Value = may_val?;
-        let z:i64 = val.as_i64()?;
+        let val: Value = may_val?;
+        let z: i64 = val.as_i64()?;
         Some(z as i32)
     }
 

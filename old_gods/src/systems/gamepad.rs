@@ -515,7 +515,7 @@ impl PlayerControllers {
             controllers
                 .get(&ndx)
                 .map(|ctrl| {
-                    if !ctrl.debouncing.get() && !ctrl.controlling_ui.get(){
+                    if !ctrl.debouncing.get() && !ctrl.controlling_ui.get() {
                         Some(f(ctrl))
                     } else {
                         None
@@ -537,7 +537,7 @@ impl PlayerControllers {
             controllers
                 .get(&ndx)
                 .map(|ctrl| {
-                    if !ctrl.debouncing.get() && ctrl.controlling_ui.get(){
+                    if !ctrl.debouncing.get() && ctrl.controlling_ui.get() {
                         Some(f(ctrl))
                     } else {
                         None
@@ -548,7 +548,6 @@ impl PlayerControllers {
             None
         }
     }
-
 }
 
 

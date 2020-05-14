@@ -1,10 +1,10 @@
 use super::super::components::{Action, FitnessStrategy, Inventory, Lifespan};
 use log::trace;
-use serde_json::Value;
 use old_gods::prelude::{
-    Entities, Entity, Exile, Join, LazyUpdate, Name, Player, PlayerControllers, Read, ReadStorage,
-    System, WriteStorage, Zone, Object
+    Entities, Entity, Exile, Join, LazyUpdate, Name, Object, Player, PlayerControllers, Read,
+    ReadStorage, System, WriteStorage, Zone,
 };
+use serde_json::Value;
 
 
 #[derive(Debug, PartialEq)]
@@ -97,7 +97,18 @@ impl<'a> System<'a> for ActionSystem {
 
     fn run(
         &mut self,
-        (mut actions, entities, exiles, inventories, lazy, mut objects, players, gamepads, names, mut zones): Self::SystemData,
+        (
+            mut actions,
+            entities,
+            exiles,
+            inventories,
+            lazy,
+            mut objects,
+            players,
+            gamepads,
+            names,
+            mut zones,
+        ): Self::SystemData,
     ) {
         // Find objects that have action types and turn them into actions, deleting the object.
         let mut remove_objects = vec![];
@@ -120,25 +131,25 @@ impl<'a> System<'a> for ActionSystem {
                 .expect("An action must have a 'fitness' property")
                 .as_str()
                 .map(|s| {
-                    FitnessStrategy::try_from_str(s).map_err(|e| {
-                        format!("Could not parse action's fitness strategy: {:?}", e)
-                    })
+                    FitnessStrategy::try_from_str(s)
+                        .map_err(|e| format!("Could not parse action's fitness strategy: {:?}", e))
                         .unwrap()
                 })
-                .expect("An action's 'fitness' property must be a string")
-;
+                .expect("An action's 'fitness' property must be a string");
             let lifespan_val: &Value = properties
                 .get("lifespan")
                 .expect("An action must have a 'lifespan' property");
 
-            let lifespan =
-                if Some("forever") == lifespan_val.as_str() {
-                    Lifespan::Forever
-                } else if let Some(num) = lifespan_val.as_u64() {
-                    Lifespan::Many(num as u32)
-                } else {
-                    panic!("lifespan value must be the string \"forever\" or an int. Found '{}'", lifespan_val)
-                };
+            let lifespan = if Some("forever") == lifespan_val.as_str() {
+                Lifespan::Forever
+            } else if let Some(num) = lifespan_val.as_u64() {
+                Lifespan::Many(num as u32)
+            } else {
+                panic!(
+                    "lifespan value must be the string \"forever\" or an int. Found '{}'",
+                    lifespan_val
+                )
+            };
 
             let action = Action {
                 elligibles: vec![],

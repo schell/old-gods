@@ -2,8 +2,7 @@
 use super::super::components::{Inventory, Item};
 use log::trace;
 use old_gods::prelude::{
-    AABBTree, Barrier, Name, Object, OriginOffset, Position,
-    Rendering, Shape, JSON,
+    AABBTree, Barrier, Name, Object, OriginOffset, Position, Rendering, Shape, JSON,
 };
 use specs::prelude::*;
 use std::collections::HashMap;

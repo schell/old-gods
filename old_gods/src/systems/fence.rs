@@ -15,7 +15,6 @@ use super::super::{
 };
 
 
-
 /// A fence is used to track entities that cross it, and at what angle.
 #[derive(Debug, Clone)]
 pub struct Fence {
@@ -61,7 +60,7 @@ impl Component for Fence {
 #[derive(Debug, Clone)]
 pub struct StepFence {
     pub step: f32,
-    pub fence: Fence
+    pub fence: Fence,
 }
 
 

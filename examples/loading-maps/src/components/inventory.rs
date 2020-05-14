@@ -1,7 +1,6 @@
 use super::super::systems::looting::Loot;
 use old_gods::prelude::{Component, HashMapStorage, OriginOffset, Rendering, Shape};
-use std::f32::consts::PI;
-use std::slice::Iter;
+use std::{f32::consts::PI, slice::Iter};
 
 
 /// An entity with an item component can be kept in an inventory.
@@ -27,7 +26,7 @@ pub struct Item {
     pub offset: Option<OriginOffset>,
 
     /// Is this a barrier?
-    pub is_barrier: bool
+    pub is_barrier: bool,
 }
 
 

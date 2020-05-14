@@ -45,6 +45,11 @@ impl Screen {
         self.viewport.center()
     }
 
+    /// Returns a mutable viewport.
+    pub fn get_mut_viewport(&mut self) -> &mut AABB {
+        &mut self.viewport
+    }
+
 
     pub fn get_tolerance(&self) -> f32 {
         self.tolerance

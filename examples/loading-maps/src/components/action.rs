@@ -1,5 +1,7 @@
-use old_gods::prelude::{Component, Entity, FlaggedStorage, HashMapStorage};
-use old_gods::parser::*;
+use old_gods::{
+    parser::*,
+    prelude::{Component, Entity, FlaggedStorage, HashMapStorage},
+};
 
 
 /// Encodes the strategies by which we evaluate an entity's elligibility to take

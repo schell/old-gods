@@ -25,6 +25,7 @@ fn maps() -> Vec<String> {
     vec![
         "maps/tiles_test.json".into(),
         "maps/collision_detection.json".into(),
+        "maps/audio_test.json".into(),
         "maps/full_test.json".into(),
     ]
 }
@@ -53,7 +54,7 @@ impl OutMsg {
 }
 
 
-pub type WebEngine = Engine<'static, 'static, WebRenderingContext, HtmlResources>;
+pub type WebEngine = Engine<'static, 'static, WebRenderingContext, HtmlImageResources>;
 
 
 struct App {
@@ -105,6 +106,8 @@ impl mogwai::prelude::Component for App {
                 if let Some((width, height)) = map.get_suggested_viewport_size() {
                     trace!("got map viewport size: {} {}", width, height);
                     ecs.set_map_viewport_size(width, height);
+                    trace!("resetting viewport position to (0, 0)");
+                    ecs.set_map_viewport_top_left(0, 0);
                 }
                 let num_entities = {
                     let entities = ecs.world.system_data::<Entities>();
