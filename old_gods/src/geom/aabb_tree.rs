@@ -288,15 +288,15 @@ impl AABBTree {
             match event {
                 ComponentEvent::Inserted(id) => {
                     let entity = entities.entity(*id);
-                    get_aabb(entity).map(|(entity, aabb)| {
+                    if let Some((entity, aabb)) = get_aabb(entity) {
                         self.insert(entity, aabb);
-                    });
+                    }
                 }
                 ComponentEvent::Modified(id) => {
                     let entity = entities.entity(*id);
-                    get_aabb(entity).map(|(entity, aabb)| {
+                    if let Some((entity, aabb)) = get_aabb(entity) {
                         self.insert(entity, aabb);
-                    });
+                    }
                 }
                 ComponentEvent::Removed(id) => {
                     let entity = entities.entity(*id);

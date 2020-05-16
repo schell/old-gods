@@ -57,7 +57,7 @@ impl Resources<Tiledmap> for TiledmapResources {
     fn load(&mut self, path: &str) {
         trace!("loading map '{}'", path);
         let path = path.to_string();
-        let shared = SharedResource::new();
+        let shared = SharedResource::default();
         self.loads.resources.insert(path.clone(), shared.clone());
         let base_url = self.base_url.clone();
 
@@ -134,7 +134,7 @@ pub fn get_animation(
                 Frame {
                     rendering: Rendering::from_frame(TextureFrame {
                         sprite_sheet: tileset.image.clone(),
-                        source_aabb: frame_aabb.clone(),
+                        source_aabb: frame_aabb,
                         size,
                         is_flipped_horizontally: gid.is_flipped_horizontally,
                         is_flipped_vertically: gid.is_flipped_vertically,
@@ -220,7 +220,7 @@ pub fn insert_map(map: &Tiledmap, data: &mut InsertMapData) {
     //);
 
     //// Pre process the layers into layers of tiles and objects.
-    fn flatten_layers(layers_in: &Vec<Layer>) -> Vec<Either<&TileLayerData, &ObjectLayerData>> {
+    fn flatten_layers(layers_in: &[Layer]) -> Vec<Either<&TileLayerData, &ObjectLayerData>> {
         let mut layers_out = vec![];
 
         for layer in layers_in.iter() {
@@ -476,7 +476,7 @@ pub fn insert_map(map: &Tiledmap, data: &mut InsertMapData) {
 
                     // Insert the leftover json properties only if there are leftovers and
                     // we didn't already insert an unhandled object into the ECS
-                    if properties.len() > 0 {
+                    if !properties.is_empty() {
                         let _ = data.jsons.insert(obj_ent, JSON(properties));
                     }
                 }
@@ -500,7 +500,7 @@ impl<'s> System<'s> for TiledmapSystem {
                 insert_map(map, &mut data);
                 delete.push(ent);
             });
-            if let Err(_) = res {
+            if res.is_err() {
                 delete.push(ent);
             }
         }

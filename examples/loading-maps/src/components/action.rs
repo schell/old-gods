@@ -33,7 +33,7 @@ impl FitnessStrategy {
         let (i, _) = tag("has_item")(i)?;
         let (i, _) = multispace1(i)?;
         let (i, n) = string(i)?;
-        Ok((i, FitnessStrategy::HasItem(n.to_string())))
+        Ok((i, FitnessStrategy::HasItem(n)))
     }
 
     /// Parse a HasInventory

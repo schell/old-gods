@@ -41,7 +41,7 @@ impl Resources<HtmlImageElement> for HtmlImageResources {
             .expect("can't coerce img");
         img.set_src(path);
 
-        let rsrc = SharedResource::new();
+        let rsrc = SharedResource::default();
         rsrc.set_status_and_resource((LoadStatus::Started, Some(img.clone())));
 
         let load_rsrc = rsrc.clone();

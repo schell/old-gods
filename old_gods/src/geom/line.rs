@@ -1,3 +1,5 @@
+#![allow(clippy::many_single_char_names)]
+
 use super::super::geom::V2;
 
 

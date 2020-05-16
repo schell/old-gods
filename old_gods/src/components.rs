@@ -107,11 +107,8 @@ where
     P: GetStorage<Position>,
     O: GetStorage<OriginOffset>,
 {
-    let pos = positions.get(ent).map(|p| p.0.clone());
-    let origin = origins
-        .get(ent)
-        .map(|o| o.0.clone())
-        .unwrap_or(V2::origin());
+    let pos = positions.get(ent).map(|p| p.0);
+    let origin = origins.get(ent).map(|o| o.0).unwrap_or_else(V2::origin);
     pos.map(|p| p + origin)
 }
 
@@ -125,12 +122,11 @@ where
     origins
         .get(ent)
         .map(|o| o.0)
-        .or(
+        .or_else(||
             // try to locate a shape - if it has a shape we will consider
             // the center of its aabb as the origin offset.
-            shapes.get(ent).map(|s| s.aabb().center()),
-        )
-        .unwrap_or(V2::origin())
+            shapes.get(ent).map(|s| s.aabb().center()))
+        .unwrap_or_else(V2::origin)
 }
 
 

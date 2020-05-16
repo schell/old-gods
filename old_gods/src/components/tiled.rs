@@ -342,7 +342,7 @@ impl Layer {
                     .map(|p| (p.name.clone(), p.value.clone()))
                     .collect()
             })
-            .unwrap_or(HashMap::new())
+            .unwrap_or_default()
     }
 }
 
@@ -483,7 +483,7 @@ pub struct Tile {
 
 impl Tile {
     /// The object with the given name, if possible.
-    pub fn _object_with_name(&self, name: &String) -> Option<&Object> {
+    pub fn _object_with_name(&self, name: &str) -> Option<&Object> {
         let group = self.object_group.as_ref()?;
         for obj in &group.objects {
             if obj.name == *name {
@@ -494,7 +494,7 @@ impl Tile {
     }
 
     /// The object with the given type, if possible.
-    pub fn object_with_type(&self, type_is: &String) -> Option<&Object> {
+    pub fn object_with_type(&self, type_is: &str) -> Option<&Object> {
         let group = self.object_group.as_ref()?;
         for obj in &group.objects {
             if obj.type_is == *type_is {
@@ -582,12 +582,7 @@ impl Tileset {
             let xndx = ndx % nc;
             let x = m + (tw + s) * xndx;
             let y = m + (th + s) * yndx;
-            Some(AABB {
-                x: x,
-                y: y,
-                w: tw,
-                h: th,
-            })
+            Some(AABB { x, y, w: tw, h: th })
         } else {
             None
         }
@@ -631,8 +626,8 @@ impl Tileset {
             let mut props = self
                 .tileproperties
                 .get(&tile.id)
-                .map(|ps| ps.clone())
-                .unwrap_or(vec![]);
+                .cloned()
+                .unwrap_or_default();
             tile.properties.append(&mut props);
         }
     }
@@ -880,7 +875,7 @@ impl Tiledmap {
 
     /// Hydrate all tilesets and return them in a map.
     pub fn hydrate_tilesets(self, path_prefix: &Path) -> Result<Tiledmap, String> {
-        let mut tm = self.clone();
+        let mut tm = self;
         for mut item in tm.tilesets.iter_mut() {
             let tileset = item.hydrate_tileset(path_prefix)?;
             item.payload = TilesetPayload::Embedded(tileset);
@@ -921,7 +916,7 @@ impl Tiledmap {
     /// Return the layer with the given name
     pub fn get_layer_with_name(&self, name: &str) -> Option<&Layer> {
         for layer in &self.layers {
-            if layer.name == name.to_string() {
+            if layer.name == name {
                 return Some(&layer);
             }
         }
@@ -967,10 +962,11 @@ impl Tiledmap {
                     .map(|num_tiles| num_tiles as u32 * tile_width)
             })
             .flatten()
-            .or(self
-                .get_property_by_name("viewport_width")
-                .map(|value| value.as_u64().map(|width| width as u32))
-                .flatten())?;
+            .or_else(|| {
+                self.get_property_by_name("viewport_width")
+                    .map(|value| value.as_u64().map(|width| width as u32))
+                    .flatten()
+            })?;
         let height = self
             .get_property_by_name("viewport_height_tiles")
             .map(|num_tiles_value: &Value| {
@@ -979,10 +975,11 @@ impl Tiledmap {
                     .map(|num_tiles| num_tiles as u32 * tile_height)
             })
             .flatten()
-            .or(self
-                .get_property_by_name("viewport_height")
-                .map(|value| value.as_u64().map(|height| height as u32))
-                .flatten())?;
+            .or_else(|| {
+                self.get_property_by_name("viewport_height")
+                    .map(|value| value.as_u64().map(|height| height as u32))
+                    .flatten()
+            })?;
         Some((width, height))
     }
 }

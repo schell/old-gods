@@ -85,7 +85,7 @@ pub fn throw_item_with_index_onto_the_map(
     (x, y): (usize, usize),
     starting_loc: V2,
     from_aabb: AABB,
-    z: ZLevel,
+    zlevel: ZLevel,
     entities: &Entities,
     lazy: &LazyUpdate,
 ) -> Result<(), String> {
@@ -95,9 +95,9 @@ pub fn throw_item_with_index_onto_the_map(
     // From there we must offset it some amount to account for
     // the barriers of each
     let radius = {
-        let f = from_aabb.greater_extent();
-        let i = item_aabb.greater_extent();
-        f32::max(f, i)
+        let from = from_aabb.greater_extent();
+        let item = item_aabb.greater_extent();
+        f32::max(from, item)
     };
 
     // Find a place for the item
@@ -116,10 +116,10 @@ pub fn throw_item_with_index_onto_the_map(
         .with(item.rendering.clone())
         .with(item.shape.clone())
         .with(item.clone())
-        .with(z)
+        .with(zlevel)
         .build();
     if let Some(offset) = item.offset {
-        lazy.insert(ent, offset.clone());
+        lazy.insert(ent, offset);
     }
     if item.is_barrier {
         lazy.insert(ent, Barrier);
@@ -183,7 +183,7 @@ fn handle_inventory_action(
                 .shapes
                 .get(inv_ent)
                 .map(|s| s.aabb())
-                .unwrap_or(AABB::identity());
+                .unwrap_or_else(AABB::identity);
             let z = data
                 .z_levels
                 .get(inv_ent)
@@ -304,7 +304,7 @@ fn run_looting(looting: &mut Loot, data: &mut LootingSystemData) -> Result<(), S
     let inventory_here = data
         .inventories
         .get(looting.ent_of_inventory_here)
-        .ok_or("inventory here DNE".to_string())?;
+        .ok_or_else(|| "inventory here DNE".to_string())?;
     let inventory_there = looting
         .ent_of_inventory_there
         .map(|ent| data.inventories.get(ent))
@@ -312,7 +312,7 @@ fn run_looting(looting: &mut Loot, data: &mut LootingSystemData) -> Result<(), S
     let player = data
         .players
         .get(looting.ent_of_inventory_here)
-        .ok_or("TODO: Support looting for npcs.".to_string())?;
+        .ok_or_else(|| "TODO: Support looting for npcs.".to_string())?;
 
     data.player_controllers
         .with_ui_ctrl_at::<_, Result<(), String>>(player.0, |ctrl| {

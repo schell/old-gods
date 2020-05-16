@@ -20,8 +20,8 @@ use web_sys::{window, CanvasRenderingContext2d, HtmlCanvasElement};
 pub struct WebRenderingContext(pub DefaultRenderingContext<CanvasRenderingContext2d>);
 
 
-impl WebRenderingContext {
-    pub fn new() -> Self {
+impl Default for WebRenderingContext {
+    fn default() -> Self {
         let context = window()
             .expect("no window")
             .document()
@@ -37,26 +37,32 @@ impl WebRenderingContext {
             .expect("can't coerce canvas rendering context");
         WebRenderingContext(DefaultRenderingContext { context })
     }
+}
 
+
+type ActionRenderingData<'a> = (
+    ReadStorage<'a, Action>,
+    ReadStorage<'a, Exile>,
+    ReadStorage<'a, OriginOffset>,
+    ReadStorage<'a, Player>,
+    ReadStorage<'a, Position>,
+    ReadStorage<'a, Shape>,
+    Read<'a, Screen>,
+);
+
+
+impl WebRenderingContext {
     pub fn canvas(&self) -> Option<HtmlCanvasElement> {
         self.0.context.canvas()
     }
-
 
     fn render_actions(
         &mut self,
         world: &mut World,
         viewport_to_context: impl Fn(V2) -> V2,
     ) -> Result<(), String> {
-        let (actions, exiles, offsets, players, positions, shapes, screen): (
-            ReadStorage<Action>,
-            ReadStorage<Exile>,
-            ReadStorage<OriginOffset>,
-            ReadStorage<Player>,
-            ReadStorage<Position>,
-            ReadStorage<Shape>,
-            Read<Screen>,
-        ) = world.system_data();
+        let (actions, exiles, offsets, players, positions, shapes, screen): ActionRenderingData =
+            world.system_data();
 
         for (action, ()) in (&actions, !&exiles).join() {
             // Only render actions if they have a player that is elligible.
@@ -67,7 +73,7 @@ impl WebRenderingContext {
                         let extra_y_offset = shapes
                             .get(*elligible_ent)
                             .map(|s| s.extents() * V2::new(-0.5, 0.5) + V2::new(0.0, 4.0))
-                            .unwrap_or(V2::origin());
+                            .unwrap_or_else(V2::origin);
                         let point = position.0 + offset + extra_y_offset;
                         let point = viewport_to_context(screen.from_map(&point));
                         draw_action(self, &point, &action.text)?;
@@ -195,7 +201,7 @@ impl HasRenderingContext for WebRenderingContext {
         &mut self,
         world: &mut World,
         resources: &mut R,
-        map_ents: &Vec<MapEntity>,
+        map_ents: &[MapEntity],
         viewport_to_context: F,
     ) -> Result<(), String>
     where
@@ -222,7 +228,7 @@ impl HasRenderingContext for WebRenderingContext {
                     .names
                     .get(loot.ent_of_inventory_here)
                     .cloned()
-                    .unwrap_or(Name("unknown".into()));
+                    .unwrap_or_else(|| Name("unknown".into()));
                 // The left edge of the entire inv frame
                 let frame_left =
                     center.x - (Loot::COLS as f32 * total_slot_size.x) - frame_padding * 2.0;

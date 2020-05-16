@@ -42,8 +42,8 @@ impl AABB {
     }
 
     pub fn translate(&self, t: &V2) -> AABB {
-        let mut aabb = self.clone();
-        aabb.top_left = aabb.top_left + *t;
+        let mut aabb = *self;
+        aabb.top_left += *t;
         aabb
     }
 
@@ -240,35 +240,31 @@ impl AABB {
     /// ```
     pub fn mtv_contact(&self, aabb: &AABB) -> V2 {
         let dx = if self.collides_on_x(aabb) {
-            if self.top() == aabb.bottom() {
+            if (self.top() - aabb.bottom()).abs() < f32::EPSILON {
                 return V2::new(0.0, 0.0);
             }
-            if self.bottom() == aabb.top() {
+            if (self.bottom() - aabb.top()).abs() < f32::EPSILON {
                 return V2::new(0.0, 0.0);
             }
             0.0
+        } else if self.right() < aabb.left() {
+            -(aabb.left() - self.right())
         } else {
-            if self.right() < aabb.left() {
-                -(aabb.left() - self.right())
-            } else {
-                self.left() - aabb.right()
-            }
+            self.left() - aabb.right()
         };
 
         let dy = if self.collides_on_y(aabb) {
-            if self.right() == aabb.left() {
+            if (self.right() - aabb.left()).abs() < f32::EPSILON {
                 return V2::new(0.0, 0.0);
             }
-            if self.left() == aabb.right() {
+            if (self.left() - aabb.right()).abs() < f32::EPSILON {
                 return V2::new(0.0, 0.0);
             }
             0.0
+        } else if self.bottom() < aabb.top() {
+            -(aabb.top() - self.bottom())
         } else {
-            if self.bottom() < aabb.top() {
-                -(aabb.top() - self.bottom())
-            } else {
-                self.top() - aabb.bottom()
-            }
+            self.top() - aabb.bottom()
         };
         V2::new(dx, dy)
     }
@@ -297,7 +293,7 @@ impl AABB {
     //}
 
     pub fn round(&self) -> AABB {
-        let mut aabb = self.clone();
+        let mut aabb = *self;
         aabb.top_left.x = aabb.top_left.x.round();
         aabb.top_left.y = aabb.top_left.y.round();
         aabb.extents.x = aabb.extents.x.round();

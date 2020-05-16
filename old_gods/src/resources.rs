@@ -24,14 +24,16 @@ pub struct SharedResource<T> {
     payload: Arc<Mutex<(LoadStatus, Option<T>)>>,
 }
 
-
-impl<T> SharedResource<T> {
-    pub fn new() -> Self {
+impl<T> Default for SharedResource<T> {
+    fn default() -> Self {
         SharedResource {
             payload: Arc::new(Mutex::new((LoadStatus::None, None))),
         }
     }
+}
 
+
+impl<T> SharedResource<T> {
     pub fn with_payload<A>(&self, f: impl FnOnce(&(LoadStatus, Option<T>)) -> A) -> A {
         let payload = self
             .payload

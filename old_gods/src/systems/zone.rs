@@ -26,24 +26,27 @@ impl Component for Zone {
 pub struct ZoneSystem;
 
 
-impl<'a> System<'a> for ZoneSystem {
-    type SystemData = (
-        Read<'a, AABBTree>,
-        Entities<'a>,
-        ReadStorage<'a, Exile>,
-        ReadStorage<'a, Position>,
-        ReadStorage<'a, Shape>,
-        WriteStorage<'a, Zone>,
-    );
+#[derive(SystemData)]
+pub struct ZoneSystemData<'a> {
+    aabb_tree: Read<'a, AABBTree>,
+    entities: Entities<'a>,
+    exiles: ReadStorage<'a, Exile>,
+    positions: ReadStorage<'a, Position>,
+    shapes: ReadStorage<'a, Shape>,
+    zones: WriteStorage<'a, Zone>,
+}
 
-    fn run(
-        &mut self,
-        (aabb_tree, entities, exiles, positions, shapes, mut zones): Self::SystemData,
-    ) {
+
+impl<'a> System<'a> for ZoneSystem {
+    type SystemData = ZoneSystemData<'a>;
+
+    fn run(&mut self, mut data: Self::SystemData) {
         // Do some generic zone upkeep
-        for (zone_ent, mut zone, ()) in (&entities, &mut zones, !&exiles).join() {
-            let intersections: Vec<Entity> = aabb_tree
-                .query_intersecting_shapes(&entities, &zone_ent, &shapes, &positions)
+        let exiles = &data.exiles;
+        for (zone_ent, mut zone, ()) in (&data.entities, &mut data.zones, !exiles).join() {
+            let intersections: Vec<Entity> = data
+                .aabb_tree
+                .query_intersecting_shapes(&data.entities, &zone_ent, &data.shapes, &data.positions)
                 .into_iter()
                 .filter_map(|(e, _, _)| {
                     if e == zone_ent || exiles.contains(e) {

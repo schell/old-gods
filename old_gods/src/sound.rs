@@ -61,7 +61,7 @@ impl Resources<HtmlAudioElement> for SoundBlaster {
             .unwrap();
         self.tracks.insert(path.to_string(), track);
 
-        let rsrc = SharedResource::new();
+        let rsrc = SharedResource::default();
         rsrc.set_status_and_resource((LoadStatus::Started, Some(audio_element.clone())));
 
         let load_rsrc = rsrc.clone();

@@ -90,28 +90,29 @@ pub fn tween(
 pub struct TweenSystem;
 
 
-impl<'a> System<'a> for TweenSystem {
-    type SystemData = (
-        Entities<'a>,
-        Read<'a, FPSCounter>,
-        Read<'a, LazyUpdate>,
-        WriteStorage<'a, Position>,
-        WriteStorage<'a, Tween>,
-        WriteStorage<'a, Velocity>,
-    );
+#[derive(SystemData)]
+pub struct TweenSystemData<'a> {
+    entities: Entities<'a>,
+    fps: Read<'a, FPSCounter>,
+    lazy: Read<'a, LazyUpdate>,
+    positions: WriteStorage<'a, Position>,
+    tweens: WriteStorage<'a, Tween>,
+    velocities: WriteStorage<'a, Velocity>,
+}
 
-    fn run(
-        &mut self,
-        (entities, fps, lazy, mut positions, mut tweens, mut velocities): Self::SystemData,
-    ) {
-        for (ent, mut tween) in (&entities, &mut tweens).join() {
-            let delta = fps.last_delta();
+
+impl<'a> System<'a> for TweenSystem {
+    type SystemData = TweenSystemData<'a>;
+
+    fn run(&mut self, mut data: TweenSystemData) {
+        for (ent, mut tween) in (&data.entities, &mut data.tweens).join() {
+            let delta = data.fps.last_delta();
             tween.dt += delta;
 
             let tween_is_dead = tween.dt > tween.duration;
             if tween_is_dead {
                 // This tween is done, remove it
-                lazy.remove::<Tween>(ent);
+                data.lazy.remove::<Tween>(ent);
             }
 
             let tween_v2 = |v: &mut V2, start: V2, end: V2| {
@@ -130,7 +131,8 @@ impl<'a> System<'a> for TweenSystem {
             match tween.param.clone() {
                 TweenParam::Position(start, end) => {
                     tween_v2(
-                        &mut positions
+                        &mut data
+                            .positions
                             .get_mut(tween.subject)
                             .expect("Trying to tween an entity without a position")
                             .0,
@@ -140,7 +142,8 @@ impl<'a> System<'a> for TweenSystem {
                 }
                 TweenParam::Velocity(start, end) => {
                     tween_v2(
-                        &mut velocities
+                        &mut data
+                            .velocities
                             .get_mut(tween.subject)
                             .expect("Trying to tween an entity without a velocity")
                             .0,

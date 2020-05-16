@@ -5,6 +5,7 @@ use old_gods::prelude::{
     ReadStorage, System, WriteStorage, Zone,
 };
 use serde_json::Value;
+use specs::prelude::*;
 
 
 #[derive(Debug, PartialEq)]
@@ -81,38 +82,28 @@ fn target_is_fit<'a>(
 pub struct ActionSystem;
 
 
-impl<'a> System<'a> for ActionSystem {
-    type SystemData = (
-        WriteStorage<'a, Action>,
-        Entities<'a>,
-        ReadStorage<'a, Exile>,
-        ReadStorage<'a, Inventory>,
-        Read<'a, LazyUpdate>,
-        WriteStorage<'a, Object>,
-        ReadStorage<'a, Player>,
-        Read<'a, PlayerControllers>,
-        ReadStorage<'a, Name>,
-        WriteStorage<'a, Zone>,
-    );
+#[derive(SystemData)]
+pub struct ActionSystemData<'a> {
+    actions: WriteStorage<'a, Action>,
+    entities: Entities<'a>,
+    exiles: ReadStorage<'a, Exile>,
+    inventories: ReadStorage<'a, Inventory>,
+    lazy: Read<'a, LazyUpdate>,
+    objects: WriteStorage<'a, Object>,
+    players: ReadStorage<'a, Player>,
+    gamepads: Read<'a, PlayerControllers>,
+    names: ReadStorage<'a, Name>,
+    zones: WriteStorage<'a, Zone>,
+}
 
-    fn run(
-        &mut self,
-        (
-            mut actions,
-            entities,
-            exiles,
-            inventories,
-            lazy,
-            mut objects,
-            players,
-            gamepads,
-            names,
-            mut zones,
-        ): Self::SystemData,
-    ) {
+
+impl<'a> System<'a> for ActionSystem {
+    type SystemData = ActionSystemData<'a>;
+
+    fn run(&mut self, mut data: ActionSystemData) {
         // Find objects that have action types and turn them into actions, deleting the object.
         let mut remove_objects = vec![];
-        for (ent, obj) in (&entities, &mut objects).join() {
+        for (ent, obj) in (&data.entities, &mut data.objects).join() {
             if &obj.type_is != "action" {
                 continue;
             }
@@ -158,26 +149,32 @@ impl<'a> System<'a> for ActionSystem {
                 strategy,
                 lifespan,
             };
-            let _ = actions.insert(ent, action);
+            let _ = data.actions.insert(ent, action);
         }
 
         for ent in remove_objects.into_iter() {
-            let _ = objects.remove(ent);
+            let _ = data.objects.remove(ent);
         }
 
         // Find any actions that don't have zones, then create zones for them.
         // A zone will keep track of any entities intersecting the action.
-        (&entities, &actions, !&zones)
+        (&data.entities, &data.actions, !&data.zones)
             .join()
-            .map(|(e, _, ())| e.clone())
+            .map(|j| j.0)
             .collect::<Vec<_>>()
             .into_iter()
             .for_each(|ent| {
-                let _ = zones.insert(ent, Zone { inside: vec![] });
+                let _ = data.zones.insert(ent, Zone { inside: vec![] });
             });
 
         // Run through each action and test the fitness of any entities in its zone
-        for (action_ent, mut action, zone, ()) in (&entities, &mut actions, &zones, !&exiles).join()
+        for (action_ent, mut action, zone, ()) in (
+            &data.entities,
+            &mut data.actions,
+            &data.zones,
+            !&data.exiles,
+        )
+            .join()
         {
             // Reset the action's coffers
             action.taken_by = vec![];
@@ -186,19 +183,28 @@ impl<'a> System<'a> for ActionSystem {
             'neighbors: for inside_ent in &zone.inside {
                 let inside_ent = *inside_ent;
                 // Determine the fitness of the toon for this action
-                let fitness = target_is_fit(&action.strategy, &inside_ent, &inventories, &names);
+                let fitness = target_is_fit(
+                    &action.strategy,
+                    &inside_ent,
+                    &data.inventories,
+                    &data.names,
+                );
                 if fitness != FitnessResult::Fit {
                     continue;
                 }
                 trace!(
                     "{:?} is fit for {:?}",
-                    names.get(inside_ent),
-                    names.get(action_ent)
+                    data.names.get(inside_ent),
+                    data.names.get(action_ent)
                 );
                 action.elligibles.push(inside_ent);
 
-                if let Some(player) = players.get(inside_ent) {
-                    let action_is_dead = gamepads
+                let names = &data.names;
+                let lazy = &data.lazy;
+
+                if let Some(player) = data.players.get(inside_ent) {
+                    let action_is_dead = data
+                        .gamepads
                         .with_map_ctrl_at(player.0, |ctrl| {
                             if ctrl.a().is_on_this_frame() {
                                 // Allow some other system to handle it.

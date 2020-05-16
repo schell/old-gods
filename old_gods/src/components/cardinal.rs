@@ -14,8 +14,8 @@ pub enum Cardinal {
 
 
 impl Cardinal {
-    pub fn from_string(s: &String) -> Option<Cardinal> {
-        match s.as_str() {
+    pub fn try_from_str(s: &str) -> Option<Cardinal> {
+        match s {
             "north" => Some(Cardinal::North),
             "east" => Some(Cardinal::East),
             "south" => Some(Cardinal::South),

@@ -56,7 +56,7 @@ impl DurationMeasurement {
 
 
     pub fn millis_since_start(&self) -> u32 {
-        Millis::now().millis_since(self.start.clone())
+        Millis::now().millis_since(self.start)
     }
 }
 

@@ -69,74 +69,68 @@ impl Component for StepFence {
 }
 
 
-pub struct FenceSystem;
-
-
-impl FenceSystem {
-    pub fn run_fence(
-        &self,
-        aabb_tree: &AABBTree,
-        entities: &Entities,
-        fence_ent: Entity,
-        fence: &mut Fence,
-        pos: V2,
-        velocities: &ReadStorage<Velocity>,
-    ) {
-        // Clear out our entities this frame
-        let last_watching: HashMap<Entity, V2> = fence.watching.drain().collect();
-        fence.watching = HashMap::new();
-        fence.crossed = HashMap::new();
-        let segments: Vec<(V2, V2)> = fence
-            .segments()
-            .iter()
-            .map(|tup| (*tup.0, *tup.1))
-            .collect::<Vec<_>>()
-            .drain(..)
-            .collect();
-        // Maintain a list of entities we've already known have crossed
-        for (p1, p2) in segments {
-            // The fence's points are relative to the fence's position.
-            let point1 = p1 + pos;
-            let point2 = p2 + pos;
-            // Find the radius^2 of our query
-            // (length of the segment)^2
-            let radius = p1.distance_to(&p2);
-            let radius2 = radius * radius;
-            // Use the circle that includes the whole segment to query for interesting
-            // subjects
-            let ebs = aabb_tree.rtree.lookup_in_circle(&point1, &radius2);
-            // Insert all the entities we're watching
-            for EntityBounds { entity_id, bounds } in ebs {
-                let entity = entities.entity(*entity_id);
-                if fence_ent == entity {
-                    continue;
-                }
-                // Add this thing so we can check it next frame
-                let entity_center = AABB::from_mbr(bounds).center();
-                fence.watching.insert(entity, entity_center);
-                // Continue on to the next entity if we already know this one crossed
-                if fence.crossed.contains_key(&entity) {
-                    continue;
-                }
-                let entity_velocity = velocities.get(entity);
-                // In order to cross a fence a thing must be moving
-                if entity_velocity.is_none() {
-                    continue;
-                }
-                if let Some(prev_center) = last_watching.get(&entity) {
-                    // We were watching this entity previously, so check to see if the
-                    // line made by its previous position and new position intersects with
-                    // our segment.
-                    let fence_segment = LineSegment::new(point1, point2);
-                    let ent_segment = LineSegment::new(*prev_center, entity_center);
-                    let intersection_point = fence_segment.intersection_with(ent_segment);
-                    if intersection_point.is_some() {
-                        // It intersects, so now figure out the cross product
-                        let vector_moved = ent_segment.vector_difference();
-                        let vector_fence = fence_segment.vector_difference();
-                        let cross = vector_fence.cross(vector_moved);
-                        fence.crossed.insert(entity, cross < 0.0);
-                    }
+pub fn run_fence(
+    aabb_tree: &Read<AABBTree>,
+    entities: &Entities,
+    velocities: &ReadStorage<Velocity>,
+    fence_ent: Entity,
+    fence: &mut Fence,
+    pos: V2,
+) {
+    // Clear out our entities this frame
+    let last_watching: HashMap<Entity, V2> = fence.watching.drain().collect();
+    fence.watching = HashMap::new();
+    fence.crossed = HashMap::new();
+    let segments: Vec<(V2, V2)> = fence
+        .segments()
+        .iter()
+        .map(|tup| (*tup.0, *tup.1))
+        .collect::<Vec<_>>()
+        .drain(..)
+        .collect();
+    // Maintain a list of entities we've already known have crossed
+    for (p1, p2) in segments {
+        // The fence's points are relative to the fence's position.
+        let point1 = p1 + pos;
+        let point2 = p2 + pos;
+        // Find the radius^2 of our query
+        // (length of the segment)^2
+        let radius = p1.distance_to(&p2);
+        let radius2 = radius * radius;
+        // Use the circle that includes the whole segment to query for interesting
+        // subjects
+        let ebs = aabb_tree.rtree.lookup_in_circle(&point1, &radius2);
+        // Insert all the entities we're watching
+        for EntityBounds { entity_id, bounds } in ebs {
+            let entity = entities.entity(*entity_id);
+            if fence_ent == entity {
+                continue;
+            }
+            // Add this thing so we can check it next frame
+            let entity_center = AABB::from_mbr(bounds).center();
+            fence.watching.insert(entity, entity_center);
+            // Continue on to the next entity if we already know this one crossed
+            if fence.crossed.contains_key(&entity) {
+                continue;
+            }
+            let entity_velocity = velocities.get(entity);
+            // In order to cross a fence a thing must be moving
+            if entity_velocity.is_none() {
+                continue;
+            }
+            if let Some(prev_center) = last_watching.get(&entity) {
+                // We were watching this entity previously, so check to see if the
+                // line made by its previous position and new position intersects with
+                // our segment.
+                let fence_segment = LineSegment::new(point1, point2);
+                let ent_segment = LineSegment::new(*prev_center, entity_center);
+                let intersection_point = fence_segment.intersection_with(ent_segment);
+                if intersection_point.is_some() {
+                    // It intersects, so now figure out the cross product
+                    let vector_moved = ent_segment.vector_difference();
+                    let vector_fence = fence_segment.vector_difference();
+                    let cross = vector_fence.cross(vector_moved);
+                    fence.crossed.insert(entity, cross < 0.0);
                 }
             }
         }
@@ -144,57 +138,57 @@ impl FenceSystem {
 }
 
 
-impl<'a> System<'a> for FenceSystem {
-    type SystemData = (
-        Read<'a, AABBTree>,
-        Entities<'a>,
-        WriteStorage<'a, Fence>,
-        ReadStorage<'a, Position>,
-        WriteStorage<'a, StepFence>,
-        ReadStorage<'a, Velocity>,
-        WriteStorage<'a, ZLevel>,
-    );
+pub struct FenceSystem;
 
-    fn run(
-        &mut self,
-        (
-      aabb_tree,
-      entities,
-      mut fences,
-      positions,
-      mut step_fences,
-      velocities,
-      mut zlevels,
-    ): Self::SystemData,
-    ) {
+
+impl FenceSystem {}
+
+
+#[derive(SystemData)]
+pub struct FenceSystemData<'a> {
+    aabb_tree: Read<'a, AABBTree>,
+    entities: Entities<'a>,
+    fences: WriteStorage<'a, Fence>,
+    positions: ReadStorage<'a, Position>,
+    step_fences: WriteStorage<'a, StepFence>,
+    velocities: ReadStorage<'a, Velocity>,
+    zlevels: WriteStorage<'a, ZLevel>,
+}
+
+
+impl<'a> FenceSystemData<'a> {
+    pub fn run_fences(&mut self) {
         // Run regular fences
-        for (fence_ent, mut fence, &Position(pos)) in (&entities, &mut fences, &positions).join() {
-            self.run_fence(
-                &aabb_tree,
-                &entities,
+        for (fence_ent, mut fence, &Position(pos)) in
+            (&self.entities, &mut self.fences, &self.positions).join()
+        {
+            run_fence(
+                &self.aabb_tree,
+                &self.entities,
+                &self.velocities,
                 fence_ent,
                 &mut fence,
                 pos,
-                &velocities,
             );
         }
+    }
 
-        // Run step fences
+    pub fn run_step_fences(&mut self) {
         for (fence_ent, step_fence, &Position(pos)) in
-            (&entities, &mut step_fences, &positions).join()
+            (&self.entities, &mut self.step_fences, &self.positions).join()
         {
-            self.run_fence(
-                &aabb_tree,
-                &entities,
+            run_fence(
+                &self.aabb_tree,
+                &self.entities,
+                &self.velocities,
                 fence_ent,
                 &mut step_fence.fence,
                 pos,
-                &velocities,
             );
 
             // run through all crossings and adjust their zlevel
             for (entity, is_positive) in step_fence.fence.crossed.iter() {
-                zlevels.get_mut(*entity).map(|z| {
+                if let Some(z) = self.zlevels.get_mut(*entity) {
                     let inc = if *is_positive {
                         step_fence.step
                     } else {
@@ -203,8 +197,18 @@ impl<'a> System<'a> for FenceSystem {
 
                     z.0 += inc;
                     trace!("Stepping z {:?} to {:?}", inc, z.0);
-                });
+                }
             }
         }
+    }
+}
+
+
+impl<'a> System<'a> for FenceSystem {
+    type SystemData = FenceSystemData<'a>;
+
+    fn run(&mut self, mut data: FenceSystemData) {
+        data.run_fences();
+        data.run_step_fences();
     }
 }

@@ -12,7 +12,6 @@ pub use super::{
         animation::{Frame, *},
         fence::*,
         gamepad::*,
-        message::*,
         physics::*,
         player::*,
         screen::*,

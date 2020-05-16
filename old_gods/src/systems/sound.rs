@@ -1,7 +1,5 @@
 /// The SoundSystem handles playing music and sound.
-use specs::prelude::{
-    Component, Entities, HashMapStorage, Join, Read, ReadStorage, System, WriteStorage,
-};
+use specs::prelude::*;
 //use sdl2::mixer::{
 //  AUDIO_S16LSB,
 //  DEFAULT_CHANNELS,
@@ -11,7 +9,9 @@ use specs::prelude::{
 //};
 //use sdl2::mixer::InitFlag;
 
-use super::super::prelude::{Exile, OriginOffset, Player, Position, Screen, SoundBlaster, V2};
+use super::super::prelude::{
+    Exile, OriginOffset, Player, Position, Screen, SoundBlaster, JSON, V2,
+};
 
 
 #[derive(Debug, Clone)]
@@ -40,7 +40,7 @@ impl Component for Sound {
 
 
 pub struct SoundSystem {
-    blaster: SoundBlaster,
+    _blaster: SoundBlaster,
 }
 
 
@@ -66,46 +66,43 @@ impl SoundSystem {
 }
 
 
-impl SoundSystem {
-    pub fn new() -> SoundSystem {
+impl Default for SoundSystem {
+    fn default() -> SoundSystem {
         SoundSystem {
-            blaster: SoundBlaster::new(),
+            _blaster: SoundBlaster::new(),
         }
     }
 }
 
 
-//#[derive(SystemData)]
-//pub struct SoundSystemData<'a> {
-//    aabb_tree: Read<'a, AABBTree>,
-//    entities: Entities<'a>,
-//    jsons: WriteStorage<'a, JSON>,
-//}
+#[derive(SystemData)]
+pub struct SoundSystemData<'a> {
+    entities: Entities<'a>,
+    _jsons: WriteStorage<'a, JSON>,
+    players: ReadStorage<'a, Player>,
+    exiles: ReadStorage<'a, Exile>,
+    offsets: ReadStorage<'a, OriginOffset>,
+    positions: ReadStorage<'a, Position>,
+    screen: Read<'a, Screen>,
+    sounds: WriteStorage<'a, Sound>,
+}
 
 
 impl<'a> System<'a> for SoundSystem {
-    type SystemData = (
-        ReadStorage<'a, Player>,
-        Entities<'a>,
-        ReadStorage<'a, Exile>,
-        ReadStorage<'a, OriginOffset>,
-        ReadStorage<'a, Position>,
-        Read<'a, Screen>,
-        WriteStorage<'a, Sound>,
-    );
+    type SystemData = SoundSystemData<'a>;
 
-    fn run(
-        &mut self,
-        (players, entities, exiles, offsets, positions, screen, mut sounds): Self::SystemData,
-    ) {
+    fn run(&mut self, mut data: SoundSystemData) {
         // Find the greatest distance a player could see
-        let max_distance = screen.get_size().scalar_mul(0.3).magnitude();
+        let max_distance = data.screen.get_size().scalar_mul(0.3).magnitude();
         // Find the zeroeth player
-        let player_pos: V2 = (&entities, &players, &positions)
+        let player_pos: V2 = (&data.entities, &data.players, &data.positions)
             .join()
             .filter_map(|(e, c, p)| {
                 if c.0 == 0 {
-                    offsets.get(e).map(|&OriginOffset(o)| p.0 + o).or(Some(p.0))
+                    data.offsets
+                        .get(e)
+                        .map(|&OriginOffset(o)| p.0 + o)
+                        .or(Some(p.0))
                 } else {
                     None
                 }
@@ -113,14 +110,20 @@ impl<'a> System<'a> for SoundSystem {
             .collect::<Vec<_>>()
             .first()
             .cloned()
-            .unwrap_or(screen.get_focus());
+            .unwrap_or_else(|| data.screen.get_focus());
 
         // Run through all the sounds that need to be triggered
-        for (_ent, sound, &Position(p), ()) in (&entities, &mut sounds, &positions, !&exiles).join()
+        for (_ent, sound, &Position(p), ()) in (
+            &data.entities,
+            &mut data.sounds,
+            &data.positions,
+            !&data.exiles,
+        )
+            .join()
         {
             // TODO: Only check the sounds that are within a certain range of the
             // player position
-            let (_distance, _angle, can_hear_sound) = {
+            let (_distance, _angle, _can_hear_sound) = {
                 // Find the player's proximity to the sound
                 let proximity = player_pos.distance_to(&p);
                 // adjust for the max distance of seeing things and the volume
@@ -138,9 +141,9 @@ impl<'a> System<'a> for SoundSystem {
                 (distance, angle, percent < 1.0)
             };
 
-            if can_hear_sound {
-            } else {
-            }
+            //if can_hear_sound {
+            //} else {
+            //}
         }
     }
 }

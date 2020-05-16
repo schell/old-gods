@@ -83,9 +83,9 @@ impl Sprite {
 
     /// Switch the keyframe of this sprite. If a Sound storage is passed,
     /// play any sounds that may be set to auto_play=true.
-    pub fn switch_keyframe(&mut self, keyframe: &String, exiles: &mut WriteStorage<Exile>) {
+    pub fn switch_keyframe(&mut self, keyframe: &str, exiles: &mut WriteStorage<Exile>) {
         self.keyframe = None;
-        self.current_keyframe = keyframe.clone();
+        self.current_keyframe = keyframe.to_string();
 
         for (child_keyframe, children) in &self.keyframe_children {
             for child in children {
@@ -105,7 +105,7 @@ impl Sprite {
         self.keyframe_children
             .get(&self.current_keyframe)
             .expect("A sprite does not contain children of its own keyframe")
-            .into_iter()
+            .iter()
             .collect()
     }
 

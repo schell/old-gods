@@ -44,10 +44,10 @@ where
 
         let mut dispatcher = dispatcher_builder
             .with_thread_local(TiledmapSystem::new(base_url))
-            .with_thread_local(Physics::new())
+            .with_thread_local(Physics::default())
             .with_thread_local(ScreenSystem)
             .with_thread_local(AnimationSystem)
-            .with_thread_local(GamepadSystem::new())
+            .with_thread_local(GamepadSystem::default())
             .with_thread_local(PlayerSystem)
             .with_thread_local(TweenSystem)
             .with_thread_local(ZoneSystem)
@@ -118,7 +118,7 @@ where
 
     pub fn maintain(&mut self) {
         self.world.write_resource::<FPSCounter>().next_frame();
-        self.dispatcher.dispatch(&mut self.world);
+        self.dispatcher.dispatch(&self.world);
         self.world.maintain();
     }
 

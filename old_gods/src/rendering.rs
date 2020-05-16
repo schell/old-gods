@@ -65,7 +65,7 @@ fn point_lines(p: V2) -> Vec<V2> {
     let tr = p + V2::new(10.0, -10.0);
     let bl = p + V2::new(-10., 10.0);
     let br = p + V2::new(10.0, 10.0);
-    vec![tl.clone(), tr, bl, br, tl]
+    vec![tl, tr, bl, br, tl]
 }
 
 
@@ -96,7 +96,7 @@ where
     fn size_of_text(&mut self, font: &Self::Font, text: &str) -> Result<(f32, f32), String>;
 
     fn set_stroke_color(&mut self, color: &Color);
-    fn stroke_lines(&mut self, lines: &Vec<V2>);
+    fn stroke_lines(&mut self, lines: &[V2]);
     fn stroke_rect(&mut self, aabb: &AABB);
 
     fn draw_image(
@@ -124,7 +124,7 @@ impl RenderingContext for CanvasRenderingContext2d {
     fn context_size(self: &mut CanvasRenderingContext2d) -> Result<(u32, u32), String> {
         let canvas = self
             .canvas()
-            .ok_or("rendering context has no canvas".to_string())?;
+            .ok_or_else(|| "rendering context has no canvas".to_string())?;
         Ok((canvas.width(), canvas.height()))
     }
 
@@ -134,7 +134,7 @@ impl RenderingContext for CanvasRenderingContext2d {
     ) -> Result<(), String> {
         let canvas = self
             .canvas()
-            .ok_or("rendering context has no canvas".to_string())?;
+            .ok_or_else(|| "rendering context has no canvas".to_string())?;
         canvas.set_width(w);
         canvas.set_height(h);
         Ok(())
@@ -196,7 +196,7 @@ impl RenderingContext for CanvasRenderingContext2d {
         CanvasRenderingContext2d::set_stroke_style(self, &JsValue::from(color));
     }
 
-    fn stroke_lines(&mut self, lines: &Vec<V2>) {
+    fn stroke_lines(&mut self, lines: &[V2]) {
         self.begin_path();
         let mut iter = lines.iter();
         iter.next()
@@ -242,7 +242,7 @@ impl RenderingContext for CanvasRenderingContext2d {
         self.draw_image_with_html_canvas_element_and_dw_and_dh(
             &context
                 .canvas()
-                .ok_or("can't draw map to window".to_string())?,
+                .ok_or_else(|| "can't draw map to window".to_string())?,
             dest.top_left.x as f64,
             dest.top_left.y as f64,
             dest.width() as f64,
@@ -319,7 +319,7 @@ where
         self.get_rendering_context().set_stroke_color(color);
     }
 
-    fn stroke_lines(&mut self, lines: &Vec<V2>) {
+    fn stroke_lines(&mut self, lines: &[V2]) {
         self.get_rendering_context().stroke_lines(lines);
     }
 
@@ -365,32 +365,16 @@ where
         &mut self,
         src: AABB,
         destination: AABB,
-        flip_horizontal: bool,
-        flip_vertical: bool,
-        flip_diagonal: bool,
+        _flip_horizontal: bool,
+        _flip_vertical: bool,
+        _flip_diagonal: bool,
         tex: &<Self::Ctx as RenderingContext>::Image,
     ) -> Result<(), String> {
         //let mut should_flip_horizontal = false;
         //let should_flip_vertical;
         //let mut angle = 0.0;
 
-        match (flip_diagonal, flip_horizontal, flip_vertical) {
-            // TODO: Support CanvasRenderingContext2d flipped tiles
-            //(true, true, true) => {
-            //  angle = -90.0;
-            //  should_flip_vertical = true;
-            //},
-            //(true, a, b) => {
-            //  angle = -90.0;
-            //  should_flip_vertical = !b;
-            //  should_flip_horizontal = a;
-            //}
-            //(false, a, b) => {
-            //  should_flip_horizontal = a;
-            //  should_flip_vertical = b;
-            //}
-            _ => {}
-        }
+        {}
         self.get_rendering_context()
             .draw_image(tex, &src, &destination)
     }
@@ -504,11 +488,11 @@ where
             let z = data
                 .z_levels
                 .get(entity)
-                .or(player.map(|p| p.1))
+                .or_else(|| player.map(|p| p.1))
                 .cloned()
                 .unwrap_or(ZLevel(0.0));
             let alpha = if player.is_some() {
-                if z.0 == (player.unwrap().1).0 {
+                if (z.0 - (player.unwrap().1).0).abs() < f32::EPSILON {
                     255
                 } else {
                     50
@@ -605,14 +589,14 @@ where
                 );
                 let to = viewport_to_context(watched_pos);
                 let lines = arrow_lines(from, to);
-                let mut color = color.clone();
+                let mut color = color;
                 color.a = 72;
                 self.set_stroke_color(&color);
                 self.stroke_lines(&lines);
             }
             if let Some(name) = data.names.get(map_ent.entity) {
                 let text = Self::debug_text(name.0.as_str());
-                self.draw_text(&text, &viewport_to_context(pos.clone()))?;
+                self.draw_text(&text, &viewport_to_context(*pos))?;
             }
         }
 
@@ -714,7 +698,11 @@ where
             .get(map_ent.entity)
             .map(|_| true)
             .unwrap_or(false);
-        let alpha = if z.0 == player_z { 255 } else { 50 };
+        let alpha = if (z.0 - player_z).abs() < f32::EPSILON {
+            255
+        } else {
+            50
+        };
         let color = if is_exiled {
             Color::rgba(255, 255, 255, alpha)
         } else {
@@ -773,8 +761,7 @@ where
                         return;
                     }
                     let other_position = other_position.unwrap();
-                    let mtv = shape.mtv_apart(pos.0, &other_shape, other_position.0);
-                    mtv.map(|mtv| {
+                    if let Some(mtv) = shape.mtv_apart(pos.0, &other_shape, other_position.0) {
                         self.get_rendering_context()
                             .set_stroke_color(&Color::rgb(255, 255, 255));
 
@@ -786,7 +773,7 @@ where
 
                         let lines = arrow_lines(from, to);
                         self.get_rendering_context().stroke_lines(&lines);
-                    });
+                    }
                 });
         }
 
@@ -845,7 +832,7 @@ where
         &mut self,
         world: &mut World,
         resources: &mut Rsrc,
-        map_entities: &Vec<MapEntity>,
+        map_entities: &[MapEntity],
     ) -> Result<(), String>
     where
         Rsrc: Resources<<Self::Ctx as RenderingContext>::Image>,
@@ -925,7 +912,7 @@ where
     fn render_map_debug(
         &mut self,
         _world: &mut World,
-        _map_entities: &Vec<MapEntity>,
+        _map_entities: &[MapEntity],
     ) -> Result<(), String> {
         Ok(())
     }
@@ -935,7 +922,7 @@ where
         &mut self,
         _world: &mut World,
         _resources: &mut Rsrc,
-        _map_entities: &Vec<MapEntity>,
+        _map_entities: &[MapEntity],
         // The function needed to convert a point in the map viewport to the context.
         _viewport_to_context: F,
     ) -> Result<(), String>
@@ -951,7 +938,7 @@ where
     fn render_ui_debug(
         &mut self,
         world: &mut World,
-        map_entities: &Vec<MapEntity>,
+        map_entities: &[MapEntity],
         // The function needed to convert a point in the map viewport to the context.
         viewport_to_context: impl Fn(V2) -> V2,
     ) -> Result<(), String> {
@@ -976,7 +963,7 @@ where
                     V2::new(x + FPS_COUNTER_BUFFER_SIZE as f32, y),
                     V2::new(x, y),
                 ];
-                for avg in averages.into_iter() {
+                for avg in averages.iter() {
                     let percent = avg / max_average;
                     points.push(V2::new(x, y - (percent * height)));
                     x += 1.0
@@ -1027,7 +1014,7 @@ where
             .first()
             .cloned();
         let empty_toggles = HashSet::new();
-        for map_ent in map_entities.into_iter() {
+        for map_ent in map_entities.iter() {
             let obj_toggles: &HashSet<_> = data
                 .object_debug_toggles
                 .get(map_ent.entity)

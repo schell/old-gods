@@ -196,8 +196,8 @@ pub struct PlayerController {
 }
 
 
-impl PlayerController {
-    pub fn new() -> PlayerController {
+impl Default for PlayerController {
+    fn default() -> PlayerController {
         PlayerController {
             debouncing: Cell::new(false),
             controlling_ui: Cell::new(false),
@@ -209,7 +209,10 @@ impl PlayerController {
             down_above_threshold: None,
         }
     }
+}
 
+
+impl PlayerController {
     /// Debounce the controller, marking it unavailable to systems for the remainder of the
     /// frame.
     /// TODO: Gamepad debounce timer
@@ -468,7 +471,7 @@ impl PlayerController {
                         //msgs.push(format!("button {} {}", btn_ndx, pressed));
                     }
                 }
-                Err(_) => panic!("TODO: Support GamepadButton on other browsers"),
+                Err(err) => panic!("TODO: Support GamepadButton on other browsers: {:#?}", err),
             }
         }
 
@@ -559,8 +562,8 @@ pub struct GamepadSystem {
 }
 
 
-impl GamepadSystem {
-    pub fn new() -> Self {
+impl Default for GamepadSystem {
+    fn default() -> Self {
         GamepadSystem {
             web_controllers: Rc::new(RefCell::new(HashMap::new())),
         }
@@ -603,7 +606,7 @@ impl<'a> System<'a> for GamepadSystem {
                     let gamepad_val = nav_gamepads.get(i);
                     let gamepad: Gamepad = gamepad_val.unchecked_into();
                     if !player_controllers.contains_key(&gamepad.index()) {
-                        player_controllers.insert(gamepad.index(), PlayerController::new());
+                        player_controllers.insert(gamepad.index(), PlayerController::default());
                     }
                     gamepads.insert(gamepad.index(), gamepad);
                 }

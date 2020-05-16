@@ -4,7 +4,7 @@ pub mod animation;
 pub mod fence;
 pub mod gamepad;
 //pub mod map_loader;
-pub mod message;
+//pub mod message;
 pub mod physics;
 pub mod player;
 pub mod screen;

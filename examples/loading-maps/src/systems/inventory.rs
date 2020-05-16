@@ -135,12 +135,12 @@ fn create_new_inventories(
                 let rendering = data
                     .renderings
                     .get(ent)
-                    .ok_or("item has no rendering".to_string())?;
+                    .ok_or_else(|| "item has no rendering".to_string())?;
                 let shape = data
                     .shapes
                     .get(ent)
                     .cloned()
-                    .ok_or("item must have a shape")?;
+                    .ok_or_else(|| "item must have a shape")?;
                 trace!(
                     "{:#?} pos: {:#?} shape: {:#?}",
                     data.names.get(ent),

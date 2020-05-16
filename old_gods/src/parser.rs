@@ -1,4 +1,5 @@
 //! Parsing helpers for various Tiled parsing tasks.
+#![allow(clippy::many_single_char_names)]
 use nom::combinator::map_res;
 pub use nom::{
     branch::alt,

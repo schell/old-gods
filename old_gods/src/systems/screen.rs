@@ -108,36 +108,47 @@ impl Default for Screen {
 pub struct ScreenSystem;
 
 
-impl<'a> System<'a> for ScreenSystem {
-    type SystemData = (
-        Entities<'a>,
-        ReadStorage<'a, Exile>,
-        ReadStorage<'a, Player>,
-        ReadStorage<'a, Position>,
-        ReadStorage<'a, OriginOffset>,
-        Write<'a, Screen>,
-    );
+#[derive(SystemData)]
+pub struct ScreenSystemData<'a> {
+    entities: Entities<'a>,
+    exiles: ReadStorage<'a, Exile>,
+    players: ReadStorage<'a, Player>,
+    positions: ReadStorage<'a, Position>,
+    offsets: ReadStorage<'a, OriginOffset>,
+    screen: Write<'a, Screen>,
+}
 
-    fn run(
-        &mut self,
-        (entities, exiles, players, positions, offsets, mut screen): Self::SystemData,
-    ) {
-        if !screen.should_follow_players {
+
+impl<'a> System<'a> for ScreenSystem {
+    type SystemData = ScreenSystemData<'a>;
+
+    fn run(&mut self, mut data: ScreenSystemData) {
+        if !data.screen.should_follow_players {
             return;
         }
+
         // First get the minimum bounding rectangle that shows all players.
         let mut left = INFINITY;
         let mut right = NEG_INFINITY;
         let mut top = INFINITY;
         let mut bottom = NEG_INFINITY;
 
-        for (entity, _player, Position(pos), ()) in
-            (&entities, &players, &positions, !&exiles).join()
+        for (entity, _player, Position(pos), ()) in (
+            &data.entities,
+            &data.players,
+            &data.positions,
+            !&data.exiles,
+        )
+            .join()
         {
             // TODO: Allow npc players to be counted in screen following.
             // It wouldn't be too hard to have a component ScreenFollows and just search through that,
             // or use this method if there are no ScreenFollows comps in the ECS.
-            let offset = offsets.get(entity).map(|o| o.0).unwrap_or(V2::origin());
+            let offset = data
+                .offsets
+                .get(entity)
+                .map(|o| o.0)
+                .unwrap_or_else(V2::origin);
 
             let p = *pos + offset;
 
@@ -160,7 +171,7 @@ impl<'a> System<'a> for ScreenSystem {
             extents: V2::new(right - left, bottom - top),
         };
 
-        let distance = screen.distance_to_contain_point(&min_aabb.center());
-        screen.viewport.top_left += distance;
+        let distance = data.screen.distance_to_contain_point(&min_aabb.center());
+        data.screen.viewport.top_left += distance;
     }
 }

@@ -160,7 +160,7 @@ impl Shape {
 
 
     /// Returns a simple range of the vec.
-    pub fn range(v: &Vec<f32>) -> (f32, f32) {
+    pub fn range(v: &[f32]) -> (f32, f32) {
         let start = (std::f32::INFINITY, std::f32::NEG_INFINITY);
         v.iter().fold(start, |(min, max), n| {
             (f32::min(min, *n), f32::max(max, *n))
@@ -181,7 +181,7 @@ impl Shape {
                 let loc = p + v;
                 axis.dot(loc)
             })
-            .collect();
+            .collect::<Vec<_>>();
         Self::range(&points1d)
     }
 

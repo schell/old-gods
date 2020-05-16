@@ -30,45 +30,41 @@ impl<'a> System<'a> for PlayerSystem {
         // Find any objects with character types so we can create player components.
         let mut deletes = vec![];
         for (ent, obj) in (&data.entities, &data.objects).join() {
-            match obj.type_is.as_ref() {
-                "character" => {
-                    let properties = obj.json_properties();
-                    trace!("character {:#?}", obj);
-                    let scheme = properties
-                        .get("control")
-                        .map(|v| v.as_str().map(|s| s.to_string()))
-                        .flatten();
-                    match scheme.as_ref().map(|s| s.as_str()) {
-                        Some("player") => {
-                            let ndx = properties
-                                .get("player_index")
-                                .expect(
-                                    "Object must have a 'player_index' custom property for \
-                                     control.",
-                                )
-                                .as_u64()
-                                .map(|u| u as usize)
-                                .expect("'player_index value must be an integer");
-                            let _ = data.players.insert(ent, Player(ndx as u32));
-                        }
-
-                        Some("npc") => {
-                            panic!("TODO: NPC support");
-                        }
-
-                        None => {
-                            panic!("character object must have a 'control' property");
-                        }
-
-                        Some(scheme) => {
-                            warn!("unsupported character control scheme '{}'", scheme);
-                        }
+            if let "character" = obj.type_is.as_ref() {
+                let properties = obj.json_properties();
+                trace!("character {:#?}", obj);
+                let scheme = properties
+                    .get("control")
+                    .map(|v| v.as_str().map(|s| s.to_string()))
+                    .flatten();
+                match scheme.as_deref() {
+                    Some("player") => {
+                        let ndx = properties
+                            .get("player_index")
+                            .expect(
+                                "Object must have a 'player_index' custom property for control.",
+                            )
+                            .as_u64()
+                            .map(|u| u as usize)
+                            .expect("'player_index value must be an integer");
+                        let _ = data.players.insert(ent, Player(ndx as u32));
                     }
 
-                    let _ = data.velocities.insert(ent, Velocity(V2::origin()));
-                    deletes.push(ent);
+                    Some("npc") => {
+                        panic!("TODO: NPC support");
+                    }
+
+                    None => {
+                        panic!("character object must have a 'control' property");
+                    }
+
+                    Some(scheme) => {
+                        warn!("unsupported character control scheme '{}'", scheme);
+                    }
                 }
-                _ => {}
+
+                let _ = data.velocities.insert(ent, Velocity(V2::origin()));
+                deletes.push(ent);
             }
         }
         deletes.into_iter().for_each(|ent| {
@@ -78,26 +74,22 @@ impl<'a> System<'a> for PlayerSystem {
         // Run over all players and enforce their motivations.
         let joints: Vec<_> = (&data.entities, &data.players, !&data.exiles)
             .join()
-            .map(|(ep, p, ())| (ep.clone(), p.clone()))
+            .map(|(ep, p, ())| (ep, p.clone()))
             .collect();
         for (ent, player) in joints.into_iter() {
             let v = data
                 .velocities
                 .get_mut(ent)
-                .expect(&format!("Player {:?} does not have velocity.", player));
+                .unwrap_or_else(|| panic!("Player {:?} does not have velocity.", player));
 
-            let max_speed: MaxSpeed = data
-                .max_speeds
-                .get(ent)
-                .map(|mv| mv.clone())
-                .unwrap_or(MaxSpeed(100.0));
+            let max_speed: MaxSpeed = data.max_speeds.get(ent).cloned().unwrap_or(MaxSpeed(100.0));
 
             // Get the player's controller on the map
             data.player_controllers.with_map_ctrl_at(player.0, |ctrl| {
                 // Update the velocity of the toon based on the
                 // player's controller
                 let ana = ctrl.analog_rate();
-                let rate = ana.unitize().unwrap_or(V2::new(0.0, 0.0));
+                let rate = ana.unitize().unwrap_or_else(|| V2::new(0.0, 0.0));
                 let mult = rate.scalar_mul(max_speed.0);
                 v.0 = mult;
             });

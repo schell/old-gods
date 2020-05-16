@@ -111,7 +111,7 @@ impl mogwai::prelude::Component for App {
                 }
                 let num_entities = {
                     let entities = ecs.world.system_data::<Entities>();
-                    (&entities).join().collect::<Vec<_>>().len()
+                    (&entities).join().count()
                 };
                 tx_view.send(&OutMsg::Status(format!(
                     "Successfully loaded {} entities from {}",
@@ -176,7 +176,7 @@ pub fn main() -> Result<(), JsValue> {
         let mut ecs = Engine::new_with(
             "http://localhost:8888",
             dispatcher,
-            WebRenderingContext::new,
+            WebRenderingContext::default,
         );
         ecs.set_window_size(1600, 900);
         ecs.rendering_context

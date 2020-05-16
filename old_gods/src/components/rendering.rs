@@ -257,7 +257,7 @@ impl RenderingToggles {
         }
     }
 
-    pub fn from_properties(props: &Vec<Property>) -> HashSet<RenderingToggles> {
+    pub fn from_properties(props: &[Property]) -> HashSet<RenderingToggles> {
         let toggles = Self::property_map();
         let mut set = HashSet::new();
         for prop in props {
@@ -267,7 +267,7 @@ impl RenderingToggles {
             let toggle = toggles
                 .get(&prop.name)
                 .cloned()
-                .unwrap_or(RenderingToggles::Other(prop.name.clone()));
+                .unwrap_or_else(|| RenderingToggles::Other(prop.name.clone()));
             let should_set = prop.value.as_bool().unwrap_or(false);
             if should_set {
                 set.insert(toggle.clone());
@@ -281,7 +281,7 @@ impl RenderingToggles {
     ) -> Option<ObjectRenderingToggles> {
         let props_vec: Vec<Property> = props.iter().map(|(_, p)| p.clone()).collect();
         let toggles = Self::from_properties(&props_vec);
-        if toggles.len() > 0 {
+        if !toggles.is_empty() {
             for toggle in toggles.iter() {
                 let _ = props.remove(toggle.property_str());
             }
