@@ -1,6 +1,7 @@
 <div align="center">
   <h1>
     The Old Gods Engine
+    <br />
     <img src="old_gods/manual/src/img/logo.png" />
   </h1>
 </div>
