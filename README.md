@@ -24,7 +24,8 @@ This is a WIP and it was also my first Rust project.
 ## Performance
 I'm really surprised at the performance. So far without any attention to
 performance the engine is running at about 330FPS, with a high of about 500FPS
-(in SDL2). On wasm it's running at a pretty steady 60FPS.
+(in SDL2). On wasm it's running at a pretty steady 60FPS, but this is only 
+because the frame rate is tied to `requestAnimationFrame`.
 
 ## Core Features
 
