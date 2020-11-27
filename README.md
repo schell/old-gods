@@ -5,7 +5,7 @@
   </h1>
 </div>
 
-This is a handmade game engine meant for games targeting the web and SDL2.
+This is an aspirational handmade game engine meant for games targeting the web and SDL2.
 It reads Tiled map files into a specs based entity component system.
 
 Rendering is handled by HtmlCanvasElement or the built in SDL2 renderer.
@@ -17,6 +17,9 @@ A number of base systems handle the core of the engine:
 * GamepadSystem - controller support
 
 More specific add-ons are available as separate crates.
+
+## Warning
+This is a WIP and it was also my first Rust project. 
 
 ## Performance
 I'm really surprised at the performance. So far without any attention to
